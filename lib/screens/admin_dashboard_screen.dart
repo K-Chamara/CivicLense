@@ -28,6 +28,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   }
 
   Future<void> _loadData() async {
+    if (!mounted) return;
+    
     setState(() {
       _isLoading = true;
     });
@@ -36,16 +38,18 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       final users = await _adminService.getAllUsers();
       final stats = await _adminService.getUserStatistics();
       
-      setState(() {
-        _users = users;
-        _userStats = stats;
-        _isLoading = false;
-      });
-    } catch (e) {
-      setState(() {
-        _isLoading = false;
-      });
       if (mounted) {
+        setState(() {
+          _users = users;
+          _userStats = stats;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error loading data: $e'),
@@ -369,44 +373,16 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       context: context,
       builder: (context) => const CreateGovernmentUserDialog(),
     ).then((_) {
-      // Check if we need to reload data or handle admin switching
+      // Reload data after user creation
       _loadData();
-      
-      // Check if the current user is still admin
-      _checkAdminStatus();
     });
   }
 
-  Future<void> _checkAdminStatus() async {
-    try {
-      final currentUser = FirebaseAuth.instance.currentUser;
-      if (currentUser != null) {
-        final isAdmin = await _adminService.isAdmin(currentUser.uid);
-        if (!isAdmin) {
-          // Admin was switched to a different user (probably the newly created government user)
-          // Show success message and stay on admin dashboard
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Government user created successfully!'),
-                backgroundColor: Colors.green,
-                duration: Duration(seconds: 3),
-              ),
-            );
-            
-            // Don't sign out - just stay on admin dashboard
-            print('✅ Government user created successfully - staying on admin dashboard');
-          }
-        }
-      } else {
-        // No user is signed in, which means admin was signed out
-        // This shouldn't happen with our current approach
-        print('Admin was signed out - this shouldn\'t happen');
-      }
-    } catch (e) {
-      print('Error checking admin status: $e');
-    }
-  }
+  
+
+
+
+
 
   Future<void> _handleUserAction(String action, Map<String, dynamic> user) async {
     try {
@@ -498,45 +474,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     );
   }
 
-  void _showReLoginDialog() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        title: const Row(
-          children: [
-            Icon(Icons.warning, color: Colors.orange),
-            SizedBox(width: 8),
-            Text('Re-login Required'),
-          ],
-        ),
-        content: const Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'You have been signed out due to creating a new government user.',
-              style: TextStyle(fontSize: 16),
-            ),
-            SizedBox(height: 16),
-            Text(
-              'Please log back in as admin to continue managing the system.',
-              style: TextStyle(fontSize: 14),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              Navigator.of(context).pushReplacementNamed('/login');
-            },
-            child: const Text('Go to Login'),
-          ),
-        ],
-      ),
-    );
-  }
+
+
+
 
   Future<bool> _showDeleteConfirmation(Map<String, dynamic> user) async {
     return await showDialog<bool>(
@@ -591,7 +531,7 @@ class _CreateGovernmentUserDialogState extends State<CreateGovernmentUserDialog>
     super.dispose();
   }
 
-  void _showCredentialsDialogInParent(Map<String, String> result) {
+  void _showCredentialsDialogInParent(Map<String, dynamic> result) {
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -703,36 +643,36 @@ class _CreateGovernmentUserDialogState extends State<CreateGovernmentUserDialog>
         role: _selectedRole!,
       );
 
-      if (mounted) {
-        Navigator.of(context).pop();
-        
-        // Show success message and credentials dialog
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (context.mounted) {
-            // Show success snackbar
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('${_selectedRole!.name} created successfully!'),
-                backgroundColor: Colors.green,
-                duration: const Duration(seconds: 3),
-              ),
-            );
-            
-            // Show credentials dialog
-            _showCredentialsDialogInParent(result);
-          }
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error creating user: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    } finally {
+             if (mounted) {
+         Navigator.of(context).pop();
+         
+         // Show success message and credentials dialog
+         WidgetsBinding.instance.addPostFrameCallback((_) {
+           if (context.mounted) {
+             // Show success snackbar
+             ScaffoldMessenger.of(context).showSnackBar(
+               SnackBar(
+                 content: Text('${_selectedRole!.name} created successfully!'),
+                 backgroundColor: Colors.green,
+                 duration: const Duration(seconds: 3),
+               ),
+             );
+             
+             // Show credentials dialog
+             _showCredentialsDialogInParent(result);
+           }
+         });
+       }
+         } catch (e) {
+       if (mounted) {
+         ScaffoldMessenger.of(context).showSnackBar(
+           SnackBar(
+             content: Text('Error creating user: $e'),
+             backgroundColor: Colors.red,
+           ),
+         );
+       }
+     } finally {
       if (mounted) {
         setState(() {
           _isLoading = false;
