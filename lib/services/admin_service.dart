@@ -1,14 +1,14 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_core/firebase_core.dart';
 import '../models/user_role.dart';
+import 'package:flutter/foundation.dart';
 
 class AdminService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   
-  // Store admin credentials to re-authenticate after creating users
-  String? _adminEmail;
-  String? _adminPassword;
+
 
   // Check if current user is admin
   Future<bool> isAdmin(String uid) async {
@@ -78,7 +78,7 @@ class AdminService {
   }
 
   // Create government user with auto-generated credentials
-  Future<Map<String, String>> createGovernmentUser({
+  Future<Map<String, dynamic>> createGovernmentUser({
     required String email,
     required String firstName,
     required String lastName,
@@ -99,50 +99,99 @@ class AdminService {
       final currentAdminUser = _auth.currentUser;
       print('👤 Admin user before creation: ${currentAdminUser?.uid}');
 
-      // Create user in Firebase Auth
-      // This will automatically sign in as the new user, which we don't want
-      final userCredential = await _auth.createUserWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
-
-      print('🔧 Created Firebase Auth user: ${userCredential.user!.uid}');
-      print('👤 Current user after creation: ${_auth.currentUser?.uid}');
+      // IMPORTANT: Use a separate Firebase app instance to prevent admin logout
+      // This approach isolates the user creation process from the main auth session
       
-      // Create user document in Firestore
-      await _firestore.collection('users').doc(userCredential.user!.uid).set({
-        'email': email,
-        'firstName': firstName,
-        'lastName': lastName,
-        'username': username,
-        'role': role.toMap(),
-        'createdAt': FieldValue.serverTimestamp(),
-        'isActive': true,
-        'emailVerified': false,
-        'isGovernmentUser': true,
-        'createdBy': currentAdminUser?.uid,
-      });
-
-      print('📝 Created Firestore document for user: ${userCredential.user!.uid}');
+      FirebaseApp? secondaryApp;
+      FirebaseAuth? secondaryAuth;
       
-      // Send email with credentials
-      await _sendCredentialsEmail(email, username, password, role.name);
+      try {
+        // Create a secondary Firebase app for user creation
+        final appName = 'user-creation-${DateTime.now().millisecondsSinceEpoch}';
+        secondaryApp = await Firebase.initializeApp(
+          name: appName,
+          options: Firebase.app().options,
+        );
+        
+        // Get the secondary auth instance
+        secondaryAuth = FirebaseAuth.instanceFor(app: secondaryApp);
+        
+        print('🔧 Created secondary Firebase app: $appName');
+        
+        // Create user document in Firestore FIRST
+        final userData = {
+          'firstName': firstName,
+          'lastName': lastName,
+          'email': email,
+          'username': username,
+          'role': role.toMap(),
+          'isActive': true,
+          'emailVerified': false,
+          'createdAt': FieldValue.serverTimestamp(),
+          'createdBy': currentAdminUser?.uid,
+        };
 
-      // Generate and send OTP for government user
-      await _sendOtpEmail(email);
+        // Create the user document in a temporary collection first
+        final tempDocRef = _firestore.collection('temp_users').doc();
+        await tempDocRef.set(userData);
 
-      // Sign out immediately to prevent automatic navigation to new user dashboard
-      await _auth.signOut();
-      print('✅ Government user created successfully');
-      print('🔄 Signed out to prevent navigation to new user dashboard');
+        print('📝 Created temporary user document');
 
-      return {
-        'uid': userCredential.user!.uid,
-        'username': username,
-        'password': password,
-        'email': email,
-      };
+        // Create user in Firebase Auth using the secondary instance
+        final userCredential = await secondaryAuth.createUserWithEmailAndPassword(
+          email: email,
+          password: password,
+        );
+
+        print('🔧 Created Firebase Auth user: ${userCredential.user!.uid}');
+
+        // Move the document from temp collection to actual users collection
+        final newUserDoc = _firestore.collection('users').doc(userCredential.user!.uid);
+        await newUserDoc.set(userData);
+
+        // Delete the temporary document
+        await tempDocRef.delete();
+
+        print('📝 Moved user document to permanent location');
+
+        // Send email with credentials
+        await _sendCredentialsEmail(email, username, password, role.name);
+
+        // Generate and send OTP for government user
+        await _sendOtpEmail(email);
+
+        print('✅ Government user created successfully');
+
+        return {
+          'uid': userCredential.user!.uid,
+          'username': username,
+          'password': password,
+          'email': email,
+          'requiresReAuth': false, // No re-auth needed since admin session is preserved
+        };
+        
+      } finally {
+        // Clean up the secondary app
+        if (secondaryApp != null) {
+          try {
+            await secondaryApp.delete();
+            print('🧹 Cleaned up secondary Firebase app');
+          } catch (e) {
+            print('⚠️ Error cleaning up secondary app: $e');
+          }
+        }
+      }
     } catch (e) {
+      // Clean up any temporary documents on error
+      try {
+        final tempDocs = await _firestore.collection('temp_users').get();
+        for (final doc in tempDocs.docs) {
+          await doc.reference.delete();
+        }
+      } catch (cleanupError) {
+        print('⚠️ Error cleaning up temporary documents: $cleanupError');
+      }
+      
       throw Exception('Failed to create government user: $e');
     }
   }
@@ -253,20 +302,23 @@ class AdminService {
       // Store OTP in Firestore with 5-minute expiration
       await _firestore.collection('otp').doc(email).set({
         'otp': otp,
-        'expiresAt': FieldValue.serverTimestamp(),
+        'expiresAt': Timestamp.fromDate(
+          DateTime.now().add(const Duration(minutes: 5)),
+        ),
         'createdAt': FieldValue.serverTimestamp(),
       });
 
-      print('📧 OTP EMAIL NOTIFICATION (Not implemented yet)');
+      print('📧 OTP GENERATED FOR TESTING');
       print('To: $email');
-      print('Subject: Your Civic Lense Login OTP');
-      print('Body:');
-      print('Hello,');
-      print('Your 4-digit verification code is: $otp');
+      print('OTP Code: $otp');
       print('This code will expire in 5 minutes.');
-      print('Please enter this code to complete your login.');
       print('');
-      print('Note: This is a placeholder. In production, implement proper email sending.');
+      print('⚠️ NOTE: Email sending is not implemented yet.');
+      print('For testing, use the OTP code above to log in.');
+      print('In production, implement proper email sending using:');
+      print('- Firebase Functions with SendGrid');
+      print('- Firebase Functions with Mailgun');
+      print('- Firebase Functions with Gmail API');
       
     } catch (e) {
       print('❌ Error sending OTP: $e');
@@ -305,4 +357,28 @@ class AdminService {
       return false;
     }
   }
+
+  // Get OTP for testing purposes (for development only)
+  Future<String?> getOtpForTesting(String email) async {
+    try {
+      final otpDoc = await _firestore.collection('otp').doc(email).get();
+      if (otpDoc.exists) {
+        final otpData = otpDoc.data()!;
+        final expiresAt = (otpData['expiresAt'] as Timestamp).toDate();
+        
+        // Check if OTP is expired
+        if (DateTime.now().isAfter(expiresAt)) {
+          print('⚠️ OTP has expired for $email');
+          return null;
+        }
+        
+        return otpData['otp'] as String;
+      }
+      return null;
+    } catch (e) {
+      print('❌ Error getting OTP: $e');
+      return null;
+    }
+  }
+
 }

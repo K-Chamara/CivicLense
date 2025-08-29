@@ -20,7 +20,7 @@ class _SignupScreenState extends State<SignupScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
-  
+
   bool _isLoading = false;
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
@@ -66,15 +66,14 @@ class _SignupScreenState extends State<SignupScreen> {
       if (mounted) {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(
-            builder: (context) => EmailVerificationScreen(
-              email: _emailController.text.trim(),
-            ),
+            builder: (context) =>
+                EmailVerificationScreen(email: _emailController.text.trim()),
           ),
         );
       }
     } on FirebaseAuthException catch (e) {
       String message = 'An error occurred during registration.';
-      
+
       switch (e.code) {
         case 'weak-password':
           message = 'The password provided is too weak.';
@@ -86,7 +85,8 @@ class _SignupScreenState extends State<SignupScreen> {
           message = 'Please enter a valid email address.';
           break;
         case 'operation-not-allowed':
-          message = 'Email/Password authentication is not enabled. Please enable it in Firebase Console.';
+          message =
+              'Email/Password authentication is not enabled. Please enable it in Firebase Console.';
           break;
         case 'network-request-failed':
           message = 'Network error. Please check your internet connection.';
@@ -97,10 +97,7 @@ class _SignupScreenState extends State<SignupScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(message),
-            backgroundColor: Colors.red,
-          ),
+          SnackBar(content: Text(message), backgroundColor: Colors.red),
         );
       }
     } catch (e) {
@@ -138,11 +135,7 @@ class _SignupScreenState extends State<SignupScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 // App Logo/Title
-                const Icon(
-                  Icons.account_balance,
-                  size: 60,
-                  color: Colors.blue,
-                ),
+                const Icon(Icons.account_balance, size: 60, color: Colors.blue),
                 const SizedBox(height: 16),
                 const Text(
                   'Join Civic Lense',
@@ -156,10 +149,7 @@ class _SignupScreenState extends State<SignupScreen> {
                 const SizedBox(height: 8),
                 const Text(
                   'Create your account to start tracking public spending',
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Colors.grey,
-                  ),
+                  style: TextStyle(fontSize: 16, color: Colors.grey),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 32),
@@ -208,7 +198,9 @@ class _SignupScreenState extends State<SignupScreen> {
                     if (value == null || value.isEmpty) {
                       return 'Please enter your email';
                     }
-                    if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
+                    if (!RegExp(
+                      r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
+                    ).hasMatch(value)) {
                       return 'Please enter a valid email';
                     }
                     return null;
@@ -224,7 +216,9 @@ class _SignupScreenState extends State<SignupScreen> {
                   obscureText: _obscurePassword,
                   suffixIcon: IconButton(
                     icon: Icon(
-                      _obscurePassword ? Icons.visibility : Icons.visibility_off,
+                      _obscurePassword
+                          ? Icons.visibility
+                          : Icons.visibility_off,
                     ),
                     onPressed: () {
                       setState(() {
@@ -240,7 +234,7 @@ class _SignupScreenState extends State<SignupScreen> {
                       return 'Password must be at least 6 characters';
                     }
                     return null;
-                  },
+                  }, //hello
                 ),
                 const SizedBox(height: 16),
 
@@ -252,7 +246,9 @@ class _SignupScreenState extends State<SignupScreen> {
                   obscureText: _obscureConfirmPassword,
                   suffixIcon: IconButton(
                     icon: Icon(
-                      _obscureConfirmPassword ? Icons.visibility : Icons.visibility_off,
+                      _obscureConfirmPassword
+                          ? Icons.visibility
+                          : Icons.visibility_off,
                     ),
                     onPressed: () {
                       setState(() {
@@ -275,10 +271,7 @@ class _SignupScreenState extends State<SignupScreen> {
                 // Role Selection
                 const Text(
                   'Select Your Role',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 16),
 
@@ -323,7 +316,7 @@ class _SignupScreenState extends State<SignupScreen> {
 
   Widget _buildRoleCard(UserRole role) {
     final isSelected = _selectedRole?.id == role.id;
-    
+
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       elevation: isSelected ? 4 : 1,
@@ -352,11 +345,7 @@ class _SignupScreenState extends State<SignupScreen> {
                   color: role.color.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Icon(
-                  role.icon,
-                  color: role.color,
-                  size: 24,
-                ),
+                child: Icon(role.icon, color: role.color, size: 24),
               ),
               const SizedBox(width: 16),
               Expanded(
@@ -382,11 +371,7 @@ class _SignupScreenState extends State<SignupScreen> {
                 ),
               ),
               if (isSelected)
-                Icon(
-                  Icons.check_circle,
-                  color: role.color,
-                  size: 24,
-                ),
+                Icon(Icons.check_circle, color: role.color, size: 24),
             ],
           ),
         ),
@@ -394,5 +379,3 @@ class _SignupScreenState extends State<SignupScreen> {
     );
   }
 }
-
-
