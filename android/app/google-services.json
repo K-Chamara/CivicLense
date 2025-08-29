@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "713156082660",
+    "project_id": "civiclense-29dd4",
+    "storage_bucket": "civiclense-29dd4.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:713156082660:android:d3e910c5cfccffc4d965f1",
+        "android_client_info": {
+          "package_name": "com.example.civic_lense"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDsuZvAYENgzAS4mHykFgionOt3oAaPpG8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
