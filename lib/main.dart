@@ -8,9 +8,11 @@ import 'screens/dashboard_screen.dart';
 import 'screens/admin_dashboard_screen.dart';
 import 'screens/admin_setup_screen.dart';
 import 'screens/otp_screen.dart';
+import 'screens/finance_officer_dashboard_screen.dart';
+import 'screens/procurement_officer_dashboard_screen.dart';
+import 'screens/anticorruption_officer_dashboard_screen.dart';
+import 'screens/public_user_dashboard_screen.dart';
 import 'services/admin_service.dart';
-import 'models/user_role.dart';
-import 'services/auth_service.dart';
 import 'utils/create_admin.dart';
 
 void main() async {
@@ -45,6 +47,10 @@ class MyApp extends StatelessWidget {
         '/dashboard': (context) => const DashboardScreen(),
         '/admin-setup': (context) => const AdminSetupScreen(),
         '/otp': (context) => const OtpScreen(email: '', password: ''),
+        '/finance-dashboard': (context) => const FinanceOfficerDashboardScreen(),
+        '/procurement-dashboard': (context) => const ProcurementOfficerDashboardScreen(),
+        '/anticorruption-dashboard': (context) => const AntiCorruptionOfficerDashboardScreen(),
+        '/public-dashboard': (context) => const PublicUserDashboardScreen(),
       },
     );
   }
@@ -118,7 +124,7 @@ class AuthWrapper extends StatelessWidget {
         return const AdminDashboardScreen();
       }
       
-      // Check if this is a government user
+      // Get user data from Firestore
       final userDoc = await FirebaseFirestore.instance
           .collection('users')
           .doc(uid)
@@ -127,15 +133,32 @@ class AuthWrapper extends StatelessWidget {
       if (userDoc.exists) {
         final userData = userDoc.data()!;
         final role = userData['role'];
-        if (role != null && role['userType'] == 'government') {
-          // This is a government user, they should go through OTP flow
-          // For now, return regular dashboard
-          return const DashboardScreen();
+        
+        if (role != null) {
+          final roleId = role['id'];
+          
+          // Route to specific dashboard based on role
+          switch (roleId) {
+            case 'finance_officer':
+              return const FinanceOfficerDashboardScreen();
+            case 'procurement_officer':
+              return const ProcurementOfficerDashboardScreen();
+            case 'anticorruption_officer':
+              return const AntiCorruptionOfficerDashboardScreen();
+            case 'citizen':
+            case 'journalist':
+            case 'community_leader':
+            case 'researcher':
+            case 'ngo':
+              return const PublicUserDashboardScreen();
+            default:
+              // Fallback to regular dashboard for unknown roles
+              return const DashboardScreen();
+          }
         }
       }
       
-      // For now, return regular dashboard for all other users
-      // Later, you can add specific dashboards for government users
+      // Fallback to regular dashboard if no role found
       return const DashboardScreen();
     } catch (e) {
       // If there's an error, return regular dashboard
