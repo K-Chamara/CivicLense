@@ -208,7 +208,7 @@ class _TimelineTrackerScreenState extends State<TimelineTrackerScreen> {
           Container(
             padding: const EdgeInsets.all(16),
                           child: DropdownButtonFormField<String>(
-                initialValue: _selectedTender.isEmpty ? null : _selectedTender,
+                value: _selectedTender.isEmpty ? null : _selectedTender,
               decoration: const InputDecoration(
                 labelText: 'Select Tender',
                 border: OutlineInputBorder(),
