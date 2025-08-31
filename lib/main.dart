@@ -12,8 +12,15 @@ import 'screens/finance_officer_dashboard_screen.dart';
 import 'screens/procurement_officer_dashboard_screen.dart';
 import 'screens/anticorruption_officer_dashboard_screen.dart';
 import 'screens/public_user_dashboard_screen.dart';
-import 'services/admin_service.dart';
-import 'utils/create_admin.dart';
+import 'screens/add_tender_screen.dart';
+import 'screens/timeline_tracker_screen.dart';
+import 'screens/ongoing_tenders_screen.dart';
+import 'screens/public_dashboard_screen.dart';
+import 'screens/notifications_screen.dart';
+import 'screens/tender_management_screen.dart';
+import 'screens/bidder_management_screen.dart';
+import 'services/auth_service.dart';
+import 'models/user_role.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -51,6 +58,13 @@ class MyApp extends StatelessWidget {
         '/procurement-dashboard': (context) => const ProcurementOfficerDashboardScreen(),
         '/anticorruption-dashboard': (context) => const AntiCorruptionOfficerDashboardScreen(),
         '/public-dashboard': (context) => const PublicUserDashboardScreen(),
+        '/add-tender': (context) => const AddTenderScreen(),
+        '/timeline-tracker': (context) => const TimelineTrackerScreen(),
+        '/ongoing-tenders': (context) => const OngoingTendersScreen(),
+        '/public-dashboard-view': (context) => const PublicDashboardScreen(),
+        '/notifications': (context) => const NotificationsScreen(),
+        '/tender-management': (context) => const TenderManagementScreen(),
+        '/bidder-management': (context) => const BidderManagementScreen(tenderId: '', tenderTitle: ''),
       },
     );
   }
@@ -74,10 +88,10 @@ class AuthWrapper extends StatelessWidget {
 
         if (snapshot.hasData && snapshot.data != null) {
           // User is signed in, check their role and show appropriate dashboard
-          return FutureBuilder<Widget>(
-            future: _getDashboardForUser(snapshot.data!.uid),
-            builder: (context, dashboardSnapshot) {
-              if (dashboardSnapshot.connectionState == ConnectionState.waiting) {
+          return FutureBuilder<UserRole?>(
+            future: AuthService().getUserRole(snapshot.data!.uid),
+            builder: (context, roleSnapshot) {
+              if (roleSnapshot.connectionState == ConnectionState.waiting) {
                 return const Scaffold(
                   body: Center(
                     child: CircularProgressIndicator(),
@@ -85,84 +99,33 @@ class AuthWrapper extends StatelessWidget {
                 );
               }
 
-              return dashboardSnapshot.data ?? const DashboardScreen();
+              final userRole = roleSnapshot.data;
+              
+              if (userRole != null) {
+                switch (userRole.id) {
+                  case 'admin':
+                    return const AdminDashboardScreen();
+                  case 'procurement_officer':
+                    return const ProcurementOfficerDashboardScreen();
+                  case 'finance_officer':
+                    return const FinanceOfficerDashboardScreen();
+                  case 'anticorruption_officer':
+                    return const AntiCorruptionOfficerDashboardScreen();
+                  default:
+                    return const DashboardScreen();
+                }
+              } else {
+                return const DashboardScreen();
+              }
             },
           );
         }
 
-        // User is not signed in, check if admin exists
-        return FutureBuilder<bool>(
-          future: AdminCreator.adminExists(),
-          builder: (context, adminSnapshot) {
-            if (adminSnapshot.connectionState == ConnectionState.waiting) {
-              return const Scaffold(
-                body: Center(
-                  child: CircularProgressIndicator(),
-                ),
-              );
-            }
-
-            if (adminSnapshot.hasData && adminSnapshot.data == true) {
-              // Admin exists, show login screen
-              return const LoginScreen();
-            } else {
-              // No admin exists, show admin setup
-              return const AdminSetupScreen();
-            }
-          },
-        );
+        // User is not signed in, show onboarding
+        return const OnboardingScreen();
       },
     );
   }
 
-  Future<Widget> _getDashboardForUser(String uid) async {
-    try {
-      final adminService = AdminService();
-      final isAdmin = await adminService.isAdmin(uid);
-      
-      if (isAdmin) {
-        return const AdminDashboardScreen();
-      }
-      
-      // Get user data from Firestore
-      final userDoc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(uid)
-          .get();
-      
-      if (userDoc.exists) {
-        final userData = userDoc.data()!;
-        final role = userData['role'];
-        
-        if (role != null) {
-          final roleId = role['id'];
-          
-          // Route to specific dashboard based on role
-          switch (roleId) {
-            case 'finance_officer':
-              return const FinanceOfficerDashboardScreen();
-            case 'procurement_officer':
-              return const ProcurementOfficerDashboardScreen();
-            case 'anticorruption_officer':
-              return const AntiCorruptionOfficerDashboardScreen();
-            case 'citizen':
-            case 'journalist':
-            case 'community_leader':
-            case 'researcher':
-            case 'ngo':
-              return const PublicUserDashboardScreen();
-            default:
-              // Fallback to regular dashboard for unknown roles
-              return const DashboardScreen();
-          }
-        }
-      }
-      
-      // Fallback to regular dashboard if no role found
-      return const DashboardScreen();
-    } catch (e) {
-      // If there's an error, return regular dashboard
-      return const DashboardScreen();
-    }
-  }
+
 }
