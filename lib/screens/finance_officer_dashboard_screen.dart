@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import '../models/user_role.dart';
+import 'budget_dashboard_screen.dart';
+import '../utils/generate_budget_data.dart';
 
 class FinanceOfficerDashboardScreen extends StatefulWidget {
   const FinanceOfficerDashboardScreen({super.key});
@@ -71,6 +73,11 @@ class _FinanceOfficerDashboardScreenState extends State<FinanceOfficerDashboardS
         foregroundColor: Colors.white,
         elevation: 0,
         actions: [
+          IconButton(
+            icon: const Icon(Icons.data_usage),
+            onPressed: _generateSampleData,
+            tooltip: 'Generate Sample Data',
+          ),
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: _signOut,
@@ -264,7 +271,12 @@ class _FinanceOfficerDashboardScreenState extends State<FinanceOfficerDashboardS
           'Create, monitor, and adjust government budgets',
           Icons.account_balance_wallet,
           Colors.green,
-          () => _showFeatureComingSoon('Budget Management'),
+          () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const BudgetDashboardScreen(),
+            ),
+          ),
         ),
         _buildFeatureCard(
           'Financial Reports',
@@ -442,5 +454,30 @@ class _FinanceOfficerDashboardScreenState extends State<FinanceOfficerDashboardS
         duration: const Duration(seconds: 2),
       ),
     );
+  }
+
+  Future<void> _generateSampleData() async {
+    try {
+      await BudgetDataGenerator.generateSampleBudgetData();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Sample budget data generated successfully!'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error generating sample data: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    }
   }
 }
