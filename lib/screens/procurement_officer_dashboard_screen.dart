@@ -1,6 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../services/auth_service.dart';
 import '../models/user_role.dart';
+import 'add_tender_screen.dart';
+import 'ongoing_tenders_screen.dart';
+import 'notifications_screen.dart';
+import 'tender_management_screen.dart';
 
 class ProcurementOfficerDashboardScreen extends StatefulWidget {
   const ProcurementOfficerDashboardScreen({super.key});
@@ -14,11 +20,20 @@ class _ProcurementOfficerDashboardScreenState extends State<ProcurementOfficerDa
   UserRole? userRole;
   Map<String, dynamic>? userData;
   bool isLoading = true;
+  int _currentIndex = 0;
+  
+  // Dashboard statistics
+  int tenderCount = 0;
+  int activeProjects = 0;
+  int notificationCount = 0;
+  int pendingMilestones = 0;
+  List<Map<String, dynamic>> recentProjects = [];
 
   @override
   void initState() {
     super.initState();
     _loadUserData();
+    _loadDashboardData();
   }
 
   Future<void> _loadUserData() async {
@@ -30,6 +45,134 @@ class _ProcurementOfficerDashboardScreenState extends State<ProcurementOfficerDa
       setState(() {
         userRole = role;
         userData = data;
+      });
+    }
+  }
+
+  Future<void> _loadDashboardData() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+
+      // Load tenders created by the current user
+      final tendersQuery = await FirebaseFirestore.instance
+          .collection('tenders')
+          .where('createdBy', isEqualTo: user.uid)
+          .get();
+
+      final tenders = tendersQuery.docs.map((doc) => doc.data()).toList();
+
+      // Load projects created by the current user
+      final projectsQuery = await FirebaseFirestore.instance
+          .collection('projects')
+          .where('createdBy', isEqualTo: user.uid)
+          .get();
+
+      final projects = projectsQuery.docs.map((doc) => doc.data()).toList();
+
+      // Calculate statistics
+      tenderCount = tenders.length;
+      activeProjects = tenders.where((tender) => tender['status'] == 'active').length + projects.length;
+      
+      // Load notifications count
+      try {
+        final notificationsSnapshot = await FirebaseFirestore.instance
+            .collection('notifications')
+            .where('userId', isEqualTo: user.uid)
+            .where('isRead', isEqualTo: false)
+            .get();
+        notificationCount = notificationsSnapshot.docs.length;
+      } catch (e) {
+        print('Error loading notifications count: $e');
+        notificationCount = 0;
+      }
+      
+      // Load pending milestones count
+      try {
+        final milestonesSnapshot = await FirebaseFirestore.instance
+            .collection('milestones')
+            .where('status', isEqualTo: 'pending')
+            .get();
+        pendingMilestones = milestonesSnapshot.docs.length;
+      } catch (e) {
+        print('Error loading pending milestones count: $e');
+        pendingMilestones = 0;
+      }
+
+      // Get recent projects (combine active tenders and projects)
+      final List<Map<String, dynamic>> allRecentItems = [];
+
+      // Add active tenders
+      final activeTenders = tenders
+          .where((tender) => tender['status'] == 'active')
+          .map((tender) => {
+                'id': tender['id'],
+                'title': tender['title'] ?? '',
+                'budget': tender['budget'] ?? 0.0,
+                'deadline': tender['deadline'] ?? '',
+                'category': tender['category'] ?? '',
+                'totalBids': tender['totalBids'] ?? 0,
+                'type': 'tender',
+                'createdAt': tender['createdAt'],
+              })
+          .toList();
+
+             // Add projects with winning bid amounts
+       final List<Map<String, dynamic>> projectItems = [];
+       for (final project in projects) {
+         // Get winning bid amount for this project
+         double winningBidAmount = project['budget'] ?? 0.0; // fallback to original budget
+         
+         if (project['tenderId'] != null) {
+           try {
+             final bidsSnapshot = await FirebaseFirestore.instance
+                 .collection('bids')
+                 .where('tenderId', isEqualTo: project['tenderId'])
+                 .where('status', isEqualTo: 'awarded')
+                 .get();
+             
+             if (bidsSnapshot.docs.isNotEmpty) {
+               final winningBid = bidsSnapshot.docs.first.data();
+               winningBidAmount = winningBid['bidAmount'] ?? project['budget'] ?? 0.0;
+             }
+           } catch (e) {
+             print('Error fetching winning bid for project ${project['id']}: $e');
+           }
+         }
+         
+         projectItems.add({
+           'id': project['id'],
+           'title': project['tenderTitle'] ?? '',
+           'budget': winningBidAmount,
+           'deadline': '',
+           'category': project['category'] ?? '',
+           'totalBids': 0,
+           'type': 'project',
+           'createdAt': project['createdAt'],
+         });
+       }
+
+             allRecentItems.addAll(activeTenders);
+       allRecentItems.addAll(projectItems);
+
+      // Sort by creation date (newest first) and take the most recent 4
+      allRecentItems.sort((a, b) {
+        final aDate = a['createdAt'] as Timestamp?;
+        final bDate = b['createdAt'] as Timestamp?;
+        if (aDate == null && bDate == null) return 0;
+        if (aDate == null) return 1;
+        if (bDate == null) return -1;
+        return bDate.compareTo(aDate);
+      });
+
+      recentProjects = allRecentItems.take(4).toList();
+
+      setState(() {
+        isLoading = false;
+      });
+    } catch (e) {
+      print('Error loading dashboard data: $e');
+      setState(() {
         isLoading = false;
       });
     }
@@ -53,6 +196,74 @@ class _ProcurementOfficerDashboardScreenState extends State<ProcurementOfficerDa
     }
   }
 
+  String _formatBudget(double budget) {
+    if (budget >= 1000000) {
+      return '\$${(budget / 1000000).toStringAsFixed(1)}M';
+    } else if (budget >= 1000) {
+      return '\$${(budget / 1000).toStringAsFixed(1)}K';
+    } else {
+      return '\$${budget.toStringAsFixed(0)}';
+    }
+  }
+
+  String _getDaysRemaining(String deadline) {
+    try {
+      final deadlineDate = DateTime.parse(deadline);
+      final now = DateTime.now();
+      final difference = deadlineDate.difference(now).inDays;
+      
+      if (difference < 0) {
+        return 'Expired';
+      } else if (difference == 0) {
+        return 'Today';
+      } else if (difference == 1) {
+        return 'Tomorrow';
+      } else {
+        return '$difference days left';
+      }
+    } catch (e) {
+      return 'Invalid date';
+    }
+  }
+
+  Color _getCategoryColor(String category) {
+    switch (category) {
+      case 'IT Services':
+        return Colors.blue;
+      case 'Office Supplies':
+        return Colors.green;
+      case 'Security Services':
+        return Colors.orange;
+      case 'Vehicle Maintenance':
+        return Colors.purple;
+      case 'Healthcare':
+        return Colors.red;
+      case 'Infrastructure':
+        return Colors.indigo;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  IconData _getCategoryIcon(String category) {
+    switch (category) {
+      case 'IT Services':
+        return Icons.computer;
+      case 'Office Supplies':
+        return Icons.inventory;
+      case 'Security Services':
+        return Icons.security;
+      case 'Vehicle Maintenance':
+        return Icons.directions_car;
+      case 'Healthcare':
+        return Icons.medical_services;
+      case 'Infrastructure':
+        return Icons.construction;
+      default:
+        return Icons.work;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (isLoading) {
@@ -63,41 +274,118 @@ class _ProcurementOfficerDashboardScreenState extends State<ProcurementOfficerDa
       );
     }
 
+    final List<Widget> screens = [
+      _buildHomeScreen(),
+      const TenderManagementScreen(),
+      const OngoingTendersScreen(),
+      const NotificationsScreen(),
+    ];
+
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
       appBar: AppBar(
-        title: const Text('Procurement Officer Dashboard'),
-        backgroundColor: Colors.orange,
+        title: Text(_getAppBarTitle()),
+        backgroundColor: Colors.lightBlue,
         foregroundColor: Colors.white,
         elevation: 0,
         actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _loadDashboardData,
+            tooltip: 'Refresh Data',
+          ),
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: _signOut,
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Welcome Section
-            _buildWelcomeCard(),
-            const SizedBox(height: 24),
+      body: screens[_currentIndex],
+             bottomNavigationBar: BottomNavigationBar(
+         type: BottomNavigationBarType.fixed,
+         currentIndex: _currentIndex,
+         selectedItemColor: Colors.lightBlue,
+         unselectedItemColor: Colors.grey,
+        onTap: (index) {
+          setState(() {
+            _currentIndex = index;
+          });
+        },
+        items: const [
+          BottomNavigationBarItem(
+            icon: Icon(Icons.home),
+            label: 'Home',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.manage_accounts),
+            label: 'Tenders',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.assignment),
+            label: 'Projects',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.notifications),
+            label: 'Notifications',
+          ),
+        ],
+      ),
+             floatingActionButton: _currentIndex == 0 ? FloatingActionButton(
+         onPressed: () {
+           Navigator.push(
+             context,
+             MaterialPageRoute(builder: (context) => const AddTenderScreen()),
+           ).then((_) {
+             // Refresh data when returning from add tender screen
+             _loadDashboardData();
+           });
+         },
+         backgroundColor: Colors.lightBlue,
+         foregroundColor: Colors.white,
+        child: const Icon(Icons.add),
+      ) : null,
+    );
+  }
 
-            // Quick Stats
-            _buildQuickStats(),
-            const SizedBox(height: 24),
+  String _getAppBarTitle() {
+    switch (_currentIndex) {
+      case 0:
+        return 'PO Dashboard';
+      case 1:
+        return 'Tender Management';
+      case 2:
+        return 'Active Projects';
+      case 3:
+        return 'Notifications';
+      default:
+        return 'PO Dashboard';
+    }
+  }
 
-            // Main Features
-            _buildMainFeatures(),
-            const SizedBox(height: 24),
+  Widget _buildHomeScreen() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Welcome Section
+          _buildWelcomeCard(),
+          const SizedBox(height: 24),
 
-            // Active Tenders
-            _buildActiveTenders(),
-          ],
-        ),
+          // Quick Stats
+          _buildQuickStats(),
+          const SizedBox(height: 24),
+
+          // Main Features
+          _buildMainFeatures(),
+          const SizedBox(height: 24),
+
+          // Active Projects
+          _buildActiveProjects(),
+          
+          // Bottom padding to prevent FAB overlap
+          const SizedBox(height: 80),
+        ],
       ),
     );
   }
@@ -105,21 +393,21 @@ class _ProcurementOfficerDashboardScreenState extends State<ProcurementOfficerDa
   Widget _buildWelcomeCard() {
     return Container(
       padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Colors.orange, Colors.orangeAccent],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.orange.withOpacity(0.3),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
+             decoration: BoxDecoration(
+         gradient: const LinearGradient(
+           colors: [Colors.lightBlue, Colors.blue],
+           begin: Alignment.topLeft,
+           end: Alignment.bottomRight,
+         ),
+         borderRadius: BorderRadius.circular(16),
+         boxShadow: [
+           BoxShadow(
+             color: Colors.lightBlue.withOpacity(0.3),
+             blurRadius: 10,
+             offset: const Offset(0, 4),
+           ),
+         ],
+       ),
       child: Row(
         children: [
           Container(
@@ -129,7 +417,7 @@ class _ProcurementOfficerDashboardScreenState extends State<ProcurementOfficerDa
               borderRadius: BorderRadius.circular(12),
             ),
             child: const Icon(
-              Icons.shopping_cart,
+              Icons.manage_accounts,
               color: Colors.white,
               size: 32,
             ),
@@ -149,7 +437,7 @@ class _ProcurementOfficerDashboardScreenState extends State<ProcurementOfficerDa
                 ),
                 const SizedBox(height: 4),
                 const Text(
-                  'Manage tenders, vendors, and procurement processes efficiently',
+                  'Manage projects, tenders, and procurement processes efficiently',
                   style: TextStyle(
                     fontSize: 16,
                     color: Colors.white,
@@ -165,45 +453,48 @@ class _ProcurementOfficerDashboardScreenState extends State<ProcurementOfficerDa
   }
 
   Widget _buildQuickStats() {
-    return GridView.count(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      crossAxisCount: 2,
-      crossAxisSpacing: 16,
-      mainAxisSpacing: 16,
-      childAspectRatio: 1.5,
-      children: [
-        _buildStatCard(
-          'Active Tenders',
-          '12',
-          Icons.assignment,
-          Colors.blue,
-        ),
-        _buildStatCard(
-          'Vendors',
-          '45',
-          Icons.business,
-          Colors.green,
-        ),
-        _buildStatCard(
-          'Contracts',
-          '28',
-          Icons.description,
-          Colors.purple,
-        ),
-        _buildStatCard(
-          'Pending',
-          '8',
-          Icons.pending,
-          Colors.red,
-        ),
-      ],
+    return Container(
+      height: 240,
+      child: GridView.count(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        crossAxisCount: 2,
+        crossAxisSpacing: 16,
+        mainAxisSpacing: 16,
+        childAspectRatio: 1.8,
+        children: [
+          _buildStatCard(
+            'Tender\nCount',
+            tenderCount.toString(),
+            Icons.description,
+            Colors.blue,
+          ),
+          _buildStatCard(
+            'Active\nProjects',
+            activeProjects.toString(),
+            Icons.assignment,
+            Colors.green,
+          ),
+          _buildStatCard(
+            'Notifications',
+            notificationCount.toString(),
+            Icons.notifications,
+            Colors.orange,
+          ),
+          _buildStatCard(
+            'Pending\nMilestones',
+            pendingMilestones.toString(),
+            Icons.schedule,
+            Colors.purple,
+          ),
+        ],
+      ),
     );
   }
 
   Widget _buildStatCard(String title, String value, IconData icon, Color color) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
@@ -218,28 +509,36 @@ class _ProcurementOfficerDashboardScreenState extends State<ProcurementOfficerDa
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            icon,
-            color: color,
-            size: 32,
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                icon,
+                color: color,
+                size: 24,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                value,
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: color,
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 8),
           Text(
-            value,
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: color,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
             title,
             style: const TextStyle(
-              fontSize: 12,
+              fontSize: 11,
               color: Colors.grey,
+              height: 1.2,
             ),
             textAlign: TextAlign.center,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
           ),
         ],
       ),
@@ -261,45 +560,37 @@ class _ProcurementOfficerDashboardScreenState extends State<ProcurementOfficerDa
         const SizedBox(height: 16),
         _buildFeatureCard(
           'Tender Management',
-          'Create, publish, and manage government tenders',
-          Icons.assignment,
-          Colors.orange,
-          () => _showFeatureComingSoon('Tender Management'),
-        ),
-        _buildFeatureCard(
-          'Vendor Management',
-          'Manage vendor relationships and registrations',
-          Icons.business,
-          Colors.blue,
-          () => _showFeatureComingSoon('Vendor Management'),
-        ),
-        _buildFeatureCard(
-          'Purchase Orders',
-          'Create and track purchase orders',
-          Icons.shopping_bag,
+          'Manage your tenders and bidders',
+          Icons.manage_accounts,
           Colors.green,
-          () => _showFeatureComingSoon('Purchase Orders'),
+          () {
+            setState(() {
+              _currentIndex = 1;
+            });
+          },
         ),
         _buildFeatureCard(
-          'Contract Management',
-          'Manage procurement contracts and agreements',
-          Icons.description,
-          Colors.purple,
-          () => _showFeatureComingSoon('Contract Management'),
+          'Active Projects',
+          'View and browse all active projects',
+          Icons.assignment,
+          Colors.blue,
+          () {
+            setState(() {
+              _currentIndex = 2;
+            });
+          },
         ),
+
         _buildFeatureCard(
-          'Bid Evaluation',
-          'Evaluate and compare vendor bids',
-          Icons.compare_arrows,
+          'Notifications',
+          'Manage alerts and notifications',
+          Icons.notifications,
           Colors.teal,
-          () => _showFeatureComingSoon('Bid Evaluation'),
-        ),
-        _buildFeatureCard(
-          'Procurement Analytics',
-          'Analytics and insights for procurement processes',
-          Icons.analytics,
-          Colors.indigo,
-          () => _showFeatureComingSoon('Procurement Analytics'),
+          () {
+            setState(() {
+              _currentIndex = 3;
+            });
+          },
         ),
       ],
     );
@@ -342,12 +633,12 @@ class _ProcurementOfficerDashboardScreenState extends State<ProcurementOfficerDa
     );
   }
 
-  Widget _buildActiveTenders() {
+  Widget _buildActiveProjects() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'Active Tenders',
+          'Recent Projects',
           style: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.bold,
@@ -368,44 +659,34 @@ class _ProcurementOfficerDashboardScreenState extends State<ProcurementOfficerDa
               ),
             ],
           ),
-          child: Column(
-            children: [
-              _buildTenderItem(
-                'IT Infrastructure Upgrade',
-                'Closes in 5 days',
-                '₹50,00,000',
-                Icons.computer,
-                Colors.blue,
-              ),
-              _buildTenderItem(
-                'Office Supplies',
-                'Closes in 12 days',
-                '₹5,00,000',
-                Icons.inventory,
-                Colors.green,
-              ),
-              _buildTenderItem(
-                'Security Services',
-                'Closes in 8 days',
-                '₹25,00,000',
-                Icons.security,
-                Colors.orange,
-              ),
-              _buildTenderItem(
-                'Vehicle Maintenance',
-                'Closes in 15 days',
-                '₹15,00,000',
-                Icons.directions_car,
-                Colors.purple,
-              ),
-            ],
-          ),
+          child: recentProjects.isEmpty
+              ? const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(20),
+                    child: Text(
+                      'No active projects found',
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: Colors.grey,
+                      ),
+                    ),
+                  ),
+                )
+              : Column(
+                  children: recentProjects.map((project) => _buildProjectItem(
+                    project['title'],
+                    project['type'] == 'project' ? 'Project' : _getDaysRemaining(project['deadline']),
+                    _formatBudget(project['budget']),
+                    project['type'] == 'project' ? Icons.assignment : _getCategoryIcon(project['category']),
+                    project['type'] == 'project' ? Colors.purple : _getCategoryColor(project['category']),
+                  )).toList(),
+                ),
         ),
       ],
     );
   }
 
-  Widget _buildTenderItem(String title, String deadline, String value, IconData icon, Color color) {
+  Widget _buildProjectItem(String title, String deadline, String value, IconData icon, Color color) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
@@ -449,16 +730,6 @@ class _ProcurementOfficerDashboardScreenState extends State<ProcurementOfficerDa
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  void _showFeatureComingSoon(String featureName) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('$featureName feature coming soon!'),
-        backgroundColor: Colors.orange,
-        duration: const Duration(seconds: 2),
       ),
     );
   }
