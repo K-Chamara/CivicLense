@@ -17,6 +17,10 @@ import 'screens/timeline_tracker_screen.dart';
 import 'screens/ongoing_tenders_screen.dart';
 import 'screens/public_dashboard_screen.dart';
 import 'screens/notifications_screen.dart';
+import 'screens/publish_report_screen.dart';
+import 'screens/news_feed_screen.dart';
+import 'screens/article_detail_screen.dart';
+import 'screens/media_hub_screen.dart';
 import 'screens/tender_management_screen.dart';
 import 'screens/bidder_management_screen.dart';
 import 'services/auth_service.dart';
@@ -65,6 +69,10 @@ class MyApp extends StatelessWidget {
         '/notifications': (context) => const NotificationsScreen(),
         '/tender-management': (context) => const TenderManagementScreen(),
         '/bidder-management': (context) => const BidderManagementScreen(tenderId: '', tenderTitle: ''),
+        '/publish': (context) => const PublishReportScreen(),
+        '/news': (context) => const NewsFeedScreen(),
+        '/article': (context) => const ArticleDetailScreen(),
+        '/media-hub': (context) => const MediaHubScreen(),
       },
     );
   }

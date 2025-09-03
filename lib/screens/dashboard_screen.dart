@@ -213,18 +213,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
           'Create and publish investigative reports',
           Icons.article,
           Colors.green,
+          onTap: () => Navigator.pushNamed(context, '/publish'),
         ),
         _buildDashboardCard(
           'Media Hub',
           'Access media resources and tools',
           Icons.media_bluetooth_on,
           Colors.purple,
+          onTap: () => Navigator.pushNamed(context, '/media-hub'),
         ),
         _buildDashboardCard(
           'News Feed',
           'Curate and manage news content',
           Icons.feed,
           Colors.blue,
+          onTap: () => Navigator.pushNamed(context, '/news'),
         ),
       ],
     );
@@ -412,7 +415,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildDashboardCard(String title, String description, IconData icon, Color color) {
+  Widget _buildDashboardCard(String title, String description, IconData icon, Color color, {VoidCallback? onTap}) {
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
       child: ListTile(
@@ -430,8 +433,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ),
         subtitle: Text(description),
         trailing: const Icon(Icons.arrow_forward_ios),
-        onTap: () {
-          // TODO: Navigate to specific feature
+        onTap: onTap ?? () {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('$title feature coming soon!'),
