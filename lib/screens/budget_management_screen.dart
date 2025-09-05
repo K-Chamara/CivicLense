@@ -558,6 +558,7 @@ class _BudgetManagementScreenState extends State<BudgetManagementScreen> {
                     name: nameController.text,
                     description: descriptionController.text,
                     allocatedAmount: double.parse(amountController.text),
+                    spentAmount: 0.0,
                     color: selectedColor,
                     createdAt: DateTime.now(),
                   );
@@ -780,7 +781,10 @@ class _BudgetManagementScreenState extends State<BudgetManagementScreen> {
                   name: nameController.text,
                   description: descriptionController.text,
                   allocatedAmount: double.parse(amountController.text),
+                  spentAmount: 0.0,
                   categoryId: category.id,
+                  color: '#4A90E2',
+                  createdAt: DateTime.now(),
                 );
                 
                 try {
@@ -875,6 +879,8 @@ class _BudgetManagementScreenState extends State<BudgetManagementScreen> {
                   allocatedAmount: double.parse(amountController.text),
                   spentAmount: subcategory.spentAmount,
                   categoryId: subcategory.categoryId,
+                  color: subcategory.color,
+                  createdAt: subcategory.createdAt,
                 );
                 
                 try {

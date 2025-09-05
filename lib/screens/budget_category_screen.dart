@@ -458,6 +458,7 @@ class _BudgetCategoryScreenState extends State<BudgetCategoryScreen> with Ticker
                       name: nameController.text,
                       description: descriptionController.text,
                       allocatedAmount: double.parse(amountController.text),
+                      spentAmount: 0.0,
                       color: selectedColor,
                       createdAt: DateTime.now(),
                     );
@@ -781,7 +782,7 @@ class _BudgetCategoryScreenState extends State<BudgetCategoryScreen> with Ticker
     );
   }
 
-  Widget _buildIndividualEntry(BudgetCategory entry) {
+  Widget _buildIndividualEntry(BudgetEntry entry) {
     final percentage = (entry.spentAmount / entry.allocatedAmount) * 100;
     
     return Container(
@@ -803,7 +804,7 @@ class _BudgetCategoryScreenState extends State<BudgetCategoryScreen> with Ticker
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      entry.description.isNotEmpty ? entry.description : 'No description',
+                      entry.itemName.isNotEmpty ? entry.itemName : 'No item name',
                       style: const TextStyle(
                         fontWeight: FontWeight.w500,
                         fontSize: 14,

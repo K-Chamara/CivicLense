@@ -5,6 +5,11 @@ import '../services/admin_service.dart';
 import '../services/auth_service.dart';
 import '../models/user_role.dart';
 import '../widgets/custom_button.dart';
+import 'enhanced_dashboard_screen.dart';
+import 'login_screen.dart';
+import 'community_list_screen.dart';
+import 'concern_management_screen.dart';
+import 'news_feed_screen.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
   const AdminDashboardScreen({super.key});
@@ -109,7 +114,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     try {
       await _authService.signOut();
       if (mounted) {
-        Navigator.of(context).pushReplacementNamed('/login');
+        // Navigate to splash screen to maintain proper flow
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (context) => const LoginScreen()),
+        );
       }
     } catch (e) {
       if (mounted) {
@@ -128,117 +136,475 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5),
-      body: SafeArea(
-        child: Column(
-          children: [
-            // Professional Header
-            _buildProfessionalHeader(),
-            
-            // Main Content
-            Expanded(
-              child: _isLoading
-                  ? _buildLoadingState()
-                  : FadeTransition(
-                      opacity: _fadeAnimation,
-                      child: SlideTransition(
-                        position: _slideAnimation,
-                        child: SingleChildScrollView(
-                          padding: const EdgeInsets.all(20),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // Welcome Section
-                              _buildWelcomeSection(),
-                              const SizedBox(height: 24),
-                              
-                              // Statistics Cards
-                              _buildStatisticsCards(),
-                              const SizedBox(height: 24),
-                              
-                              // Quick Actions
-                              _buildQuickActions(),
-                              const SizedBox(height: 24),
-                              
-                              // User Management
-                              _buildUserManagement(),
-                            ],
-                          ),
-                        ),
+      backgroundColor: Colors.white,
+      appBar: _buildAppBar(),
+      drawer: _buildNavigationDrawer(),
+      body: _isLoading
+          ? _buildLoadingState()
+          : FadeTransition(
+              opacity: _fadeAnimation,
+              child: SlideTransition(
+                position: _slideAnimation,
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Welcome Section
+                      _buildWelcomeSection(),
+                      const SizedBox(height: 24),
+                      
+                      // Statistics Cards
+                      _buildStatisticsCards(),
+                      const SizedBox(height: 24),
+                      
+                      // Management Features
+                      _buildManagementFeatures(),
+                      const SizedBox(height: 24),
+                      
+                      // Quick Actions
+                      _buildQuickActions(),
+                      const SizedBox(height: 24),
+                      
+                      // User Management
+                      _buildUserManagement(),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+    );
+  }
+
+  PreferredSizeWidget _buildAppBar() {
+    return AppBar(
+      backgroundColor: Colors.white,
+      elevation: 0,
+      leading: Builder(
+        builder: (context) => IconButton(
+          icon: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.blue.shade50,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(
+              Icons.menu,
+              color: Colors.blue.shade700,
+              size: 20,
+            ),
+          ),
+          onPressed: () => Scaffold.of(context).openDrawer(),
+        ),
+      ),
+      title: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.blue.shade50,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(
+              Icons.admin_panel_settings,
+              color: Colors.blue.shade700,
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: 12),
+          const Text(
+            'Admin Dashboard',
+            style: TextStyle(
+              color: Colors.black87,
+              fontSize: 20,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        Container(
+          margin: const EdgeInsets.only(right: 16),
+          decoration: BoxDecoration(
+            color: Colors.red.shade50,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: IconButton(
+            icon: Icon(
+              Icons.logout,
+              color: Colors.red.shade700,
+              size: 20,
+            ),
+            onPressed: _signOut,
+            tooltip: 'Sign Out',
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildNavigationDrawer() {
+    return Drawer(
+      backgroundColor: Colors.white,
+      child: Column(
+        children: [
+          // Drawer Header
+          Container(
+            height: 120,
+            width: double.infinity,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Colors.blue.shade600, Colors.blue.shade800],
+              ),
+            ),
+            child: SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.all(8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CircleAvatar(
+                      radius: 18,
+                      backgroundColor: Colors.white.withOpacity(0.2),
+                      child: const Icon(
+                        Icons.admin_panel_settings,
+                        color: Colors.white,
+                        size: 18,
                       ),
                     ),
+                    const SizedBox(height: 6),
+                    const Text(
+                      'System Administrator',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 1),
+                    const Text(
+                      'Full System Access',
+                      style: TextStyle(
+                        color: Colors.white70,
+                        fontSize: 10,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
-          ],
+          ),
+          
+          // Navigation Items
+          Expanded(
+            child: ListView(
+              padding: EdgeInsets.zero,
+              children: [
+                _buildDrawerItem(
+                  icon: Icons.dashboard,
+                  title: 'Dashboard',
+                  onTap: () => Navigator.pop(context),
+                ),
+                _buildDrawerItem(
+                  icon: Icons.people,
+                  title: 'User Management',
+                  onTap: () => Navigator.pop(context),
+                ),
+                _buildDrawerItem(
+                  icon: Icons.people_alt,
+                  title: 'Community Management',
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const CommunityListScreen(),
+                      ),
+                    );
+                  },
+                ),
+                _buildDrawerItem(
+                  icon: Icons.report_problem,
+                  title: 'Concern Management',
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const ConcernManagementScreen(),
+                      ),
+                    );
+                  },
+                ),
+                _buildDrawerItem(
+                  icon: Icons.newspaper,
+                  title: 'News Feed Management',
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const NewsFeedScreen(),
+                      ),
+                    );
+                  },
+                ),
+                _buildDrawerItem(
+                  icon: Icons.account_balance,
+                  title: 'Budget Overview',
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.pushNamed(context, '/budget-viewer');
+                  },
+                ),
+                _buildDrawerItem(
+                  icon: Icons.shopping_cart,
+                  title: 'Tender Management',
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.pushNamed(context, '/tender-management');
+                  },
+                ),
+                _buildDrawerItem(
+                  icon: Icons.analytics,
+                  title: 'Reports & Analytics',
+                  onTap: () => _showFeatureComingSoon('Reports & Analytics'),
+                ),
+                _buildDrawerItem(
+                  icon: Icons.settings,
+                  title: 'System Settings',
+                  onTap: () => _showFeatureComingSoon('System Settings'),
+                ),
+                const Divider(),
+                _buildDrawerItem(
+                  icon: Icons.help,
+                  title: 'Help & Support',
+                  onTap: () => _showFeatureComingSoon('Help & Support'),
+                ),
+                _buildDrawerItem(
+                  icon: Icons.info,
+                  title: 'About',
+                  onTap: () => _showFeatureComingSoon('About'),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDrawerItem({
+    required IconData icon,
+    required String title,
+    required VoidCallback onTap,
+  }) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: ListTile(
+        leading: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: Colors.blue.shade50,
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: Icon(
+            icon,
+            color: Colors.blue.shade700,
+            size: 20,
+          ),
+        ),
+        title: Text(
+          title,
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w500,
+            color: Colors.black87,
+          ),
+        ),
+        onTap: onTap,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
         ),
       ),
     );
   }
 
-  Widget _buildProfessionalHeader() {
+  void _showFeatureComingSoon(String featureName) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('$featureName feature coming soon!'),
+        backgroundColor: Colors.blue,
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  Widget _buildManagementFeatures() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'System Management',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: Colors.black87,
+          ),
+        ),
+        const SizedBox(height: 16),
+        GridView.count(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          crossAxisCount: 2,
+          crossAxisSpacing: 16,
+          mainAxisSpacing: 16,
+          childAspectRatio: 1.4,
+          children: [
+            _buildManagementCard(
+              'Community Management',
+              'Manage communities and moderate content',
+              Icons.people_alt,
+              Colors.purple,
+              () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const CommunityListScreen(),
+                  ),
+                );
+              },
+            ),
+            _buildManagementCard(
+              'Concern Management',
+              'Review and manage public concerns',
+              Icons.report_problem,
+              Colors.orange,
+              () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const ConcernManagementScreen(),
+                  ),
+                );
+              },
+            ),
+            _buildManagementCard(
+              'News Feed Management',
+              'Moderate news articles and reports',
+              Icons.newspaper,
+              Colors.blue,
+              () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const NewsFeedScreen(),
+                  ),
+                );
+              },
+            ),
+            _buildManagementCard(
+              'User Management',
+              'Manage system users and permissions',
+              Icons.people,
+              Colors.green,
+              () {
+                // Scroll to user management section
+                Scrollable.ensureVisible(
+                  context,
+                  duration: const Duration(milliseconds: 500),
+                  curve: Curves.easeInOut,
+                );
+              },
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildManagementCard(
+    String title,
+    String description,
+    IconData icon,
+    Color color,
+    VoidCallback onTap,
+  ) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Color(0x1A000000),
-            blurRadius: 4,
-            offset: Offset(0, 2),
+            color: Colors.grey.withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
           ),
         ],
+        border: Border.all(
+          color: color.withOpacity(0.2),
+          width: 1,
+        ),
       ),
-      child: Row(
-        children: [
-          Container(
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: () {
+            HapticFeedback.lightImpact();
+            onTap();
+          },
+          child: Padding(
             padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: const Color(0xFF1976D2),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: const Icon(
-              Icons.admin_panel_settings,
-              color: Colors.white,
-              size: 24,
-            ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
-                const Text(
-                  'CivicLense Admin Dashboard',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF1A1A1A),
-                    fontFamily: 'Roboto',
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Icon(
+                    icon,
+                    color: color,
+                    size: 20,
                   ),
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: 8),
                 Text(
-                  'Government Platform Management',
+                  title,
                   style: TextStyle(
                     fontSize: 14,
-                    color: const Color(0xFF1A1A1A).withOpacity(0.7),
-                    fontFamily: 'Roboto',
+                    fontWeight: FontWeight.bold,
+                    color: color,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 2),
+                Flexible(
+                  child: Text(
+                    description,
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Colors.grey[600],
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ],
             ),
           ),
-          Container(
-            decoration: BoxDecoration(
-              color: const Color(0xFFD32F2F),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: IconButton(
-              icon: const Icon(Icons.logout, color: Colors.white, size: 20),
-              onPressed: _signOut,
-              tooltip: 'Sign Out',
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -289,51 +655,80 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: const [
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Colors.blue.shade50, Colors.blue.shade100],
+        ),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
           BoxShadow(
-            color: Color(0x1A000000),
-            blurRadius: 8,
-            offset: Offset(0, 2),
+            color: Colors.blue.withOpacity(0.1),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: const Color(0xFF1976D2).withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
+              color: Colors.blue.shade600,
+              borderRadius: BorderRadius.circular(12),
             ),
             child: const Icon(
-              Icons.waving_hand,
-              color: Color(0xFF1976D2),
-              size: 24,
+              Icons.admin_panel_settings,
+              color: Colors.white,
+              size: 28,
             ),
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: 20),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  'Welcome, Administrator',
+                  'Welcome, System Administrator',
                   style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF1A1A1A),
-                    fontFamily: 'Roboto',
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 8),
                 Text(
-                  'You have ${_users.length} users to manage today',
+                  'Manage ${_users.length} users, communities, concerns, and news feeds',
                   style: TextStyle(
                     fontSize: 14,
-                    color: const Color(0xFF1A1A1A).withOpacity(0.7),
-                    fontFamily: 'Roboto',
+                    color: Colors.grey[700],
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.green.shade100,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.check_circle,
+                        color: Colors.green.shade700,
+                        size: 16,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        'System Active',
+                        style: TextStyle(
+                          color: Colors.green.shade700,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
@@ -345,37 +740,51 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
   }
 
   Widget _buildStatisticsCards() {
-    return GridView.count(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      crossAxisCount: 2,
-      crossAxisSpacing: 12,
-      mainAxisSpacing: 16,
-      childAspectRatio: 1.3,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildStatCard(
-          'Total Users',
-          _users.length.toString(),
-          Icons.people,
-          const Color(0xFF1976D2),
+        const Text(
+          'System Statistics',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: Colors.black87,
+          ),
         ),
-        _buildStatCard(
-          'Government Users',
-          _userStats.values.fold(0, (sum, count) => sum + count).toString(),
-          Icons.account_balance,
-          const Color(0xFF388E3C),
-        ),
-        _buildStatCard(
-          'Public Users',
-          _users.where((user) => user['role']?['userType'] == 'public').length.toString(),
-          Icons.person,
-          const Color(0xFFF57C00),
-        ),
-        _buildStatCard(
-          'Active Users',
-          _users.where((user) => user['isActive'] == true).length.toString(),
-          Icons.check_circle,
-          const Color(0xFF388E3C),
+        const SizedBox(height: 16),
+        GridView.count(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          crossAxisCount: 2,
+          crossAxisSpacing: 16,
+          mainAxisSpacing: 16,
+          childAspectRatio: 1.6,
+          children: [
+            _buildStatCard(
+              'Total Users',
+              _users.length.toString(),
+              Icons.people,
+              Colors.blue,
+            ),
+            _buildStatCard(
+              'Government Users',
+              _userStats.values.fold(0, (sum, count) => sum + count).toString(),
+              Icons.account_balance,
+              Colors.green,
+            ),
+            _buildStatCard(
+              'Public Users',
+              _users.where((user) => user['role']?['userType'] == 'public').length.toString(),
+              Icons.person,
+              Colors.orange,
+            ),
+            _buildStatCard(
+              'Active Users',
+              _users.where((user) => user['isActive'] == true).length.toString(),
+              Icons.check_circle,
+              Colors.purple,
+            ),
+          ],
         ),
       ],
     );
@@ -385,47 +794,51 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: const [
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
           BoxShadow(
-            color: Color(0x1A000000),
-            blurRadius: 8,
-            offset: Offset(0, 2),
+            color: color.withOpacity(0.1),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
           ),
         ],
+        border: Border.all(
+          color: color.withOpacity(0.2),
+          width: 1,
+        ),
       ),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(16),
           onTap: () {
             HapticFeedback.lightImpact();
           },
           child: Padding(
-            padding: const EdgeInsets.all(10),
+            padding: const EdgeInsets.all(12),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Container(
-                  padding: const EdgeInsets.all(5),
+                  padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
                     color: color.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(5),
+                    borderRadius: BorderRadius.circular(8),
                   ),
                   child: Icon(
                     icon,
-                    size: 18,
+                    size: 20,
                     color: color,
                   ),
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 8),
                 Text(
                   value,
                   style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
                     color: color,
-                    fontFamily: 'Roboto',
                   ),
                 ),
                 const SizedBox(height: 2),
@@ -433,10 +846,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                   child: Text(
                     title,
                     style: const TextStyle(
-                      fontSize: 10,
-                      color: Color(0xFF1A1A1A),
+                      fontSize: 11,
+                      color: Colors.black87,
                       fontWeight: FontWeight.w500,
-                      fontFamily: 'Roboto',
                     ),
                     textAlign: TextAlign.center,
                     maxLines: 2,
@@ -451,73 +863,42 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     );
   }
 
+
   Widget _buildQuickActions() {
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x1A000000),
-            blurRadius: 8,
-            offset: Offset(0, 2),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Quick Actions',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: Colors.black87,
           ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF1976D2).withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: const Icon(
-                  Icons.flash_on,
-                  color: Color(0xFF1976D2),
-                  size: 20,
-                ),
+        ),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            Expanded(
+              child: _buildActionButton(
+                'Create User',
+                Icons.add_business,
+                Colors.green,
+                () => _showCreateUserDialog(),
               ),
-              const SizedBox(width: 12),
-              const Text(
-                'Quick Actions',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF1A1A1A),
-                  fontFamily: 'Roboto',
-                ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: _buildActionButton(
+                'Refresh Data',
+                Icons.refresh,
+                Colors.blue,
+                () => _refreshData(),
               ),
-            ],
-          ),
-          const SizedBox(height: 20),
-          Row(
-            children: [
-              Expanded(
-                child: _buildActionButton(
-                  'Create User',
-                  Icons.add_business,
-                  const Color(0xFF388E3C),
-                  () => _showCreateUserDialog(),
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: _buildActionButton(
-                  'Refresh Data',
-                  Icons.refresh,
-                  const Color(0xFF1976D2),
-                  () => _refreshData(),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 
@@ -525,19 +906,19 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     return Container(
       decoration: BoxDecoration(
         color: color,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
             color: color.withOpacity(0.3),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(12),
           onTap: () {
             HapticFeedback.lightImpact();
             onPressed();
@@ -560,7 +941,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                       color: Colors.white,
                       fontWeight: FontWeight.w600,
                       fontSize: 14,
-                      fontFamily: 'Roboto',
                     ),
                     textAlign: TextAlign.center,
                     overflow: TextOverflow.ellipsis,
@@ -578,79 +958,64 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
   Widget _buildUserManagement() {
     final filteredUsers = _getFilteredUsers();
 
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x1A000000),
-            blurRadius: 8,
-            offset: Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF1976D2).withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: const Icon(
-                  Icons.people_alt,
-                  color: Color(0xFF1976D2),
-                  size: 20,
-                ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Text(
+              'User Management',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
               ),
-              const SizedBox(width: 12),
-              const Text(
-                'User Management',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF1A1A1A),
-                  fontFamily: 'Roboto',
-                ),
+            ),
+            const Spacer(),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.grey.shade300),
               ),
-              const Spacer(),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF5F5F5),
-                  borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: const Color(0xFFE0E0E0)),
+              child: DropdownButton<String>(
+                value: _selectedFilter,
+                style: const TextStyle(
+                  color: Colors.black87,
+                  fontWeight: FontWeight.w500,
                 ),
-                child: DropdownButton<String>(
-                  value: _selectedFilter,
-                  style: const TextStyle(
-                    color: Color(0xFF1A1A1A),
-                    fontWeight: FontWeight.w500,
-                    fontFamily: 'Roboto',
-                  ),
-                  underline: Container(),
-                  items: const [
-                    DropdownMenuItem(value: 'all', child: Text('All Users')),
-                    DropdownMenuItem(value: 'government', child: Text('Government')),
-                    DropdownMenuItem(value: 'public', child: Text('Public')),
-                    DropdownMenuItem(value: 'admin', child: Text('Admin')),
-                  ],
-                  onChanged: (value) {
-                    setState(() {
-                      _selectedFilter = value!;
-                    });
-                  },
-                ),
+                underline: Container(),
+                items: const [
+                  DropdownMenuItem(value: 'all', child: Text('All Users')),
+                  DropdownMenuItem(value: 'government', child: Text('Government')),
+                  DropdownMenuItem(value: 'public', child: Text('Public')),
+                  DropdownMenuItem(value: 'admin', child: Text('Admin')),
+                ],
+                onChanged: (value) {
+                  setState(() {
+                    _selectedFilter = value!;
+                  });
+                },
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.grey.withOpacity(0.1),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
               ),
             ],
           ),
-          const SizedBox(height: 20),
-          SizedBox(
+          child: SizedBox(
             height: 400,
             child: ListView.builder(
               itemCount: filteredUsers.length,
@@ -668,7 +1033,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                     lastName: lastName,
                     email: email,
                     role: 'Role data missing',
-                    color: const Color(0xFF757575),
+                    color: Colors.grey,
                     icon: Icons.person,
                     isActive: false,
                     onAction: (action) => _handleUserAction(action, user),
@@ -690,8 +1055,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
               },
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -709,13 +1074,20 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0xFFE0E0E0)),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.05),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(12),
           onTap: () {
             HapticFeedback.lightImpact();
           },
@@ -724,10 +1096,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
             child: Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.all(8),
+                  padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
                     color: color.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(6),
+                    borderRadius: BorderRadius.circular(8),
                   ),
                   child: Icon(
                     icon,
@@ -745,18 +1117,18 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
-                          color: Color(0xFF1A1A1A),
-                          fontFamily: 'Roboto',
+                          color: Colors.black87,
                         ),
+                        overflow: TextOverflow.ellipsis,
                       ),
                       const SizedBox(height: 4),
                       Text(
                         email,
                         style: TextStyle(
                           fontSize: 14,
-                          color: const Color(0xFF1A1A1A).withOpacity(0.7),
-                          fontFamily: 'Roboto',
+                          color: Colors.grey[600],
                         ),
+                        overflow: TextOverflow.ellipsis,
                       ),
                       const SizedBox(height: 4),
                       Text(
@@ -765,32 +1137,34 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                           fontSize: 12,
                           color: color,
                           fontWeight: FontWeight.w600,
-                          fontFamily: 'Roboto',
                         ),
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ],
                   ),
                 ),
+                const SizedBox(width: 8),
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Container(
-                      padding: const EdgeInsets.all(4),
+                      padding: const EdgeInsets.all(6),
                       decoration: BoxDecoration(
-                        color: isActive ? const Color(0xFF388E3C).withOpacity(0.1) : const Color(0xFFD32F2F).withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(4),
+                        color: isActive ? Colors.green.shade100 : Colors.red.shade100,
+                        borderRadius: BorderRadius.circular(6),
                       ),
                       child: Icon(
                         isActive ? Icons.check_circle : Icons.cancel,
-                        color: isActive ? const Color(0xFF388E3C) : const Color(0xFFD32F2F),
-                        size: 18,
+                        color: isActive ? Colors.green.shade700 : Colors.red.shade700,
+                        size: 16,
                       ),
                     ),
                     const SizedBox(width: 8),
                     PopupMenuButton<String>(
                       icon: Icon(
                         Icons.more_vert,
-                        color: const Color(0xFF1A1A1A).withOpacity(0.7),
+                        color: Colors.grey[600],
+                        size: 20,
                       ),
                       color: Colors.white,
                       shape: RoundedRectangleBorder(
@@ -804,15 +1178,14 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                             children: [
                               Icon(
                                 isActive ? Icons.block : Icons.check_circle,
-                                color: const Color(0xFF1A1A1A),
+                                color: Colors.black87,
                                 size: 18,
                               ),
                               const SizedBox(width: 8),
                               Text(
                                 isActive ? 'Deactivate' : 'Activate',
                                 style: const TextStyle(
-                                  color: Color(0xFF1A1A1A),
-                                  fontFamily: 'Roboto',
+                                  color: Colors.black87,
                                 ),
                               ),
                             ],
@@ -824,15 +1197,14 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                             children: [
                               Icon(
                                 Icons.delete,
-                                color: Color(0xFFD32F2F),
+                                color: Colors.red,
                                 size: 18,
                               ),
                               SizedBox(width: 8),
                               Text(
                                 'Delete',
                                 style: TextStyle(
-                                  color: Color(0xFFD32F2F),
-                                  fontFamily: 'Roboto',
+                                  color: Colors.red,
                                 ),
                               ),
                             ],

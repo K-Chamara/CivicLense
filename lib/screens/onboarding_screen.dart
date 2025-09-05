@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
+import '../utils/onboarding_utils.dart';
 import 'login_screen.dart';
 
 class OnboardingScreen extends StatefulWidget {
@@ -60,7 +61,16 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             TextButton(
-              onPressed: () => controller.jumpToPage(2),
+              onPressed: () async {
+                // Mark onboarding as completed when skipping
+                await OnboardingUtils.markOnboardingCompleted();
+                
+                Navigator.of(context).pushReplacement(
+                  MaterialPageRoute(
+                    builder: (context) => const LoginScreen(),
+                  ),
+                );
+              },
               child: const Text('Skip'),
             ),
             Center(
@@ -82,6 +92,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             TextButton(
               onPressed: () async {
                 if (isLastPage) {
+                  // Mark onboarding as completed
+                  await OnboardingUtils.markOnboardingCompleted();
+                  
                   Navigator.of(context).pushReplacement(
                     MaterialPageRoute(
                       builder: (context) => const LoginScreen(),

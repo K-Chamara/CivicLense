@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import '../models/user_role.dart';
+import 'login_screen.dart';
 
 class AntiCorruptionOfficerDashboardScreen extends StatefulWidget {
   const AntiCorruptionOfficerDashboardScreen({super.key});
@@ -39,7 +40,10 @@ class _AntiCorruptionOfficerDashboardScreenState extends State<AntiCorruptionOff
     try {
       await _authService.signOut();
       if (mounted) {
-        Navigator.of(context).pushReplacementNamed('/login');
+        // Navigate to splash screen to maintain proper flow
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (context) => const LoginScreen()),
+        );
       }
     } catch (e) {
       if (mounted) {

@@ -1,30 +1,29 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'screens/splash_screen.dart';
 import 'screens/onboarding_screen.dart';
+import 'screens/news_feed_screen.dart';
+import 'screens/article_detail_screen.dart';
+import 'screens/media_hub_screen.dart';
+import 'screens/publish_report_screen.dart';
+import 'screens/community_list_screen.dart';
+import 'screens/raise_concern_screen.dart';
+import 'screens/concern_management_screen.dart';
+import 'screens/concern_detail_screen.dart';
+import 'screens/public_concerns_screen.dart';
+import 'screens/budget_viewer_screen.dart';
+import 'screens/tender_management_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/dashboard_screen.dart';
 import 'screens/admin_dashboard_screen.dart';
-import 'screens/admin_setup_screen.dart';
-import 'screens/otp_screen.dart';
 import 'screens/finance_officer_dashboard_screen.dart';
 import 'screens/procurement_officer_dashboard_screen.dart';
 import 'screens/anticorruption_officer_dashboard_screen.dart';
 import 'screens/public_user_dashboard_screen.dart';
-import 'screens/add_tender_screen.dart';
-import 'screens/timeline_tracker_screen.dart';
-import 'screens/ongoing_tenders_screen.dart';
-import 'screens/public_dashboard_screen.dart';
-import 'screens/notifications_screen.dart';
-import 'screens/publish_report_screen.dart';
-import 'screens/news_feed_screen.dart';
-import 'screens/article_detail_screen.dart';
-import 'screens/media_hub_screen.dart';
-import 'screens/tender_management_screen.dart';
-import 'screens/bidder_management_screen.dart';
 import 'services/auth_service.dart';
 import 'models/user_role.dart';
+import 'utils/onboarding_utils.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -51,30 +50,30 @@ class MyApp extends StatelessWidget {
           elevation: 0,
         ),
       ),
-      home: const AuthWrapper(),
+      home: const AppInitializer(),
       routes: {
-        '/onboarding': (context) => const OnboardingScreen(),
-        '/login': (context) => const LoginScreen(),
-        '/dashboard': (context) => const DashboardScreen(),
-        '/admin-setup': (context) => const AdminSetupScreen(),
-        '/otp': (context) => const OtpScreen(email: '', password: ''),
-        '/finance-dashboard': (context) => const FinanceOfficerDashboardScreen(),
-        '/procurement-dashboard': (context) => const ProcurementOfficerDashboardScreen(),
-        '/anticorruption-dashboard': (context) => const AntiCorruptionOfficerDashboardScreen(),
-        '/public-dashboard': (context) => const PublicUserDashboardScreen(),
-        '/add-tender': (context) => const AddTenderScreen(),
-        '/timeline-tracker': (context) => const TimelineTrackerScreen(),
-        '/ongoing-tenders': (context) => const OngoingTendersScreen(),
-        '/public-dashboard-view': (context) => const PublicDashboardScreen(),
-        '/notifications': (context) => const NotificationsScreen(),
-        '/tender-management': (context) => const TenderManagementScreen(),
-        '/bidder-management': (context) => const BidderManagementScreen(tenderId: '', tenderTitle: ''),
-        '/publish': (context) => const PublishReportScreen(),
         '/news': (context) => const NewsFeedScreen(),
         '/article': (context) => const ArticleDetailScreen(),
         '/media-hub': (context) => const MediaHubScreen(),
+        '/publish': (context) => const PublishReportScreen(),
+        '/communities': (context) => const CommunityListScreen(),
+        '/raise-concern': (context) => const RaiseConcernScreen(),
+        '/concern-management': (context) => const ConcernManagementScreen(),
+        '/public-concerns': (context) => const PublicConcernsScreen(),
+        '/budget-viewer': (context) => const BudgetViewerScreen(),
+        '/tender-management': (context) => const TenderManagementScreen(),
       },
     );
+  }
+}
+
+class AppInitializer extends StatelessWidget {
+  const AppInitializer({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    // Always start with the splash screen - it will handle navigation
+    return const SplashScreen();
   }
 }
 
@@ -119,6 +118,12 @@ class AuthWrapper extends StatelessWidget {
                     return const FinanceOfficerDashboardScreen();
                   case 'anticorruption_officer':
                     return const AntiCorruptionOfficerDashboardScreen();
+                  case 'citizen':
+                  case 'journalist':
+                  case 'community_leader':
+                  case 'researcher':
+                  case 'ngo':
+                    return const PublicUserDashboardScreen();
                   default:
                     return const DashboardScreen();
                 }
@@ -129,11 +134,10 @@ class AuthWrapper extends StatelessWidget {
           );
         }
 
-        // User is not signed in, show onboarding
-        return const OnboardingScreen();
+        // User is not signed in, show login screen
+        return const LoginScreen();
       },
     );
   }
-
-
 }
+
