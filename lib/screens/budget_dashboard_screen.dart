@@ -690,6 +690,7 @@ class _BudgetDashboardScreenState extends State<BudgetDashboardScreen>
                     name: nameController.text,
                     description: descriptionController.text,
                     allocatedAmount: double.parse(amountController.text),
+                    spentAmount: 0.0,
                     color: '#FF6B6B',
                     createdAt: DateTime.now(),
                   );

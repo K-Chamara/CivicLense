@@ -7,6 +7,7 @@ import 'add_tender_screen.dart';
 import 'ongoing_tenders_screen.dart';
 import 'notifications_screen.dart';
 import 'tender_management_screen.dart';
+import 'login_screen.dart';
 
 class ProcurementOfficerDashboardScreen extends StatefulWidget {
   const ProcurementOfficerDashboardScreen({super.key});
@@ -182,7 +183,10 @@ class _ProcurementOfficerDashboardScreenState extends State<ProcurementOfficerDa
     try {
       await _authService.signOut();
       if (mounted) {
-        Navigator.of(context).pushReplacementNamed('/login');
+        // Navigate to splash screen to maintain proper flow
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (context) => const LoginScreen()),
+        );
       }
     } catch (e) {
       if (mounted) {

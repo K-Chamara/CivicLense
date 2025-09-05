@@ -363,7 +363,7 @@ class _BudgetManagementGroupedScreenState extends State<BudgetManagementGroupedS
     );
   }
 
-  Widget _buildIndividualEntry(BudgetCategory entry) {
+  Widget _buildIndividualEntry(BudgetEntry entry) {
     final percentage = (entry.spentAmount / entry.allocatedAmount) * 100;
     
     return Container(
@@ -385,7 +385,7 @@ class _BudgetManagementGroupedScreenState extends State<BudgetManagementGroupedS
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      entry.description.isNotEmpty ? entry.description : 'No description',
+                      entry.itemName.isNotEmpty ? entry.itemName : 'No description',
                       style: const TextStyle(
                         fontWeight: FontWeight.w500,
                         fontSize: 14,

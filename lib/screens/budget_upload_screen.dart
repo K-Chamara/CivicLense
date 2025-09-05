@@ -608,6 +608,7 @@ class _BudgetUploadScreenState extends State<BudgetUploadScreen> {
                     name: nameController.text,
                     description: descriptionController.text,
                     allocatedAmount: double.parse(amountController.text),
+                    spentAmount: 0.0,
                     color: selectedColor,
                     createdAt: DateTime.now(),
                   );

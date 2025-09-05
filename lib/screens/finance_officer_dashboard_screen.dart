@@ -3,6 +3,7 @@ import '../services/auth_service.dart';
 import '../models/user_role.dart';
 import 'budget_dashboard_screen.dart';
 import '../utils/generate_budget_data.dart';
+import 'login_screen.dart';
 
 class FinanceOfficerDashboardScreen extends StatefulWidget {
   const FinanceOfficerDashboardScreen({super.key});
@@ -41,7 +42,10 @@ class _FinanceOfficerDashboardScreenState extends State<FinanceOfficerDashboardS
     try {
       await _authService.signOut();
       if (mounted) {
-        Navigator.of(context).pushReplacementNamed('/login');
+        // Navigate to splash screen to maintain proper flow
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (context) => const LoginScreen()),
+        );
       }
     } catch (e) {
       if (mounted) {
