@@ -139,6 +139,10 @@ class _EnhancedDashboardScreenState extends State<EnhancedDashboardScreen>
                 _buildTenderBudgetOverview(),
                 const SizedBox(height: 24),
 
+                // Budget Allocations Section
+                _buildBudgetAllocationsSection(),
+                const SizedBox(height: 24),
+
                 // Role-specific Quick Actions
                 _buildQuickActions(),
                 const SizedBox(height: 24),
@@ -293,6 +297,16 @@ class _EnhancedDashboardScreenState extends State<EnhancedDashboardScreen>
                 ),
                 _buildDrawerItem(
                   icon: Icons.assignment,
+                  title: 'Budget Allocations',
+                  onTap: () {
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Budget Allocations feature coming soon!')),
+                    );
+                  },
+                ),
+                _buildDrawerItem(
+                  icon: Icons.shopping_cart,
                   title: 'Tenders',
                   onTap: () {
                     Navigator.pop(context);
@@ -466,7 +480,7 @@ class _EnhancedDashboardScreenState extends State<EnhancedDashboardScreen>
         Expanded(
           child: _buildStatCard(
             'Budget Allocated',
-            '₹2.4M',
+            '\$2.4M',
             Icons.account_balance_wallet,
             Colors.green,
           ),
@@ -557,9 +571,9 @@ class _EnhancedDashboardScreenState extends State<EnhancedDashboardScreen>
               child: _buildOverviewCard(
                 'Recent Tenders',
                 [
-                  'Road Construction - ₹50L',
-                  'School Building - ₹30L',
-                  'Water Supply - ₹25L',
+                  'Road Construction - \$50L',
+                  'School Building - \$30L',
+                  'Water Supply - \$25L',
                 ],
                 Icons.shopping_cart,
                 Colors.orange,
@@ -570,15 +584,209 @@ class _EnhancedDashboardScreenState extends State<EnhancedDashboardScreen>
               child: _buildOverviewCard(
                 'Budget Categories',
                 [
-                  'Infrastructure - ₹1.2M',
-                  'Education - ₹800K',
-                  'Healthcare - ₹400K',
+                  'Infrastructure - \$1.2M',
+                  'Education - \$800K',
+                  'Healthcare - \$400K',
                 ],
                 Icons.pie_chart,
                 Colors.blue,
               ),
             ),
           ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildBudgetAllocationsSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              'Budget Allocations',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
+            ),
+            TextButton(
+              onPressed: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Budget Allocations feature coming soon!')),
+                );
+              },
+              child: const Text(
+                'View All',
+                style: TextStyle(
+                  color: Colors.blue,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.grey.withOpacity(0.1),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Column(
+            children: [
+              _buildAllocationItem(
+                'Infrastructure Development',
+                'Roads, bridges, public buildings, and utilities',
+                '\$12,00,00,000',
+                '1',
+                '1',
+                Colors.blue,
+                'Active',
+              ),
+              const Divider(height: 24),
+              _buildAllocationItem(
+                'School Development',
+                'We are focusing on government school projects',
+                '\$10,00,000',
+                '1',
+                '1',
+                Colors.teal,
+                'Active',
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAllocationItem(
+    String title,
+    String description,
+    String budget,
+    String subcategories,
+    String items,
+    Color color,
+    String status,
+  ) {
+    return Row(
+      children: [
+        Container(
+          width: 12,
+          height: 12,
+          decoration: BoxDecoration(
+            color: color,
+            shape: BoxShape.circle,
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                description,
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  _buildAllocationMetric('Total Budget', budget, Colors.blue),
+                  const SizedBox(width: 16),
+                  _buildAllocationMetric('Subcategories', subcategories, Colors.orange),
+                  const SizedBox(width: 16),
+                  _buildAllocationMetric('Total Items', items, Colors.green),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Container(
+                    height: 8,
+                    width: 100,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade200,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: FractionallySizedBox(
+                      alignment: Alignment.centerLeft,
+                      widthFactor: 0.3,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: color,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                      ),
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.green.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      status,
+                      style: const TextStyle(
+                        fontSize: 10,
+                        color: Colors.green,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAllocationMetric(String label, String value, Color color) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 10,
+            color: Colors.grey,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.bold,
+            color: color,
+          ),
         ),
       ],
     );

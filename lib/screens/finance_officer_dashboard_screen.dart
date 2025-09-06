@@ -186,25 +186,25 @@ class _FinanceOfficerDashboardScreenState extends State<FinanceOfficerDashboardS
       children: [
         _buildStatCard(
           'Total Budget',
-          '₹2,50,00,000',
+          '\$2,50,00,000',
           Icons.account_balance,
           Colors.blue,
         ),
         _buildStatCard(
           'Expenses',
-          '₹1,75,00,000',
+          '\$1,75,00,000',
           Icons.trending_down,
           Colors.orange,
         ),
         _buildStatCard(
           'Remaining',
-          '₹75,00,000',
+          '\$75,00,000',
           Icons.savings,
           Colors.green,
         ),
         _buildStatCard(
           'Pending',
-          '₹15,00,000',
+          '\$15,00,000',
           Icons.pending,
           Colors.red,
         ),

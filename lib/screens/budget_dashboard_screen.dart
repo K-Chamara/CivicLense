@@ -194,19 +194,19 @@ class _BudgetDashboardScreenState extends State<BudgetDashboardScreen>
       children: [
         _buildStatCard(
           'Total Budget',
-          '₹${NumberFormat('#,##,##,##0').format(_analytics!.totalBudget)}',
+          '\$${NumberFormat('#,##,##,##0').format(_analytics!.totalBudget)}',
           Icons.account_balance,
           Colors.blue,
         ),
         _buildStatCard(
           'Total Spent',
-          '₹${NumberFormat('#,##,##,##0').format(_analytics!.totalSpent)}',
+          '\$${NumberFormat('#,##,##,##0').format(_analytics!.totalSpent)}',
           Icons.trending_down,
           Colors.orange,
         ),
         _buildStatCard(
           'Remaining',
-          '₹${NumberFormat('#,##,##,##0').format(_analytics!.totalRemaining)}',
+          '\$${NumberFormat('#,##,##,##0').format(_analytics!.totalRemaining)}',
           Icons.savings,
           Colors.green,
         ),
@@ -476,7 +476,7 @@ class _BudgetDashboardScreenState extends State<BudgetDashboardScreen>
                       reservedSize: 40,
                       getTitlesWidget: (value, meta) {
                         return Text(
-                          '₹${(value / 1000000).toStringAsFixed(0)}M',
+                          '\$${(value / 1000000).toStringAsFixed(0)}M',
                           style: const TextStyle(fontSize: 10),
                         );
                       },
@@ -670,7 +670,7 @@ class _BudgetDashboardScreenState extends State<BudgetDashboardScreen>
               decoration: const InputDecoration(
                 labelText: 'Allocated Amount',
                 border: OutlineInputBorder(),
-                prefixText: '₹',
+                prefixText: '\$',
               ),
               keyboardType: TextInputType.number,
             ),

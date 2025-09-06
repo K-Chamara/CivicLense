@@ -30,6 +30,37 @@ class BudgetService {
     }
   }
 
+  /// Get all budget categories with their subcategories
+  Future<List<BudgetCategory>> getBudgetCategoriesWithSubcategories() async {
+    try {
+      QuerySnapshot snapshot = await _firestore
+          .collection(budgetCategoriesCollection)
+          .orderBy('allocatedAmount', descending: true)
+          .get();
+
+      List<BudgetCategory> categories = [];
+      for (DocumentSnapshot doc in snapshot.docs) {
+        BudgetCategory category = BudgetCategory.fromFirestore(doc);
+        
+        // Load subcategories for this category
+        try {
+          List<BudgetSubcategory> subcategories = await getBudgetSubcategories(category.id);
+          category = category.copyWith(subcategories: subcategories);
+        } catch (e) {
+          print('Error loading subcategories for category ${category.id}: $e');
+          // Continue with empty subcategories list
+        }
+        
+        categories.add(category);
+      }
+
+      return categories;
+    } catch (e) {
+      print('Error fetching budget categories with subcategories: $e');
+      throw Exception('Failed to fetch budget categories with subcategories: $e');
+    }
+  }
+
   /// Get subcategories for a specific budget category
   Future<List<BudgetSubcategory>> getBudgetSubcategories(String categoryId) async {
     try {
@@ -43,6 +74,16 @@ class BudgetService {
       List<BudgetSubcategory> subcategories = [];
       for (DocumentSnapshot doc in snapshot.docs) {
         BudgetSubcategory subcategory = BudgetSubcategory.fromFirestore(doc);
+        
+        // Load items for this subcategory
+        try {
+          List<BudgetItem> items = await getBudgetItems(categoryId, subcategory.id);
+          subcategory = subcategory.copyWith(items: items);
+        } catch (e) {
+          print('Error loading items for subcategory ${subcategory.id}: $e');
+          // Continue with empty items list
+        }
+        
         subcategories.add(subcategory);
       }
 
@@ -271,7 +312,7 @@ class BudgetService {
 
   // Legacy method aliases for compatibility
   Future<List<BudgetCategory>> getCategories() async {
-    return getBudgetCategories();
+    return getBudgetCategoriesWithSubcategories();
   }
 
   /// Create a new budget category
@@ -511,6 +552,72 @@ class BudgetService {
     } catch (e) {
       print('Error updating budget subcategory: $e');
       throw Exception('Failed to update budget subcategory: $e');
+    }
+  }
+
+  /// Delete a budget subcategory
+  Future<void> deleteSubcategory(String categoryId, String subcategoryId) async {
+    try {
+      await _firestore
+          .collection(budgetCategoriesCollection)
+          .doc(categoryId)
+          .collection(budgetSubcategoriesCollection)
+          .doc(subcategoryId)
+          .delete();
+    } catch (e) {
+      print('Error deleting budget subcategory: $e');
+      throw Exception('Failed to delete budget subcategory: $e');
+    }
+  }
+
+  /// Create a new budget item
+  Future<void> createBudgetItem(String categoryId, String subcategoryId, BudgetItem item) async {
+    try {
+      await _firestore
+          .collection(budgetCategoriesCollection)
+          .doc(categoryId)
+          .collection(budgetSubcategoriesCollection)
+          .doc(subcategoryId)
+          .collection(budgetItemsCollection)
+          .doc(item.id)
+          .set(item.toFirestore());
+    } catch (e) {
+      print('Error creating budget item: $e');
+      throw Exception('Failed to create budget item: $e');
+    }
+  }
+
+  /// Update an existing budget item
+  Future<void> updateBudgetItem(String categoryId, String subcategoryId, BudgetItem item) async {
+    try {
+      await _firestore
+          .collection(budgetCategoriesCollection)
+          .doc(categoryId)
+          .collection(budgetSubcategoriesCollection)
+          .doc(subcategoryId)
+          .collection(budgetItemsCollection)
+          .doc(item.id)
+          .update(item.toFirestore());
+    } catch (e) {
+      print('Error updating budget item: $e');
+      throw Exception('Failed to update budget item: $e');
+    }
+  }
+
+  /// Delete a budget item
+  Future<void> deleteBudgetItem(String categoryId, String subcategoryId, String itemId) async {
+    try {
+      await _firestore
+          .collection(budgetCategoriesCollection)
+          .doc(categoryId)
+          .collection(budgetSubcategoriesCollection)
+          .doc(subcategoryId)
+          .collection(budgetItemsCollection)
+          .doc(itemId)
+          .delete();
+    } catch (e) {
+      print('Error deleting budget item: $e');
+      throw Exception('Failed to delete budget item: $e');
     }
   }
 }

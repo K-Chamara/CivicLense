@@ -410,7 +410,7 @@ class _BudgetUploadScreenState extends State<BudgetUploadScreen> {
           style: TextStyle(color: Colors.grey[600]),
         ),
         trailing: Text(
-          '₹${NumberFormat('#,##,##,##0').format(category.allocatedAmount)}',
+          '\$${NumberFormat('#,##,##,##0').format(category.allocatedAmount)}',
           style: const TextStyle(
             fontWeight: FontWeight.bold,
             fontSize: 16,
@@ -560,7 +560,7 @@ class _BudgetUploadScreenState extends State<BudgetUploadScreen> {
                     labelText: 'Allocated Amount *',
                     border: OutlineInputBorder(),
                     prefixIcon: Icon(Icons.currency_rupee),
-                    prefixText: '₹',
+                    prefixText: '\$',
                   ),
                   keyboardType: TextInputType.number,
                 ),

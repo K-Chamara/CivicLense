@@ -129,11 +129,11 @@ class _PublicDashboardScreenState extends State<PublicDashboardScreen> {
 
   String _formatBudget(double budget) {
     if (budget >= 10000000) {
-      return '₹${(budget / 10000000).toStringAsFixed(1)} Crores';
+      return '\$${(budget / 10000000).toStringAsFixed(1)} Crores';
     } else if (budget >= 100000) {
-      return '₹${(budget / 100000).toStringAsFixed(1)} Lakhs';
+      return '\$${(budget / 100000).toStringAsFixed(1)} Lakhs';
     } else {
-      return '₹${budget.toStringAsFixed(0)}';
+      return '\$${budget.toStringAsFixed(0)}';
     }
   }
 
