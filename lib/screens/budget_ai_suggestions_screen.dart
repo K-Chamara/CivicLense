@@ -372,7 +372,7 @@ class _BudgetAISuggestionsScreenState extends State<BudgetAISuggestionsScreen> {
                       ),
                       const Spacer(),
                       Text(
-                        '₹${NumberFormat('#,##,##,##0').format(suggestion.recommendedAmount)}',
+                        '\$${NumberFormat('#,##,##,##0').format(suggestion.recommendedAmount)}',
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.bold,
@@ -523,7 +523,7 @@ class _BudgetAISuggestionsScreenState extends State<BudgetAISuggestionsScreen> {
             ),
             Text('Suggestion: ${suggestion.suggestion}'),
             Text(
-              'Amount: ₹${NumberFormat('#,##,##,##0').format(suggestion.recommendedAmount)}',
+              'Amount: \$${NumberFormat('#,##,##,##0').format(suggestion.recommendedAmount)}',
               style: const TextStyle(fontWeight: FontWeight.bold),
             ),
           ],
@@ -555,7 +555,7 @@ class _BudgetAISuggestionsScreenState extends State<BudgetAISuggestionsScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildDetailItem('Suggestion', suggestion.suggestion),
-            _buildDetailItem('Recommended Amount', '₹${NumberFormat('#,##,##,##0').format(suggestion.recommendedAmount)}'),
+            _buildDetailItem('Recommended Amount', '\$${NumberFormat('#,##,##,##0').format(suggestion.recommendedAmount)}'),
             _buildDetailItem('Confidence', suggestion.confidence.toUpperCase()),
             _buildDetailItem('Reasoning', suggestion.reasoning),
             const SizedBox(height: 16),

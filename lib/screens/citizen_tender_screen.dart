@@ -468,11 +468,11 @@ class _CitizenTenderScreenState extends State<CitizenTenderScreen> {
 
   String _formatCurrency(double amount) {
     if (amount >= 1000000) {
-      return '₹${(amount / 1000000).toStringAsFixed(1)}M';
+      return '\$${(amount / 1000000).toStringAsFixed(1)}M';
     } else if (amount >= 1000) {
-      return '₹${(amount / 1000).toStringAsFixed(1)}K';
+      return '\$${(amount / 1000).toStringAsFixed(1)}K';
     } else {
-      return '₹${amount.toStringAsFixed(0)}';
+      return '\$${amount.toStringAsFixed(0)}';
     }
   }
 

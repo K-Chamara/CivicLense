@@ -242,7 +242,7 @@ class _AddTenderScreenState extends State<AddTenderScreen> {
                 controller: _budgetController,
                 keyboardType: TextInputType.number,
                 decoration: const InputDecoration(
-                  labelText: 'Budget (₹) *',
+                  labelText: 'Budget (\$) *',
                   border: OutlineInputBorder(),
                   prefixIcon: Icon(Icons.attach_money),
                   hintText: 'e.g., 5000000',

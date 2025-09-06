@@ -12,8 +12,8 @@ class BudgetDataGenerator {
           id: '1',
           name: 'Infrastructure Development',
           description: 'Roads, bridges, public buildings, and utilities',
-          allocatedAmount: 120000000, // ₹120 Crores
-          spentAmount: 85000000,      // ₹85 Crores spent (70.8% utilization)
+          allocatedAmount: 120000000, // $120 Crores
+          spentAmount: 85000000,      // $85 Crores spent (70.8% utilization)
           color: '#2196F3', // Blue
           createdAt: DateTime.now(),
           subcategories: [
@@ -53,8 +53,8 @@ class BudgetDataGenerator {
           id: '2',
           name: 'Healthcare',
           description: 'Medical facilities, equipment, and services',
-          allocatedAmount: 80000000,  // ₹80 Crores
-          spentAmount: 65000000,      // ₹65 Crores spent (81.3% utilization)
+          allocatedAmount: 80000000,  // $80 Crores
+          spentAmount: 65000000,      // $65 Crores spent (81.3% utilization)
           color: '#4CAF50', // Green
           createdAt: DateTime.now(),
           subcategories: [
@@ -94,8 +94,8 @@ class BudgetDataGenerator {
           id: '3',
           name: 'Education',
           description: 'Schools, colleges, educational programs',
-          allocatedAmount: 95000000,  // ₹95 Crores
-          spentAmount: 62000000,      // ₹62 Crores spent (65.3% utilization)
+          allocatedAmount: 95000000,  // $95 Crores
+          spentAmount: 62000000,      // $62 Crores spent (65.3% utilization)
           color: '#FF9800', // Orange
           createdAt: DateTime.now(),
           subcategories: [
@@ -135,8 +135,8 @@ class BudgetDataGenerator {
           id: '4',
           name: 'Public Safety',
           description: 'Police, fire department, emergency services',
-          allocatedAmount: 60000000,  // ₹60 Crores
-          spentAmount: 52000000,      // ₹52 Crores spent (86.7% utilization)
+          allocatedAmount: 60000000,  // $60 Crores
+          spentAmount: 52000000,      // $52 Crores spent (86.7% utilization)
           color: '#F44336', // Red
           createdAt: DateTime.now(),
           subcategories: [
@@ -176,8 +176,8 @@ class BudgetDataGenerator {
           id: '5',
           name: 'Social Welfare',
           description: 'Poverty alleviation and social programs',
-          allocatedAmount: 75000000,  // ₹75 Crores
-          spentAmount: 58000000,      // ₹58 Crores spent (77.3% utilization)
+          allocatedAmount: 75000000,  // $75 Crores
+          spentAmount: 58000000,      // $58 Crores spent (77.3% utilization)
           color: '#9C27B0', // Purple
           createdAt: DateTime.now(),
           subcategories: [
@@ -217,8 +217,8 @@ class BudgetDataGenerator {
           id: '6',
           name: 'Environment & Parks',
           description: 'Green spaces, waste management, pollution control',
-          allocatedAmount: 45000000,  // ₹45 Crores
-          spentAmount: 28000000,      // ₹28 Crores spent (62.2% utilization)
+          allocatedAmount: 45000000,  // $45 Crores
+          spentAmount: 28000000,      // $28 Crores spent (62.2% utilization)
           color: '#4CAF50', // Green
           createdAt: DateTime.now(),
           subcategories: [
@@ -402,8 +402,8 @@ class BudgetDataGenerator {
       print('✅ Sample budget data generated successfully!');
       print('📊 Generated ${sampleCategories.length} categories with subcategories');
       print('💰 Generated ${sampleEntries.length} budget entries');
-      print('🎯 Total Budget: ₹${(sampleCategories.fold(0.0, (sum, cat) => sum + cat.allocatedAmount) / 10000000).toStringAsFixed(1)} Crores');
-      print('💸 Total Spent: ₹${(sampleCategories.fold(0.0, (sum, cat) => sum + cat.spentAmount) / 10000000).toStringAsFixed(1)} Crores');
+      print('🎯 Total Budget: \$${(sampleCategories.fold(0.0, (sum, cat) => sum + cat.allocatedAmount) / 10000000).toStringAsFixed(1)} Crores');
+      print('💸 Total Spent: \$${(sampleCategories.fold(0.0, (sum, cat) => sum + cat.spentAmount) / 10000000).toStringAsFixed(1)} Crores');
 
     } catch (e) {
       print('❌ Error generating sample data: $e');

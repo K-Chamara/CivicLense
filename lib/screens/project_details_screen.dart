@@ -21,6 +21,21 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
   double? _winningBidAmount;
   List<Map<String, dynamic>> _milestones = [];
   bool _isLoading = true;
+  String _selectedColor = '#FF5722'; // Default color (red)
+
+  // Available colors for milestones
+  final List<String> _availableColors = [
+    '#FF5722', // Red
+    '#2196F3', // Blue
+    '#4CAF50', // Green
+    '#FF9800', // Orange
+    '#9C27B0', // Purple
+    '#00BCD4', // Cyan
+    '#8BC34A', // Light Green
+    '#FFC107', // Amber
+    '#E91E63', // Pink
+    '#607D8B', // Blue Grey
+  ];
 
   @override
   void initState() {
@@ -114,8 +129,9 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
       final docRef = await FirebaseFirestore.instance.collection('milestones').add({
         'projectId': widget.project['id'],
         'title': _milestoneController.text.trim(),
-        'description': '',
+        'description': _descriptionController.text.trim(),
         'dueDate': _dueDateController.text.trim(),
+        'color': _selectedColor,
         'status': 'pending',
         'createdBy': user.uid,
         'createdAt': FieldValue.serverTimestamp(),
@@ -125,6 +141,7 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
 
       // Clear form
       _milestoneController.clear();
+      _descriptionController.clear();
       _dueDateController.clear();
 
       // Reload milestones
@@ -491,10 +508,19 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
   Widget _buildMilestoneCard(Map<String, dynamic> milestone) {
     final status = milestone['status'] as String? ?? 'pending';
     final isCompleted = status == 'done';
+    final color = milestone['color'] as String? ?? '#FF5722';
     
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       child: ListTile(
+        leading: Container(
+          width: 12,
+          height: 12,
+          decoration: BoxDecoration(
+            color: Color(int.parse(color.replaceAll('#', '0xFF'))),
+            shape: BoxShape.circle,
+          ),
+        ),
         title: Text(
           milestone['title'] ?? '',
           style: TextStyle(
@@ -564,7 +590,13 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Add Milestone'),
+        title: const Text(
+          'Add Milestone',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
         content: Form(
           key: _formKey,
           child: Column(
@@ -574,7 +606,9 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
                 controller: _milestoneController,
                 decoration: const InputDecoration(
                   labelText: 'Milestone Title *',
+                  hintText: 'Milestone Title *',
                   border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.flag),
                 ),
                 validator: (value) {
                   if (value == null || value.trim().isEmpty) {
@@ -584,33 +618,81 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
                 },
               ),
               const SizedBox(height: 16),
-                             TextFormField(
-                 controller: _dueDateController,
-                 readOnly: true,
-                 decoration: const InputDecoration(
-                   labelText: 'Due Date *',
-                   border: OutlineInputBorder(),
-                   hintText: 'Tap to select date',
-                   suffixIcon: Icon(Icons.calendar_today),
-                 ),
-                 onTap: () async {
-                   final DateTime? picked = await showDatePicker(
-                     context: context,
-                     initialDate: DateTime.now(),
-                     firstDate: DateTime.now(),
-                     lastDate: DateTime.now().add(const Duration(days: 365 * 2)), // 2 years from now
-                   );
-                   if (picked != null) {
-                     _dueDateController.text = '${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}';
-                   }
-                 },
-                 validator: (value) {
-                   if (value == null || value.trim().isEmpty) {
-                     return 'Please select a due date';
-                   }
-                   return null;
-                 },
-               ),
+              TextFormField(
+                controller: _descriptionController,
+                decoration: const InputDecoration(
+                  labelText: 'Description',
+                  hintText: 'Description',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.description),
+                ),
+                maxLines: 2,
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _dueDateController,
+                readOnly: true,
+                decoration: const InputDecoration(
+                  labelText: 'Due Date *',
+                  hintText: 'Due Date *',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.calendar_today),
+                  suffixIcon: Icon(Icons.calendar_today),
+                ),
+                onTap: () async {
+                  final DateTime? picked = await showDatePicker(
+                    context: context,
+                    initialDate: DateTime.now(),
+                    firstDate: DateTime.now(),
+                    lastDate: DateTime.now().add(const Duration(days: 365 * 2)), // 2 years from now
+                  );
+                  if (picked != null) {
+                    _dueDateController.text = '${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}';
+                  }
+                },
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Please select a due date';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+              // Color Selection Section
+              const Text(
+                'Milestone Color',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: _availableColors.map((color) {
+                  final isSelected = color == _selectedColor;
+                  return GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        _selectedColor = color;
+                      });
+                    },
+                    child: Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: Color(int.parse(color.replaceAll('#', '0xFF'))),
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: isSelected ? Colors.black : Colors.grey,
+                          width: isSelected ? 3 : 1,
+                        ),
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
             ],
           ),
         ),

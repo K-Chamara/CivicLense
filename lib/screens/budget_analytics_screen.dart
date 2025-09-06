@@ -122,7 +122,7 @@ class _BudgetAnalyticsScreenState extends State<BudgetAnalyticsScreen>
             Expanded(
               child: _buildSummaryCard(
                 'Total Budget',
-                '₹${NumberFormat('#,##,##,##0').format(_analytics!.totalBudget)}',
+                '\$${NumberFormat('#,##,##,##0').format(_analytics!.totalBudget)}',
                 Icons.account_balance_wallet,
                 Colors.blue,
                 'Available for allocation',
@@ -132,7 +132,7 @@ class _BudgetAnalyticsScreenState extends State<BudgetAnalyticsScreen>
             Expanded(
               child: _buildSummaryCard(
                 'Total Spent',
-                '₹${NumberFormat('#,##,##,##0').format(_analytics!.totalSpent)}',
+                '\$${NumberFormat('#,##,##,##0').format(_analytics!.totalSpent)}',
                 Icons.trending_down,
                 Colors.orange,
                 '${utilizationPercentage.toStringAsFixed(1)}% utilized',
@@ -143,7 +143,7 @@ class _BudgetAnalyticsScreenState extends State<BudgetAnalyticsScreen>
         const SizedBox(height: 16),
         _buildSummaryCard(
           'Remaining Budget',
-          '₹${NumberFormat('#,##,##,##0').format(remainingBudget)}',
+          '\$${NumberFormat('#,##,##,##0').format(remainingBudget)}',
           Icons.savings,
           remainingBudget > 0 ? Colors.green : Colors.red,
           remainingBudget > 0 ? 'Under budget' : 'Over budget',
@@ -280,8 +280,8 @@ class _BudgetAnalyticsScreenState extends State<BudgetAnalyticsScreen>
               ),
               Text(
                 isOverBudget 
-                  ? 'Over budget by ₹${NumberFormat('#,##,##,##0').format(remainingBudget.abs())}'
-                  : 'Under budget by ₹${NumberFormat('#,##,##,##0').format(remainingBudget)}',
+                  ? 'Over budget by \$${NumberFormat('#,##,##,##0').format(remainingBudget.abs())}'
+                  : 'Under budget by \$${NumberFormat('#,##,##,##0').format(remainingBudget)}',
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
@@ -430,7 +430,7 @@ class _BudgetAnalyticsScreenState extends State<BudgetAnalyticsScreen>
                         maxLines: 2,
                       ),
                       Text(
-                        '₹${NumberFormat('#,##,##,##0').format(entry.value)}',
+                        '\$${NumberFormat('#,##,##,##0').format(entry.value)}',
                         style: TextStyle(
                           fontSize: 10,
                           color: Colors.grey[600],
@@ -666,7 +666,7 @@ class _BudgetAnalyticsScreenState extends State<BudgetAnalyticsScreen>
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '₹${NumberFormat('#,##,##,##0').format(category.allocatedAmount)} allocated',
+                  '\$${NumberFormat('#,##,##,##0').format(category.allocatedAmount)} allocated',
                   style: TextStyle(
                     fontSize: 12,
                     color: Colors.grey[600],
@@ -751,7 +751,7 @@ class _BudgetAnalyticsScreenState extends State<BudgetAnalyticsScreen>
                       reservedSize: 40,
                       getTitlesWidget: (value, meta) {
                         return Text(
-                          '₹${(value / 1000000).toStringAsFixed(0)}M',
+                          '\$${(value / 1000000).toStringAsFixed(0)}M',
                           style: const TextStyle(fontSize: 10),
                         );
                       },
@@ -876,12 +876,12 @@ class _BudgetAnalyticsScreenState extends State<BudgetAnalyticsScreen>
             ),
           ),
           Text(
-            '₹${NumberFormat('#,##,##,##0').format(trend.budgeted)}',
+            '\$${NumberFormat('#,##,##,##0').format(trend.budgeted)}',
             style: const TextStyle(fontSize: 12),
           ),
           const SizedBox(width: 16),
           Text(
-            '₹${NumberFormat('#,##,##,##0').format(trend.actual)}',
+            '\$${NumberFormat('#,##,##,##0').format(trend.actual)}',
             style: const TextStyle(fontSize: 12),
           ),
           const SizedBox(width: 16),
@@ -892,7 +892,7 @@ class _BudgetAnalyticsScreenState extends State<BudgetAnalyticsScreen>
               borderRadius: BorderRadius.circular(12),
             ),
             child: Text(
-              '${isPositive ? '+' : ''}₹${NumberFormat('#,##,##,##0').format(trend.variance)}',
+              '${isPositive ? '+' : ''}\$${NumberFormat('#,##,##,##0').format(trend.variance)}',
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.bold,
@@ -959,7 +959,7 @@ class _BudgetAnalyticsScreenState extends State<BudgetAnalyticsScreen>
                       reservedSize: 40,
                       getTitlesWidget: (value, meta) {
                         return Text(
-                          '₹${(value / 1000000).toStringAsFixed(0)}M',
+                          '\$${(value / 1000000).toStringAsFixed(0)}M',
                           style: const TextStyle(fontSize: 10),
                         );
                       },
@@ -1072,12 +1072,12 @@ class _BudgetAnalyticsScreenState extends State<BudgetAnalyticsScreen>
             ),
           ),
           Text(
-            '₹${NumberFormat('#,##,##,##0').format(comparison.totalBudget)}',
+            '\$${NumberFormat('#,##,##,##0').format(comparison.totalBudget)}',
             style: const TextStyle(fontSize: 12),
           ),
           const SizedBox(width: 16),
           Text(
-            '₹${NumberFormat('#,##,##,##0').format(comparison.totalSpent)}',
+            '\$${NumberFormat('#,##,##,##0').format(comparison.totalSpent)}',
             style: const TextStyle(fontSize: 12),
           ),
           const SizedBox(width: 16),

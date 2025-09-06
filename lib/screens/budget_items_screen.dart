@@ -2,64 +2,68 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/budget_models.dart';
 import '../services/budget_service.dart';
-import 'budget_subcategory_screen.dart';
 
-class BudgetCategoryScreen extends StatefulWidget {
-  const BudgetCategoryScreen({super.key});
+class BudgetItemsScreen extends StatefulWidget {
+  final BudgetCategory category;
+  final BudgetSubcategory subcategory;
+
+  const BudgetItemsScreen({
+    super.key,
+    required this.category,
+    required this.subcategory,
+  });
 
   @override
-  State<BudgetCategoryScreen> createState() => _BudgetCategoryScreenState();
+  State<BudgetItemsScreen> createState() => _BudgetItemsScreenState();
 }
 
-class _BudgetCategoryScreenState extends State<BudgetCategoryScreen> with TickerProviderStateMixin {
+class _BudgetItemsScreenState extends State<BudgetItemsScreen> with TickerProviderStateMixin {
   final BudgetService _budgetService = BudgetService();
-  List<BudgetCategory> _categories = [];
-  Map<String, CategoryGroupAnalytics> _groupedAnalytics = {};
+  List<BudgetItem> _items = [];
   bool _isLoading = true;
-  late TabController _tabController;
+  late AnimationController _fadeController;
+  late Animation<double> _fadeAnimation;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
-    _loadCategories();
-    _loadGroupedData();
+    _fadeController = AnimationController(
+      duration: const Duration(milliseconds: 600),
+      vsync: this,
+    );
+    _fadeAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(
+      parent: _fadeController,
+      curve: Curves.easeInOut,
+    ));
+    _loadItems();
   }
 
   @override
   void dispose() {
-    _tabController.dispose();
+    _fadeController.dispose();
     super.dispose();
   }
 
-  Future<void> _loadCategories() async {
+  Future<void> _loadItems() async {
     try {
       setState(() => _isLoading = true);
-      final categories = await _budgetService.getCategories();
+      final items = await _budgetService.getBudgetItems(widget.category.id, widget.subcategory.id);
       setState(() {
-        _categories = categories;
+        _items = items;
         _isLoading = false;
       });
+      _fadeController.forward();
     } catch (e) {
       setState(() => _isLoading = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error loading categories: $e')),
-        );
-      }
-    }
-  }
-
-  Future<void> _loadGroupedData() async {
-    try {
-      final groupedData = await _budgetService.getGroupedAnalytics();
-      setState(() {
-        _groupedAnalytics = groupedData;
-      });
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error loading grouped data: $e')),
+          SnackBar(
+            content: Text('Error loading budget items: $e'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }
@@ -70,61 +74,40 @@ class _BudgetCategoryScreenState extends State<BudgetCategoryScreen> with Ticker
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
       appBar: AppBar(
-        title: const Text(
-          'Budget Categories',
-          style: TextStyle(fontWeight: FontWeight.bold),
+        title: Text(
+          '${widget.subcategory.name} - Items',
+          style: const TextStyle(fontWeight: FontWeight.bold),
         ),
-        backgroundColor: Colors.green,
+        backgroundColor: Color(int.parse(widget.subcategory.color.replaceAll('#', '0xFF'))),
         foregroundColor: Colors.white,
         elevation: 0,
-        bottom: TabBar(
-          controller: _tabController,
-          indicatorColor: Colors.white,
-          labelColor: Colors.white,
-          unselectedLabelColor: Colors.white70,
-          tabs: const [
-            Tab(text: 'Individual View'),
-            Tab(text: 'Grouped View'),
-          ],
-        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
-            onPressed: () {
-              _loadCategories();
-              _loadGroupedData();
-            },
+            onPressed: _loadItems,
           ),
         ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : TabBarView(
-              controller: _tabController,
-              children: [
-                // Individual View Tab
-                RefreshIndicator(
-                  onRefresh: _loadCategories,
-                  child: _categories.isEmpty
-                      ? _buildEmptyState()
-                      : ListView.builder(
-                          padding: const EdgeInsets.all(16),
-                          itemCount: _categories.length,
-                          itemBuilder: (context, index) {
-                            return _buildCategoryCard(_categories[index]);
-                          },
-                        ),
-                ),
-                // Grouped View Tab
-                RefreshIndicator(
-                  onRefresh: _loadGroupedData,
-                  child: _buildGroupedView(),
-                ),
-              ],
+          : FadeTransition(
+              opacity: _fadeAnimation,
+              child: _items.isEmpty
+                  ? _buildEmptyState()
+                  : RefreshIndicator(
+                      onRefresh: _loadItems,
+                      child: ListView.builder(
+                        padding: const EdgeInsets.all(16),
+                        itemCount: _items.length,
+                        itemBuilder: (context, index) {
+                          return _buildItemCard(_items[index]);
+                        },
+                      ),
+                    ),
             ),
       floatingActionButton: FloatingActionButton(
-        onPressed: _showAddCategoryDialog,
-        backgroundColor: Colors.green,
+        onPressed: _showAddItemDialog,
+        backgroundColor: Color(int.parse(widget.subcategory.color.replaceAll('#', '0xFF'))),
         foregroundColor: Colors.white,
         child: const Icon(Icons.add),
       ),
@@ -137,13 +120,13 @@ class _BudgetCategoryScreenState extends State<BudgetCategoryScreen> with Ticker
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(
-            Icons.account_balance_wallet_outlined,
+            Icons.attach_money_outlined,
             size: 80,
             color: Colors.grey[400],
           ),
           const SizedBox(height: 16),
           Text(
-            'No Budget Categories',
+            'No Budget Items',
             style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
@@ -152,7 +135,7 @@ class _BudgetCategoryScreenState extends State<BudgetCategoryScreen> with Ticker
           ),
           const SizedBox(height: 8),
           Text(
-            'Create your first budget category to get started',
+            'Create budget items for "${widget.subcategory.name}" to track individual expenses',
             style: TextStyle(
               fontSize: 16,
               color: Colors.grey[500],
@@ -161,11 +144,11 @@ class _BudgetCategoryScreenState extends State<BudgetCategoryScreen> with Ticker
           ),
           const SizedBox(height: 24),
           ElevatedButton.icon(
-            onPressed: _showAddCategoryDialog,
+            onPressed: _showAddItemDialog,
             icon: const Icon(Icons.add),
-            label: const Text('Add Category'),
+            label: const Text('Add Item'),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.green,
+              backgroundColor: Color(int.parse(widget.subcategory.color.replaceAll('#', '0xFF'))),
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
             ),
@@ -175,29 +158,21 @@ class _BudgetCategoryScreenState extends State<BudgetCategoryScreen> with Ticker
     );
   }
 
-  Widget _buildCategoryCard(BudgetCategory category) {
-    final color = Color(int.parse(category.color.replaceAll('#', '0xFF')));
+  Widget _buildItemCard(BudgetItem item) {
+    final color = Color(int.parse(item.color.replaceAll('#', '0xFF')));
+    final spendingPercentage = item.spendingPercentage;
+    final spendingColor = BudgetFormatter.getSpendingColor(spendingPercentage);
 
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: InkWell(
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => BudgetSubcategoryScreen(category: category),
-            ),
-          );
-        },
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
               children: [
                 Container(
                   width: 12,
@@ -213,15 +188,15 @@ class _BudgetCategoryScreenState extends State<BudgetCategoryScreen> with Ticker
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        category.name,
+                        item.name,
                         style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      if (category.description.isNotEmpty)
+                      if (item.description.isNotEmpty)
                         Text(
-                          category.description,
+                          item.description,
                           style: TextStyle(
                             fontSize: 14,
                             color: Colors.grey[600],
@@ -234,10 +209,10 @@ class _BudgetCategoryScreenState extends State<BudgetCategoryScreen> with Ticker
                   onSelected: (value) {
                     switch (value) {
                       case 'edit':
-                        _showEditCategoryDialog(category);
+                        _showEditItemDialog(item);
                         break;
                       case 'delete':
-                        _showDeleteConfirmation(category);
+                        _showDeleteConfirmation(item);
                         break;
                     }
                   },
@@ -281,7 +256,7 @@ class _BudgetCategoryScreenState extends State<BudgetCategoryScreen> with Ticker
                       ),
                     ),
                     Text(
-                      '\$${NumberFormat('#,##,##,##0').format(category.allocatedAmount)}',
+                      '\$${NumberFormat('#,##,##,##0').format(item.allocatedAmount)}',
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
@@ -293,17 +268,38 @@ class _BudgetCategoryScreenState extends State<BudgetCategoryScreen> with Ticker
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Text(
-                      'Subcategories',
+                      'Spent',
                       style: TextStyle(
                         fontSize: 12,
                         color: Colors.grey[600],
                       ),
                     ),
                     Text(
-                      '${category.subcategories.length}',
+                      '\$${NumberFormat('#,##,##,##0').format(item.spentAmount)}',
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
+                        color: Colors.red,
+                      ),
+                    ),
+                  ],
+                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      'Remaining',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                    Text(
+                      '\$${NumberFormat('#,##,##,##0').format(item.remainingAmount)}',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.green,
                       ),
                     ),
                   ],
@@ -319,13 +315,15 @@ class _BudgetCategoryScreenState extends State<BudgetCategoryScreen> with Ticker
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       LinearProgressIndicator(
-                        value: category.subcategories.isNotEmpty ? 1.0 : 0.0,
+                        value: spendingPercentage / 100,
                         backgroundColor: Colors.grey[300],
-                        valueColor: AlwaysStoppedAnimation<Color>(color),
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          Color(int.parse(spendingColor.replaceAll('#', '0xFF'))),
+                        ),
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        category.subcategories.isNotEmpty ? 'Has subcategories' : 'No subcategories',
+                        'Spent: ${BudgetFormatter.formatPercentage(spendingPercentage)}',
                         style: TextStyle(
                           fontSize: 12,
                           color: Colors.grey[600],
@@ -338,15 +336,27 @@ class _BudgetCategoryScreenState extends State<BudgetCategoryScreen> with Ticker
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: category.subcategories.isNotEmpty ? Colors.green[100] : Colors.grey[100],
+                    color: spendingPercentage > 80 
+                        ? Colors.red[100] 
+                        : spendingPercentage > 60 
+                            ? Colors.orange[100] 
+                            : Colors.green[100],
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
-                    category.subcategories.isNotEmpty ? 'Active' : 'Empty',
+                    spendingPercentage > 80 
+                        ? 'Over Budget' 
+                        : spendingPercentage > 60 
+                            ? 'High Spending' 
+                            : 'On Track',
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
-                      color: category.subcategories.isNotEmpty ? Colors.green[700] : Colors.grey[700],
+                      color: spendingPercentage > 80 
+                          ? Colors.red[700] 
+                          : spendingPercentage > 60 
+                              ? Colors.orange[700] 
+                              : Colors.green[700],
                     ),
                   ),
                 ),
@@ -357,7 +367,7 @@ class _BudgetCategoryScreenState extends State<BudgetCategoryScreen> with Ticker
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
                 Text(
-                  'Created: ${DateFormat('MMM dd, yyyy').format(category.createdAt)}',
+                  'Created: ${DateFormat('MMM dd, yyyy').format(item.createdAt)}',
                   style: TextStyle(
                     fontSize: 12,
                     color: Colors.grey[500],
@@ -365,25 +375,24 @@ class _BudgetCategoryScreenState extends State<BudgetCategoryScreen> with Ticker
                 ),
               ],
             ),
-            ],
-          ),
+          ],
         ),
       ),
     );
   }
 
-
-  void _showAddCategoryDialog() {
+  void _showAddItemDialog() {
     final nameController = TextEditingController();
     final descriptionController = TextEditingController();
-    final amountController = TextEditingController();
-    String selectedColor = '#FF6B6B';
+    final allocatedAmountController = TextEditingController();
+    final spentAmountController = TextEditingController();
+    String selectedColor = '#96CEB4';
 
     showDialog(
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setState) => AlertDialog(
-          title: const Text('Add Budget Category'),
+          title: const Text('Add Budget Item'),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -391,9 +400,9 @@ class _BudgetCategoryScreenState extends State<BudgetCategoryScreen> with Ticker
                 TextField(
                   controller: nameController,
                   decoration: const InputDecoration(
-                    labelText: 'Category Name *',
+                    labelText: 'Item Name *',
                     border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.category),
+                    prefixIcon: Icon(Icons.attach_money),
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -408,7 +417,7 @@ class _BudgetCategoryScreenState extends State<BudgetCategoryScreen> with Ticker
                 ),
                 const SizedBox(height: 16),
                 TextField(
-                  controller: amountController,
+                  controller: allocatedAmountController,
                   decoration: const InputDecoration(
                     labelText: 'Allocated Amount *',
                     border: OutlineInputBorder(),
@@ -418,16 +427,28 @@ class _BudgetCategoryScreenState extends State<BudgetCategoryScreen> with Ticker
                   keyboardType: TextInputType.number,
                 ),
                 const SizedBox(height: 16),
+                TextField(
+                  controller: spentAmountController,
+                  decoration: const InputDecoration(
+                    labelText: 'Spent Amount',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.money_off),
+                    prefixText: '\$',
+                    hintText: '0.00',
+                  ),
+                  keyboardType: TextInputType.number,
+                ),
+                const SizedBox(height: 16),
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Category Color'),
+                    const Text('Item Color'),
                     const SizedBox(height: 8),
                     Wrap(
                       spacing: 8,
                       children: [
-                        '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7',
-                        '#DDA0DD', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E9'
+                        '#96CEB4', '#FFEAA7', '#DDA0DD', '#98D8C8', '#F7DC6F',
+                        '#BB8FCE', '#85C1E9', '#FF6B6B', '#4ECDC4', '#45B7D1'
                       ].map((color) => GestureDetector(
                         onTap: () => setState(() => selectedColor = color),
                         child: Container(
@@ -455,31 +476,37 @@ class _BudgetCategoryScreenState extends State<BudgetCategoryScreen> with Ticker
             ),
             ElevatedButton(
               onPressed: () async {
-                if (nameController.text.isNotEmpty && amountController.text.isNotEmpty) {
+                if (nameController.text.isNotEmpty && allocatedAmountController.text.isNotEmpty) {
                   try {
-                    final category = BudgetCategory(
+                    final item = BudgetItem(
                       id: DateTime.now().millisecondsSinceEpoch.toString(),
                       name: nameController.text,
                       description: descriptionController.text,
-                      allocatedAmount: double.parse(amountController.text),
-                      spentAmount: 0.0,
+                      allocatedAmount: double.parse(allocatedAmountController.text),
+                      spentAmount: spentAmountController.text.isNotEmpty 
+                          ? double.parse(spentAmountController.text) 
+                          : 0.0,
                       color: selectedColor,
                       createdAt: DateTime.now(),
                     );
-                    await _budgetService.createCategory(category);
+                    await _budgetService.createBudgetItem(
+                      widget.category.id, 
+                      widget.subcategory.id, 
+                      item
+                    );
                     Navigator.pop(context);
-                    _loadCategories();
+                    _loadItems();
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
-                          content: Text('Category created successfully!'),
+                          content: Text('Budget item created successfully!'),
                           backgroundColor: Colors.green,
                         ),
                       );
                     }
                   } catch (e) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Error creating category: $e')),
+                      SnackBar(content: Text('Error creating budget item: $e')),
                     );
                   }
                 }
@@ -492,17 +519,18 @@ class _BudgetCategoryScreenState extends State<BudgetCategoryScreen> with Ticker
     );
   }
 
-  void _showEditCategoryDialog(BudgetCategory category) {
-    final nameController = TextEditingController(text: category.name);
-    final descriptionController = TextEditingController(text: category.description);
-    final amountController = TextEditingController(text: category.allocatedAmount.toString());
-    String selectedColor = category.color;
+  void _showEditItemDialog(BudgetItem item) {
+    final nameController = TextEditingController(text: item.name);
+    final descriptionController = TextEditingController(text: item.description);
+    final allocatedAmountController = TextEditingController(text: item.allocatedAmount.toString());
+    final spentAmountController = TextEditingController(text: item.spentAmount.toString());
+    String selectedColor = item.color;
 
     showDialog(
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setState) => AlertDialog(
-          title: const Text('Edit Budget Category'),
+          title: const Text('Edit Budget Item'),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -510,9 +538,9 @@ class _BudgetCategoryScreenState extends State<BudgetCategoryScreen> with Ticker
                 TextField(
                   controller: nameController,
                   decoration: const InputDecoration(
-                    labelText: 'Category Name *',
+                    labelText: 'Item Name *',
                     border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.category),
+                    prefixIcon: Icon(Icons.attach_money),
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -527,7 +555,7 @@ class _BudgetCategoryScreenState extends State<BudgetCategoryScreen> with Ticker
                 ),
                 const SizedBox(height: 16),
                 TextField(
-                  controller: amountController,
+                  controller: allocatedAmountController,
                   decoration: const InputDecoration(
                     labelText: 'Allocated Amount *',
                     border: OutlineInputBorder(),
@@ -537,16 +565,27 @@ class _BudgetCategoryScreenState extends State<BudgetCategoryScreen> with Ticker
                   keyboardType: TextInputType.number,
                 ),
                 const SizedBox(height: 16),
+                TextField(
+                  controller: spentAmountController,
+                  decoration: const InputDecoration(
+                    labelText: 'Spent Amount',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.money_off),
+                    prefixText: '\$',
+                  ),
+                  keyboardType: TextInputType.number,
+                ),
+                const SizedBox(height: 16),
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Category Color'),
+                    const Text('Item Color'),
                     const SizedBox(height: 8),
                     Wrap(
                       spacing: 8,
                       children: [
-                        '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7',
-                        '#DDA0DD', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E9'
+                        '#96CEB4', '#FFEAA7', '#DDA0DD', '#98D8C8', '#F7DC6F',
+                        '#BB8FCE', '#85C1E9', '#FF6B6B', '#4ECDC4', '#45B7D1'
                       ].map((color) => GestureDetector(
                         onTap: () => setState(() => selectedColor = color),
                         child: Container(
@@ -574,32 +613,37 @@ class _BudgetCategoryScreenState extends State<BudgetCategoryScreen> with Ticker
             ),
             ElevatedButton(
               onPressed: () async {
-                if (nameController.text.isNotEmpty && amountController.text.isNotEmpty) {
+                if (nameController.text.isNotEmpty && allocatedAmountController.text.isNotEmpty) {
                   try {
-                    final updatedCategory = BudgetCategory(
-                      id: category.id,
+                    final updatedItem = BudgetItem(
+                      id: item.id,
                       name: nameController.text,
                       description: descriptionController.text,
-                      allocatedAmount: double.parse(amountController.text),
-                      spentAmount: category.spentAmount,
+                      allocatedAmount: double.parse(allocatedAmountController.text),
+                      spentAmount: spentAmountController.text.isNotEmpty 
+                          ? double.parse(spentAmountController.text) 
+                          : 0.0,
                       color: selectedColor,
-                      createdAt: category.createdAt,
-                      subcategories: category.subcategories,
+                      createdAt: item.createdAt,
                     );
-                    await _budgetService.updateCategory(updatedCategory);
+                    await _budgetService.updateBudgetItem(
+                      widget.category.id, 
+                      widget.subcategory.id, 
+                      updatedItem
+                    );
                     Navigator.pop(context);
-                    _loadCategories();
+                    _loadItems();
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
-                          content: Text('Category updated successfully!'),
+                          content: Text('Budget item updated successfully!'),
                           backgroundColor: Colors.green,
                         ),
                       );
                     }
                   } catch (e) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Error updating category: $e')),
+                      SnackBar(content: Text('Error updating budget item: $e')),
                     );
                   }
                 }
@@ -612,13 +656,13 @@ class _BudgetCategoryScreenState extends State<BudgetCategoryScreen> with Ticker
     );
   }
 
-  void _showDeleteConfirmation(BudgetCategory category) {
+  void _showDeleteConfirmation(BudgetItem item) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Delete Category'),
+        title: const Text('Delete Budget Item'),
         content: Text(
-          'Are you sure you want to delete "${category.name}"? This action cannot be undone.',
+          'Are you sure you want to delete "${item.name}"? This action cannot be undone.',
         ),
         actions: [
           TextButton(
@@ -628,13 +672,17 @@ class _BudgetCategoryScreenState extends State<BudgetCategoryScreen> with Ticker
           ElevatedButton(
             onPressed: () async {
               try {
-                await _budgetService.deleteCategory(category.id);
+                await _budgetService.deleteBudgetItem(
+                  widget.category.id, 
+                  widget.subcategory.id, 
+                  item.id
+                );
                 Navigator.pop(context);
-                _loadCategories();
+                _loadItems();
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
-                      content: Text('Category deleted successfully!'),
+                      content: Text('Budget item deleted successfully!'),
                       backgroundColor: Colors.green,
                     ),
                   );
@@ -642,227 +690,12 @@ class _BudgetCategoryScreenState extends State<BudgetCategoryScreen> with Ticker
               } catch (e) {
                 Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Error deleting category: $e')),
+                  SnackBar(content: Text('Error deleting budget item: $e')),
                 );
               }
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             child: const Text('Delete'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildGroupedView() {
-    if (_groupedAnalytics.isEmpty) {
-      return const Center(
-        child: Text(
-          'No budget categories found',
-          style: TextStyle(fontSize: 16, color: Colors.grey),
-        ),
-      );
-    }
-
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Budget Categories (Grouped)',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: Colors.black87,
-            ),
-          ),
-          const SizedBox(height: 16),
-          ..._groupedAnalytics.values.map((analytics) => _buildCategoryGroup(analytics)),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCategoryGroup(CategoryGroupAnalytics analytics) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          // Category Header
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Color(int.parse(analytics.color.replaceAll('#', '0xFF'))).withOpacity(0.1),
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(16),
-                topRight: Radius.circular(16),
-              ),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  width: 12,
-                  height: 12,
-                  decoration: BoxDecoration(
-                    color: Color(int.parse(analytics.color.replaceAll('#', '0xFF'))),
-                    shape: BoxShape.circle,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        analytics.categoryName,
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        '${analytics.individualEntries.length} entries',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey[600],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      '\$${NumberFormat('#,##,##,##0').format(analytics.totalSpent)} / \$${NumberFormat('#,##,##,##0').format(analytics.totalAllocated)}',
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '${analytics.utilizationPercentage.toStringAsFixed(1)}% utilized',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey[600],
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          
-          // Progress Bar
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: LinearProgressIndicator(
-              value: analytics.utilizationPercentage / 100,
-              backgroundColor: Colors.grey[300],
-              valueColor: AlwaysStoppedAnimation<Color>(
-                Color(int.parse(analytics.color.replaceAll('#', '0xFF'))),
-              ),
-            ),
-          ),
-          
-          // Individual Entries
-          ...analytics.individualEntries.map((entry) => _buildIndividualEntry(entry)),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildIndividualEntry(BudgetEntry entry) {
-    final percentage = (entry.spentAmount / entry.allocatedAmount) * 100;
-    
-    return Container(
-      padding: const EdgeInsets.all(16),
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      decoration: BoxDecoration(
-        color: Colors.grey[50],
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey[200]!),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      entry.itemName.isNotEmpty ? entry.itemName : 'No item name',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w500,
-                        fontSize: 14,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'ID: ${entry.id}',
-                      style: TextStyle(
-                        fontSize: 10,
-                        color: Colors.grey[500],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    '\$${NumberFormat('#,##,##,##0').format(entry.spentAmount)} / \$${NumberFormat('#,##,##,##0').format(entry.allocatedAmount)}',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '${percentage.toStringAsFixed(1)}%',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: percentage > 80 ? Colors.red : percentage > 60 ? Colors.orange : Colors.green,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          LinearProgressIndicator(
-            value: percentage / 100,
-            backgroundColor: Colors.grey[300],
-            valueColor: AlwaysStoppedAnimation<Color>(
-              percentage > 80 ? Colors.red : percentage > 60 ? Colors.orange : Colors.green,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Remaining: \$${NumberFormat('#,##,##,##0').format(entry.remainingAmount)}',
-            style: TextStyle(
-              fontSize: 11,
-              color: Colors.grey[600],
-            ),
           ),
         ],
       ),
