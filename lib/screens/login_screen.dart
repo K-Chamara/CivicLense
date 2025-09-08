@@ -6,7 +6,9 @@ import 'signup_screen.dart';
 import '../services/auth_service.dart';
 import '../widgets/custom_button.dart';
 import '../widgets/custom_text_field.dart';
-import 'otp_screen.dart';
+import 'government_otp_verification_screen.dart';
+import '../models/user_role.dart';
+import '../main.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -84,12 +86,20 @@ class _LoginScreenState extends State<LoginScreen> {
           .get();
 
       bool isGovernmentUser = false;
+      UserRole? userRole;
+      
       if (userDoc.docs.isNotEmpty) {
         final userData = userDoc.docs.first.data();
         final role = userData['role'];
         if (role != null) {
-          final userType = role['userType'];
-          isGovernmentUser = userType == 'government';
+          userRole = UserRole.fromMap(role);
+          // Check if user is a government user (admin, procurement, finance, anti-corruption)
+          isGovernmentUser = userData['isGovernmentUser'] == true || 
+                            userRole.userType == 'government' ||
+                            userRole.id == 'admin' ||
+                            userRole.id == 'procurement_officer' ||
+                            userRole.id == 'finance_officer' ||
+                            userRole.id == 'anti_corruption_officer';
         }
       }
 
@@ -99,19 +109,25 @@ class _LoginScreenState extends State<LoginScreen> {
       await _saveCredentials();
 
       if (mounted) {
-        if (isGovernmentUser) {
-          // For government users, redirect to OTP screen
+        if (isGovernmentUser && userRole != null) {
+          // For government users, redirect to email OTP verification
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(
-              builder: (context) => OtpScreen(
+              builder: (context) => GovernmentOtpVerificationScreen(
                 email: email,
+                userRole: userRole!,
+                isLogin: true,
                 password: password,
               ),
             ),
           );
         } else {
           // For regular users, let AuthWrapper handle routing
-          Navigator.of(context).pushReplacementNamed('/');
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder: (context) => const AuthWrapper(),
+            ),
+          );
         }
       }
     } on FirebaseAuthException catch (e) {
@@ -347,6 +363,8 @@ class _LoginScreenState extends State<LoginScreen> {
                       isLoading: _isLoading,
                     ),
                     const SizedBox(height: 24),
+
+                    const SizedBox(height: 16),
 
                     // Sign Up Link
                     Row(

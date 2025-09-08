@@ -1,11 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import '../services/admin_service.dart';
 import '../services/auth_service.dart';
 import '../models/user_role.dart';
-import '../widgets/custom_button.dart';
-import 'enhanced_dashboard_screen.dart';
 import 'login_screen.dart';
 import 'community_list_screen.dart';
 import 'concern_management_screen.dart';
@@ -1477,6 +1474,7 @@ class _CreateGovernmentUserDialogState extends State<CreateGovernmentUserDialog>
                     children: [
                       _buildCredentialRow('Email', result['email']),
                       const SizedBox(height: 12),
+                      const SizedBox(height: 12),
                       _buildCredentialRow('Username', result['username']),
                       const SizedBox(height: 12),
                       _buildCredentialRow('Password', result['password']),
@@ -1519,9 +1517,9 @@ class _CreateGovernmentUserDialogState extends State<CreateGovernmentUserDialog>
                         ],
                       ),
                       const SizedBox(height: 12),
-                      _buildNoteItem('Email functionality is not implemented yet. Please manually share these credentials.'),
                       _buildNoteItem('The new user can now log in with these credentials.'),
-                      _buildNoteItem('Government users will receive an OTP when they log in.', isHighlighted: true),
+                      _buildNoteItem('Government users will receive dual OTP verification (email + SMS) when they log in.', isHighlighted: true),
+                      _buildNoteItem('Make sure the phone number is correct for SMS OTP delivery.', isHighlighted: true),
                     ],
                   ),
                 ),

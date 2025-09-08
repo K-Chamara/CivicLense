@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'screens/splash_screen.dart';
-import 'screens/onboarding_screen.dart';
 import 'screens/news_feed_screen.dart';
 import 'screens/article_detail_screen.dart';
 import 'screens/media_hub_screen.dart';
@@ -10,7 +9,6 @@ import 'screens/publish_report_screen.dart';
 import 'screens/community_list_screen.dart';
 import 'screens/raise_concern_screen.dart';
 import 'screens/concern_management_screen.dart';
-import 'screens/concern_detail_screen.dart';
 import 'screens/public_concerns_screen.dart';
 import 'screens/budget_viewer_screen.dart';
 import 'screens/tender_management_screen.dart';
@@ -23,7 +21,8 @@ import 'screens/anticorruption_officer_dashboard_screen.dart';
 import 'screens/public_user_dashboard_screen.dart';
 import 'services/auth_service.dart';
 import 'models/user_role.dart';
-import 'utils/onboarding_utils.dart';
+import 'utils/create_admin.dart';
+import 'screens/admin_setup_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -62,6 +61,7 @@ class MyApp extends StatelessWidget {
         '/public-concerns': (context) => const PublicConcernsScreen(),
         '/budget-viewer': (context) => const BudgetViewerScreen(),
         '/tender-management': (context) => const TenderManagementScreen(),
+        '/login': (context) => const LoginScreen(),
       },
     );
   }
@@ -134,8 +134,35 @@ class AuthWrapper extends StatelessWidget {
           );
         }
 
-        // User is not signed in, show login screen
-        return const LoginScreen();
+        // User is not signed in, check if admin exists
+        return FutureBuilder<bool>(
+          future: AdminCreator.adminExists(),
+          builder: (context, adminSnapshot) {
+            print('🔄 AuthWrapper: Checking admin existence...');
+            print('📊 Admin snapshot state: ${adminSnapshot.connectionState}');
+            print('📊 Admin snapshot hasData: ${adminSnapshot.hasData}');
+            print('📊 Admin snapshot data: ${adminSnapshot.data}');
+            
+            if (adminSnapshot.connectionState == ConnectionState.waiting) {
+              print('⏳ AuthWrapper: Waiting for admin check...');
+              return const Scaffold(
+                body: Center(
+                  child: CircularProgressIndicator(),
+                ),
+              );
+            }
+            
+            if (adminSnapshot.hasData && adminSnapshot.data == false) {
+              // No admin exists, show admin setup screen
+              print('🚨 AuthWrapper: No admin found, showing admin setup screen');
+              return const AdminSetupScreen();
+            } else {
+              // Admin exists, show login screen
+              print('✅ AuthWrapper: Admin exists, showing login screen');
+              return const LoginScreen();
+            }
+          },
+        );
       },
     );
   }
