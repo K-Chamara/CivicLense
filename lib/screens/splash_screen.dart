@@ -3,6 +3,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../utils/onboarding_utils.dart';
+import '../utils/create_admin.dart';
 import 'onboarding_screen.dart';
 import 'login_screen.dart';
 import 'dashboard_screen.dart';
@@ -130,19 +131,36 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   void _navigateToNextScreen() async {
-    // Check if user has seen onboarding before
-    final hasSeenOnboarding = await OnboardingUtils.hasSeenOnboarding();
+    print('🚀 SplashScreen: Starting navigation logic...');
+    
+    // ALWAYS check if admin exists first - this is critical for app functionality
+    print('🔍 SplashScreen: Checking admin existence...');
+    final adminExists = await AdminCreator.adminExists();
+    print('👑 SplashScreen: Admin exists: $adminExists');
     
     Widget nextScreen;
     
-    if (!hasSeenOnboarding) {
-      // First time app installation - show onboarding
-      nextScreen = const OnboardingScreen();
+    if (!adminExists) {
+      // No admin exists - show admin setup screen (this takes priority)
+      print('🚨 SplashScreen: No admin found, showing admin setup');
+      nextScreen = const AdminSetupScreen();
     } else {
-      // App has been used before - go directly to auth wrapper
-      // This handles both logged-in users and logged-out users properly
-      nextScreen = const AuthWrapper();
+      // Admin exists - check if user has seen onboarding
+      final hasSeenOnboarding = await OnboardingUtils.hasSeenOnboarding();
+      print('📱 SplashScreen: Has seen onboarding: $hasSeenOnboarding');
+      
+      if (!hasSeenOnboarding) {
+        // First time app installation - show onboarding
+        print('🎯 SplashScreen: First time user, showing onboarding');
+        nextScreen = const OnboardingScreen();
+      } else {
+        // App has been used before - go to auth wrapper
+        print('✅ SplashScreen: Returning user, going to auth wrapper');
+        nextScreen = const AuthWrapper();
+      }
     }
+    
+    print('🎬 SplashScreen: Navigating to: ${nextScreen.runtimeType}');
     
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
