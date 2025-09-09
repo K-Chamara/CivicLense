@@ -1,4 +1,5 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_firestore/cloud_firestore.dart' hide Transaction;
+import 'package:intl/intl.dart';
 import '../models/budget_models.dart';
 
 class BudgetService {
@@ -8,6 +9,7 @@ class BudgetService {
   static const String budgetCategoriesCollection = 'budget_categories';
   static const String budgetSubcategoriesCollection = 'budget_subcategories';
   static const String budgetItemsCollection = 'budget_items';
+  static const String transactionsCollection = 'transactions';
 
   /// Get all budget categories
   Future<List<BudgetCategory>> getBudgetCategories() async {
@@ -388,20 +390,58 @@ class BudgetService {
     try {
       final statistics = await getBudgetStatistics();
       final categories = await getBudgetCategories();
+      final transactions = await getTransactions();
       
-      // Convert categories to category analytics
-      List<CategoryAnalytics> categoryAnalytics = categories.map((category) {
-        return CategoryAnalytics(
+      // Convert categories to category analytics with real transaction data
+      List<CategoryAnalytics> categoryAnalytics = [];
+      
+      for (final category in categories) {
+        // Get transactions for this category
+        final categoryTransactions = transactions.where((t) => t.categoryId == category.id).toList();
+        final expenseTransactions = categoryTransactions.where((t) => t.type == 'expense').toList();
+        
+        // Calculate real spent amount from transactions
+        final realSpentAmount = expenseTransactions.fold(0.0, (total, t) => total + t.amount);
+        
+        // Get subcategory analytics
+        List<SubcategoryAnalytics> subcategoryAnalytics = [];
+        try {
+          final subcategories = await getBudgetSubcategories(category.id);
+          for (final subcategory in subcategories) {
+            final subcategoryTransactions = transactions.where((t) => t.subcategoryId == subcategory.id).toList();
+            final subcategoryExpenses = subcategoryTransactions.where((t) => t.type == 'expense').toList();
+            final subcategorySpentAmount = subcategoryExpenses.fold(0.0, (total, t) => total + t.amount);
+            final subcategorySpendingPercentage = subcategory.allocatedAmount > 0 ? (subcategorySpentAmount / subcategory.allocatedAmount) * 100 : 0;
+            
+            subcategoryAnalytics.add(SubcategoryAnalytics(
+              subcategoryId: subcategory.id,
+              subcategoryName: subcategory.name,
+              allocatedAmount: subcategory.allocatedAmount,
+              spentAmount: subcategorySpentAmount,
+              spendingPercentage: subcategorySpendingPercentage.toDouble(),
+            ));
+          }
+        } catch (e) {
+          print('Error loading subcategories for analytics: $e');
+        }
+        
+        categoryAnalytics.add(CategoryAnalytics(
           categoryId: category.id,
           categoryName: category.name,
           allocatedAmount: category.allocatedAmount,
-          spentAmount: category.spentAmount,
-          remainingAmount: category.remainingAmount,
-          spendingPercentage: category.spendingPercentage,
-          subcategoryAnalytics: [],
+          spentAmount: realSpentAmount, // Use real transaction data
+          remainingAmount: category.allocatedAmount - realSpentAmount,
+          spendingPercentage: category.allocatedAmount > 0 ? (realSpentAmount / category.allocatedAmount) * 100 : 0,
+          subcategoryAnalytics: subcategoryAnalytics,
           color: category.color,
-        );
-      }).toList();
+        ));
+      }
+
+      // Generate monthly trends from transactions
+      List<MonthlyTrend> monthlyTrends = _generateMonthlyTrends(transactions);
+      
+      // Generate yearly comparisons from transactions
+      List<YearlyComparison> yearlyComparisons = _generateYearlyComparisons(transactions);
 
       return BudgetAnalytics(
         totalAllocated: statistics['totalAllocated'] as double,
@@ -409,13 +449,92 @@ class BudgetService {
         totalRemaining: statistics['totalRemaining'] as double,
         spendingPercentage: statistics['spendingPercentage'] as double,
         categoryAnalytics: categoryAnalytics,
-        monthlyTrends: [],
-        yearlyComparisons: [],
+        monthlyTrends: monthlyTrends,
+        yearlyComparisons: yearlyComparisons,
       );
     } catch (e) {
       print('Error getting budget analytics: $e');
       throw Exception('Failed to get budget analytics: $e');
     }
+  }
+
+  /// Generate monthly trends from transactions
+  List<MonthlyTrend> _generateMonthlyTrends(List<Transaction> transactions) {
+    Map<String, Map<String, dynamic>> monthlyData = {};
+    
+    for (final transaction in transactions) {
+      final monthKey = '${transaction.date.year}-${transaction.date.month.toString().padLeft(2, '0')}';
+      final monthName = DateFormat('MMM yyyy').format(transaction.date);
+      
+      monthlyData[monthKey] ??= <String, dynamic>{
+        'month': monthName,
+        'budgeted': 0.0,
+        'actual': 0.0,
+      };
+      
+      if (transaction.type == 'expense') {
+        monthlyData[monthKey]!['actual'] = monthlyData[monthKey]!['actual']! + transaction.amount;
+      }
+    }
+    
+    // Add budgeted amounts (this would ideally come from budget planning)
+    // For now, we'll use a simple estimation
+    final totalBudget = monthlyData.values.fold(0.0, (total, data) => total + data['actual']!);
+    final avgMonthlyBudget = totalBudget / monthlyData.length;
+    
+    return monthlyData.entries.map((entry) {
+      final data = entry.value;
+      final budgeted = avgMonthlyBudget;
+      final actual = data['actual']!;
+      final variance = actual - budgeted;
+      
+      return MonthlyTrend(
+        month: data['month'] as String,
+        year: int.parse(entry.key.split('-')[0]),
+        allocatedAmount: budgeted,
+        spentAmount: actual,
+        variance: variance,
+      );
+    }).toList()..sort((a, b) => a.month.compareTo(b.month));
+  }
+
+  /// Generate yearly comparisons from transactions
+  List<YearlyComparison> _generateYearlyComparisons(List<Transaction> transactions) {
+    Map<int, Map<String, double>> yearlyData = {};
+    
+    for (final transaction in transactions) {
+      final year = transaction.date.year;
+      
+      yearlyData[year] ??= <String, double>{
+        'budgeted': 0.0,
+        'actual': 0.0,
+      };
+      
+      if (transaction.type == 'expense') {
+        yearlyData[year]!['actual'] = yearlyData[year]!['actual']! + transaction.amount;
+      }
+    }
+    
+    // Add budgeted amounts (this would ideally come from budget planning)
+    final totalActual = yearlyData.values.fold(0.0, (total, data) => total + data['actual']!);
+    final avgYearlyBudget = totalActual / yearlyData.length;
+    
+    return yearlyData.entries.map((entry) {
+      final year = entry.key;
+      final data = entry.value;
+      final budgeted = avgYearlyBudget;
+      final actual = data['actual']!;
+      final variance = actual - budgeted;
+      final variancePercentage = budgeted > 0 ? (variance / budgeted) * 100 : 0;
+      
+      return YearlyComparison(
+        year: year,
+        allocatedAmount: budgeted.toDouble(),
+        spentAmount: actual.toDouble(),
+        variance: variance.toDouble(),
+        variancePercentage: variancePercentage.toDouble(),
+      );
+    }).toList()..sort((a, b) => a.year.compareTo(b.year));
   }
 
   /// Get grouped analytics
@@ -433,8 +552,8 @@ class BudgetService {
 
       Map<String, CategoryGroupAnalytics> result = {};
       grouped.forEach((groupName, categoryList) {
-        double totalAllocated = categoryList.fold(0, (sum, cat) => sum + cat.allocatedAmount);
-        double totalSpent = categoryList.fold(0, (sum, cat) => sum + cat.spentAmount);
+        double totalAllocated = categoryList.fold(0, (total, cat) => total + cat.allocatedAmount);
+        double totalSpent = categoryList.fold(0, (total, cat) => total + cat.spentAmount);
         double totalRemaining = totalAllocated - totalSpent;
         double spendingPercentage = totalAllocated > 0 ? (totalSpent / totalAllocated) * 100 : 0;
 
@@ -471,34 +590,84 @@ class BudgetService {
   /// Get AI suggestions
   Future<List<AISuggestion>> getAISuggestions() async {
     try {
-      // This is a placeholder implementation
-      // In a real app, you would integrate with AI services
-      return [
-        AISuggestion(
-          id: '1',
-          title: 'Optimize Infrastructure Spending',
-          description: 'Consider reallocating funds from over-budget categories to under-utilized ones.',
-          category: 'Infrastructure',
+      final analytics = await getBudgetAnalytics();
+      final suggestions = <AISuggestion>[];
+      
+      // Analyze over-budget categories
+      final overBudgetCategories = analytics.categoryAnalytics
+          .where((cat) => cat.spendingPercentage > 100)
+          .toList();
+      
+      // Analyze under-utilized categories
+      final underUtilizedCategories = analytics.categoryAnalytics
+          .where((cat) => cat.spendingPercentage < 50)
+          .toList();
+      
+      // Generate suggestions based on real data
+      for (final category in overBudgetCategories) {
+        final overspendAmount = category.spentAmount - category.allocatedAmount;
+        suggestions.add(AISuggestion(
+          id: 'overbudget_${category.categoryName}',
+          title: 'Address ${category.categoryName} Overspending',
+          description: '${category.categoryName} is ${category.spendingPercentage.toStringAsFixed(1)}% over budget. Consider cost reduction strategies or budget reallocation.',
+          category: category.categoryName,
           confidence: 'high',
           impact: 'high',
-          potentialSavings: 5000000,
-          rationale: 'Based on spending patterns and budget utilization analysis.',
-          tags: ['optimization', 'infrastructure', 'cost-saving'],
+          potentialSavings: overspendAmount,
+          rationale: 'Current spending exceeds allocated budget by \$${NumberFormat('#,##,##,##0').format(overspendAmount)}.',
+          tags: ['over-budget', 'cost-reduction', category.categoryName.toLowerCase()],
           createdAt: DateTime.now(),
-        ),
-        AISuggestion(
-          id: '2',
-          title: 'Review Healthcare Budget Allocation',
-          description: 'Healthcare spending is 15% over budget. Consider cost reduction strategies.',
-          category: 'Healthcare',
+        ));
+      }
+      
+      for (final category in underUtilizedCategories) {
+        final unusedAmount = category.allocatedAmount - category.spentAmount;
+        suggestions.add(AISuggestion(
+          id: 'underutilized_${category.categoryName}',
+          title: 'Optimize ${category.categoryName} Budget Utilization',
+          description: '${category.categoryName} is only ${category.spendingPercentage.toStringAsFixed(1)}% utilized. Consider reallocating unused funds to priority areas.',
+          category: category.categoryName,
           confidence: 'medium',
           impact: 'medium',
-          potentialSavings: 2000000,
-          rationale: 'Healthcare category shows consistent overspending trends.',
-          tags: ['healthcare', 'cost-reduction', 'budget-review'],
+          potentialSavings: unusedAmount * 0.3, // Assume 30% can be reallocated
+          rationale: 'Unused budget of \$${NumberFormat('#,##,##,##0').format(unusedAmount)} could be reallocated to high-priority categories.',
+          tags: ['under-utilized', 'optimization', category.categoryName.toLowerCase()],
           createdAt: DateTime.now(),
-        ),
-      ];
+        ));
+      }
+      
+      // Add general optimization suggestions
+      if (analytics.totalSpent > analytics.totalBudget) {
+        final totalOverspend = analytics.totalSpent - analytics.totalBudget;
+        suggestions.add(AISuggestion(
+          id: 'total_overspend',
+          title: 'Overall Budget Overspend Alert',
+          description: 'Total spending exceeds budget by \$${NumberFormat('#,##,##,##0').format(totalOverspend)}. Immediate cost control measures recommended.',
+          category: 'Overall Budget',
+          confidence: 'high',
+          impact: 'critical',
+          potentialSavings: totalOverspend,
+          rationale: 'Current spending patterns indicate systematic budget overruns across multiple categories.',
+          tags: ['critical', 'budget-control', 'overspend'],
+          createdAt: DateTime.now(),
+        ));
+      }
+      
+      // Sort by impact and confidence
+      suggestions.sort((a, b) {
+        final impactOrder = {'critical': 4, 'high': 3, 'medium': 2, 'low': 1};
+        final confidenceOrder = {'high': 3, 'medium': 2, 'low': 1};
+        
+        final aImpact = impactOrder[a.impact] ?? 0;
+        final bImpact = impactOrder[b.impact] ?? 0;
+        final aConfidence = confidenceOrder[a.confidence] ?? 0;
+        final bConfidence = confidenceOrder[b.confidence] ?? 0;
+        
+        if (aImpact != bImpact) return bImpact.compareTo(aImpact);
+        return bConfidence.compareTo(aConfidence);
+      });
+      
+      return suggestions;
     } catch (e) {
       print('Error getting AI suggestions: $e');
       throw Exception('Failed to get AI suggestions: $e');
@@ -618,6 +787,211 @@ class BudgetService {
     } catch (e) {
       print('Error deleting budget item: $e');
       throw Exception('Failed to delete budget item: $e');
+    }
+  }
+
+  // ========== TRANSACTION MANAGEMENT METHODS ==========
+
+  /// Create a new transaction
+  Future<void> createTransaction(Transaction transaction) async {
+    try {
+      await _firestore
+          .collection(transactionsCollection)
+          .doc(transaction.id)
+          .set(transaction.toFirestore());
+      
+      // Update the category's spent amount if it's an expense
+      if (transaction.type == 'expense') {
+        await _updateCategorySpentAmount(transaction.categoryId, transaction.amount, true);
+      }
+    } catch (e) {
+      print('Error creating transaction: $e');
+      throw Exception('Failed to create transaction: $e');
+    }
+  }
+
+  /// Update an existing transaction
+  Future<void> updateTransaction(Transaction oldTransaction, Transaction newTransaction) async {
+    try {
+      await _firestore
+          .collection(transactionsCollection)
+          .doc(newTransaction.id)
+          .update(newTransaction.toFirestore());
+      
+      // Update category spent amounts
+      if (oldTransaction.type == 'expense') {
+        await _updateCategorySpentAmount(oldTransaction.categoryId, oldTransaction.amount, false);
+      }
+      if (newTransaction.type == 'expense') {
+        await _updateCategorySpentAmount(newTransaction.categoryId, newTransaction.amount, true);
+      }
+    } catch (e) {
+      print('Error updating transaction: $e');
+      throw Exception('Failed to update transaction: $e');
+    }
+  }
+
+  /// Delete a transaction
+  Future<void> deleteTransaction(Transaction transaction) async {
+    try {
+      await _firestore
+          .collection(transactionsCollection)
+          .doc(transaction.id)
+          .delete();
+      
+      // Update the category's spent amount if it was an expense
+      if (transaction.type == 'expense') {
+        await _updateCategorySpentAmount(transaction.categoryId, transaction.amount, false);
+      }
+    } catch (e) {
+      print('Error deleting transaction: $e');
+      throw Exception('Failed to delete transaction: $e');
+    }
+  }
+
+  /// Get all transactions
+  Future<List<Transaction>> getTransactions() async {
+    try {
+      QuerySnapshot snapshot = await _firestore
+          .collection(transactionsCollection)
+          .get();
+
+      List<Transaction> transactions = [];
+      for (DocumentSnapshot doc in snapshot.docs) {
+        Transaction transaction = Transaction.fromFirestore(doc);
+        transactions.add(transaction);
+      }
+
+      // Sort by date in descending order
+      transactions.sort((a, b) => b.date.compareTo(a.date));
+
+      return transactions;
+    } catch (e) {
+      print('Error fetching transactions: $e');
+      throw Exception('Failed to fetch transactions: $e');
+    }
+  }
+
+  /// Get transactions by category
+  Future<List<Transaction>> getTransactionsByCategory(String categoryId) async {
+    try {
+      QuerySnapshot snapshot = await _firestore
+          .collection(transactionsCollection)
+          .where('categoryId', isEqualTo: categoryId)
+          .get();
+
+      List<Transaction> transactions = [];
+      for (DocumentSnapshot doc in snapshot.docs) {
+        Transaction transaction = Transaction.fromFirestore(doc);
+        transactions.add(transaction);
+      }
+
+      // Sort by date in descending order
+      transactions.sort((a, b) => b.date.compareTo(a.date));
+
+      return transactions;
+    } catch (e) {
+      print('Error fetching transactions by category: $e');
+      throw Exception('Failed to fetch transactions by category: $e');
+    }
+  }
+
+  /// Get transactions by date range
+  Future<List<Transaction>> getTransactionsByDateRange(DateTime startDate, DateTime endDate) async {
+    try {
+      QuerySnapshot snapshot = await _firestore
+          .collection(transactionsCollection)
+          .where('date', isGreaterThanOrEqualTo: Timestamp.fromDate(startDate))
+          .where('date', isLessThanOrEqualTo: Timestamp.fromDate(endDate))
+          .get();
+
+      List<Transaction> transactions = [];
+      for (DocumentSnapshot doc in snapshot.docs) {
+        Transaction transaction = Transaction.fromFirestore(doc);
+        transactions.add(transaction);
+      }
+
+      // Sort by date in descending order
+      transactions.sort((a, b) => b.date.compareTo(a.date));
+
+      return transactions;
+    } catch (e) {
+      print('Error fetching transactions by date range: $e');
+      throw Exception('Failed to fetch transactions by date range: $e');
+    }
+  }
+
+  /// Stream transactions for real-time updates
+  Stream<List<Transaction>> streamTransactions() {
+    return _firestore
+        .collection(transactionsCollection)
+        .snapshots()
+        .map((snapshot) {
+      List<Transaction> transactions = [];
+      for (DocumentSnapshot doc in snapshot.docs) {
+        Transaction transaction = Transaction.fromFirestore(doc);
+        transactions.add(transaction);
+      }
+      // Sort by date in descending order
+      transactions.sort((a, b) => b.date.compareTo(a.date));
+      return transactions;
+    });
+  }
+
+  /// Get transaction statistics
+  Future<Map<String, dynamic>> getTransactionStatistics() async {
+    try {
+      List<Transaction> transactions = await getTransactions();
+      
+      double totalIncome = 0;
+      double totalExpense = 0;
+      Map<String, double> categoryExpenses = {};
+      Map<String, double> categoryIncome = {};
+      
+      for (Transaction transaction in transactions) {
+        if (transaction.type == 'income') {
+          totalIncome += transaction.amount;
+          categoryIncome[transaction.categoryName] = 
+              (categoryIncome[transaction.categoryName] ?? 0) + transaction.amount;
+        } else {
+          totalExpense += transaction.amount;
+          categoryExpenses[transaction.categoryName] = 
+              (categoryExpenses[transaction.categoryName] ?? 0) + transaction.amount;
+        }
+      }
+      
+      return {
+        'totalIncome': totalIncome,
+        'totalExpense': totalExpense,
+        'netAmount': totalIncome - totalExpense,
+        'categoryExpenses': categoryExpenses,
+        'categoryIncome': categoryIncome,
+        'transactionCount': transactions.length,
+      };
+    } catch (e) {
+      print('Error calculating transaction statistics: $e');
+      throw Exception('Failed to calculate transaction statistics: $e');
+    }
+  }
+
+  /// Helper method to update category spent amount
+  Future<void> _updateCategorySpentAmount(String categoryId, double amount, bool isAdd) async {
+    try {
+      DocumentReference categoryRef = _firestore
+          .collection(budgetCategoriesCollection)
+          .doc(categoryId);
+      
+      DocumentSnapshot categoryDoc = await categoryRef.get();
+      if (categoryDoc.exists) {
+        Map<String, dynamic> data = categoryDoc.data() as Map<String, dynamic>;
+        double currentSpent = (data['spentAmount'] ?? 0).toDouble();
+        double newSpent = isAdd ? currentSpent + amount : currentSpent - amount;
+        
+        await categoryRef.update({'spentAmount': newSpent});
+      }
+    } catch (e) {
+      print('Error updating category spent amount: $e');
+      // Don't throw here as it's a helper method
     }
   }
 }
