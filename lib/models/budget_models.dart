@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:intl/intl.dart';
 
 /// Budget Category Model - Represents a main budget category
 class BudgetCategory {
@@ -660,6 +661,108 @@ DateTime _parseDateTime(dynamic data) {
   
   print('Unknown date format: ${data.runtimeType}, value: $data');
   return DateTime.now();
+}
+
+/// Transaction Model - Represents manual income/expense entries
+class Transaction {
+  final String id;
+  final String type; // 'income' or 'expense'
+  final String categoryId;
+  final String categoryName;
+  final String? subcategoryId;
+  final String? subcategoryName;
+  final double amount;
+  final String description;
+  final DateTime date;
+  final DateTime createdAt;
+  final String createdBy;
+
+  Transaction({
+    required this.id,
+    required this.type,
+    required this.categoryId,
+    required this.categoryName,
+    this.subcategoryId,
+    this.subcategoryName,
+    required this.amount,
+    required this.description,
+    required this.date,
+    required this.createdAt,
+    required this.createdBy,
+  });
+
+  /// Convert from Firestore document
+  factory Transaction.fromFirestore(DocumentSnapshot doc) {
+    Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+    
+    return Transaction(
+      id: doc.id,
+      type: data['type'] ?? 'expense',
+      categoryId: data['categoryId'] ?? '',
+      categoryName: data['categoryName'] ?? '',
+      subcategoryId: data['subcategoryId'],
+      subcategoryName: data['subcategoryName'],
+      amount: (data['amount'] ?? 0).toDouble(),
+      description: data['description'] ?? '',
+      date: _parseDateTime(data['date']),
+      createdAt: _parseDateTime(data['createdAt']),
+      createdBy: data['createdBy'] ?? '',
+    );
+  }
+
+  /// Convert to Firestore document
+  Map<String, dynamic> toFirestore() {
+    return {
+      'type': type,
+      'categoryId': categoryId,
+      'categoryName': categoryName,
+      'subcategoryId': subcategoryId,
+      'subcategoryName': subcategoryName,
+      'amount': amount,
+      'description': description,
+      'date': Timestamp.fromDate(date),
+      'createdAt': Timestamp.fromDate(createdAt),
+      'createdBy': createdBy,
+    };
+  }
+
+  /// Create a copy with updated values
+  Transaction copyWith({
+    String? id,
+    String? type,
+    String? categoryId,
+    String? categoryName,
+    String? subcategoryId,
+    String? subcategoryName,
+    double? amount,
+    String? description,
+    DateTime? date,
+    DateTime? createdAt,
+    String? createdBy,
+  }) {
+    return Transaction(
+      id: id ?? this.id,
+      type: type ?? this.type,
+      categoryId: categoryId ?? this.categoryId,
+      categoryName: categoryName ?? this.categoryName,
+      subcategoryId: subcategoryId ?? this.subcategoryId,
+      subcategoryName: subcategoryName ?? this.subcategoryName,
+      amount: amount ?? this.amount,
+      description: description ?? this.description,
+      date: date ?? this.date,
+      createdAt: createdAt ?? this.createdAt,
+      createdBy: createdBy ?? this.createdBy,
+    );
+  }
+
+  /// Get display amount (positive for income, negative for expense)
+  double get displayAmount => type == 'income' ? amount : -amount;
+
+  /// Get formatted amount with sign
+  String get formattedAmount {
+    final sign = type == 'income' ? '+' : '-';
+    return '$sign\$${NumberFormat('#,##,##,##0.00').format(amount)}';
+  }
 }
 
 /// Utility class for formatting budget amounts
