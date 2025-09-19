@@ -1,36 +1,33 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'screens/onboarding_screen.dart';
-import 'screens/login_screen.dart';
-import 'screens/dashboard_screen.dart';
-import 'screens/admin_dashboard_screen.dart';
-import 'screens/admin_setup_screen.dart';
-import 'screens/otp_screen.dart';
-import 'screens/finance_officer_dashboard_screen.dart';
-import 'screens/procurement_officer_dashboard_screen.dart';
-import 'screens/anticorruption_officer_dashboard_screen.dart';
-import 'screens/public_user_dashboard_screen.dart';
-import 'screens/add_tender_screen.dart';
-import 'screens/timeline_tracker_screen.dart';
-import 'screens/ongoing_tenders_screen.dart';
-import 'screens/public_dashboard_screen.dart';
-import 'screens/notifications_screen.dart';
-import 'screens/publish_report_screen.dart';
+import 'screens/splash_screen.dart';
 import 'screens/news_feed_screen.dart';
 import 'screens/article_detail_screen.dart';
 import 'screens/media_hub_screen.dart';
+import 'screens/publish_report_screen.dart';
+import 'screens/community_list_screen.dart';
+import 'screens/raise_concern_screen.dart';
+import 'screens/concern_management_screen.dart';
+import 'screens/public_concerns_screen.dart';
+import 'screens/budget_viewer_screen.dart';
 import 'screens/tender_management_screen.dart';
-import 'screens/bidder_management_screen.dart';
-import 'services/auth_service.dart';
-import 'models/user_role.dart';
+import 'screens/login_screen.dart';
+import 'screens/common_home_screen.dart';
+import 'screens/document_upload_screen.dart';
+import 'services/user_service.dart';
+import 'utils/create_admin.dart';
+import 'screens/admin_setup_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
   // Initialize Firebase
   await Firebase.initializeApp();
+  
+  print('🚀 Civic Lense App Starting...');
+  print('📁 File uploads: Using Cloudinary (free)');
+  print('🔥 Firebase: Using production services');
   
   runApp(const MyApp());
 }
@@ -51,35 +48,74 @@ class MyApp extends StatelessWidget {
           elevation: 0,
         ),
       ),
-      home: const AuthWrapper(),
+      home: const AppInitializer(),
       routes: {
-        '/onboarding': (context) => const OnboardingScreen(),
-        '/login': (context) => const LoginScreen(),
-        '/dashboard': (context) => const DashboardScreen(),
-        '/admin-setup': (context) => const AdminSetupScreen(),
-        '/otp': (context) => const OtpScreen(email: '', password: ''),
-        '/finance-dashboard': (context) => const FinanceOfficerDashboardScreen(),
-        '/procurement-dashboard': (context) => const ProcurementOfficerDashboardScreen(),
-        '/anticorruption-dashboard': (context) => const AntiCorruptionOfficerDashboardScreen(),
-        '/public-dashboard': (context) => const PublicUserDashboardScreen(),
-        '/add-tender': (context) => const AddTenderScreen(),
-        '/timeline-tracker': (context) => const TimelineTrackerScreen(),
-        '/ongoing-tenders': (context) => const OngoingTendersScreen(),
-        '/public-dashboard-view': (context) => const PublicDashboardScreen(),
-        '/notifications': (context) => const NotificationsScreen(),
-        '/tender-management': (context) => const TenderManagementScreen(),
-        '/bidder-management': (context) => const BidderManagementScreen(tenderId: '', tenderTitle: ''),
-        '/publish': (context) => const PublishReportScreen(),
         '/news': (context) => const NewsFeedScreen(),
         '/article': (context) => const ArticleDetailScreen(),
         '/media-hub': (context) => const MediaHubScreen(),
+        '/publish': (context) => const PublishReportScreen(),
+        '/communities': (context) => const CommunityListScreen(),
+        '/raise-concern': (context) => const RaiseConcernScreen(),
+        '/concern-management': (context) => const ConcernManagementScreen(),
+        '/public-concerns': (context) => const PublicConcernsScreen(),
+        '/budget-viewer': (context) => const BudgetViewerScreen(),
+        '/tender-management': (context) => const TenderManagementScreen(),
+        '/login': (context) => const LoginScreen(),
+        '/common-home': (context) => const CommonHomeScreen(),
+        '/public-dashboard': (context) => const CommonHomeScreen(), // Add missing route
+        '/document-upload': (context) {
+          final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+          return DocumentUploadScreen(
+            userRole: args?['userRole'] ?? 'citizen',
+            userId: args?['userId'] ?? '',
+          );
+        },
       },
     );
   }
 }
 
+class AppInitializer extends StatelessWidget {
+  const AppInitializer({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    // Always start with the splash screen - it will handle navigation
+    return const SplashScreen();
+  }
+}
+
 class AuthWrapper extends StatelessWidget {
   const AuthWrapper({super.key});
+
+  Future<Map<String, dynamic>> _checkUserStatus(String userId) async {
+    try {
+      final userService = UserService();
+      final userData = await userService.getCurrentUserData();
+      
+      if (userData == null) {
+        return {'role': 'citizen', 'needsUpload': false, 'isApproved': true, 'canLogin': false};
+      }
+
+      final role = userData['role'] ?? 'citizen';
+      final status = userData['status'] ?? 'pending';
+      final needsUpload = await userService.needsDocumentUpload(userId);
+      final canLogin = await userService.canUserLogin(userId);
+      final isApproved = status == 'approved';
+
+      print('User status check: role=$role, status=$status, needsUpload=$needsUpload, isApproved=$isApproved, canLogin=$canLogin');
+
+      return {
+        'role': role,
+        'needsUpload': needsUpload,
+        'isApproved': isApproved,
+        'canLogin': canLogin,
+      };
+    } catch (e) {
+      print('Error checking user status: $e');
+      return {'role': 'citizen', 'needsUpload': false, 'isApproved': true, 'canLogin': false};
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -95,11 +131,11 @@ class AuthWrapper extends StatelessWidget {
         }
 
         if (snapshot.hasData && snapshot.data != null) {
-          // User is signed in, check their role and show appropriate dashboard
-          return FutureBuilder<UserRole?>(
-            future: AuthService().getUserRole(snapshot.data!.uid),
-            builder: (context, roleSnapshot) {
-              if (roleSnapshot.connectionState == ConnectionState.waiting) {
+          // User is signed in, check their role and document upload status
+          return FutureBuilder<Map<String, dynamic>>(
+            future: _checkUserStatus(snapshot.data!.uid),
+            builder: (context, statusSnapshot) {
+              if (statusSnapshot.connectionState == ConnectionState.waiting) {
                 return const Scaffold(
                   body: Center(
                     child: CircularProgressIndicator(),
@@ -107,33 +143,84 @@ class AuthWrapper extends StatelessWidget {
                 );
               }
 
-              final userRole = roleSnapshot.data;
-              
-              if (userRole != null) {
-                switch (userRole.id) {
-                  case 'admin':
-                    return const AdminDashboardScreen();
-                  case 'procurement_officer':
-                    return const ProcurementOfficerDashboardScreen();
-                  case 'finance_officer':
-                    return const FinanceOfficerDashboardScreen();
-                  case 'anticorruption_officer':
-                    return const AntiCorruptionOfficerDashboardScreen();
-                  default:
-                    return const DashboardScreen();
-                }
-              } else {
-                return const DashboardScreen();
+              final userData = statusSnapshot.data;
+              if (userData == null) {
+                return const CommonHomeScreen();
               }
+
+              final userRole = userData['role'];
+              final needsUpload = userData['needsUpload'] ?? false;
+              final isApproved = userData['isApproved'] ?? false;
+              final canLogin = userData['canLogin'] ?? false;
+
+              // Extract role ID from role object or string
+              String roleId = 'citizen';
+              if (userRole is String) {
+                roleId = userRole;
+              } else if (userRole is Map && userRole['id'] != null) {
+                roleId = userRole['id'];
+              }
+
+              // If user cannot login (email not verified), sign them out and redirect to login
+              if (!canLogin) {
+                FirebaseAuth.instance.signOut();
+                return const LoginScreen();
+              }
+
+              // If user needs document upload, redirect to upload page
+              // Only for non-citizen, non-admin users who are pending or haven't uploaded documents
+              print('🔍 AuthWrapper: Checking document upload requirement...');
+              print('🔍 needsUpload: $needsUpload, roleId: $roleId');
+              print('🔍 Condition check: needsUpload=$needsUpload && roleId!="citizen"=$roleId != "citizen" && roleId!="admin"=$roleId != "admin"');
+              
+              if (needsUpload && roleId != 'citizen' && roleId != 'admin') {
+                print('📄 AuthWrapper: Redirecting to document upload screen');
+                return DocumentUploadScreen(
+                  userRole: roleId,
+                  userId: snapshot.data!.uid,
+                );
+              }
+              
+              print('🏠 AuthWrapper: Proceeding to CommonHomeScreen');
+
+              // All users (approved and pending) can use the app
+              // Pending users will get limited functionality in the CommonHomeScreen
+              return const CommonHomeScreen();
             },
           );
         }
 
-        // User is not signed in, show onboarding
-        return const OnboardingScreen();
+        // User is not signed in, check if admin exists
+        return FutureBuilder<bool>(
+          future: AdminCreator.adminExists(),
+          builder: (context, adminSnapshot) {
+            print('🔄 AuthWrapper: Checking admin existence...');
+            print('📊 Admin snapshot state: ${adminSnapshot.connectionState}');
+            print('📊 Admin snapshot hasData: ${adminSnapshot.hasData}');
+            print('📊 Admin snapshot data: ${adminSnapshot.data}');
+            
+            if (adminSnapshot.connectionState == ConnectionState.waiting) {
+              print('⏳ AuthWrapper: Waiting for admin check...');
+              return const Scaffold(
+                body: Center(
+                  child: CircularProgressIndicator(),
+                ),
+              );
+            }
+            
+            if (adminSnapshot.hasData && adminSnapshot.data == false) {
+              // No admin exists, show admin setup screen
+              print('🚨 AuthWrapper: No admin found, showing admin setup screen');
+              return const AdminSetupScreen();
+            } else {
+              // Admin exists, show login screen
+              print('✅ AuthWrapper: Admin exists, showing login screen');
+              return const LoginScreen();
+            }
+          },
+        );
       },
     );
   }
-
-
 }
+

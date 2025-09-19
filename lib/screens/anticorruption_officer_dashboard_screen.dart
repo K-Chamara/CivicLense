@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import '../models/user_role.dart';
+import 'login_screen.dart';
 
 class AntiCorruptionOfficerDashboardScreen extends StatefulWidget {
   const AntiCorruptionOfficerDashboardScreen({super.key});
@@ -39,7 +40,10 @@ class _AntiCorruptionOfficerDashboardScreenState extends State<AntiCorruptionOff
     try {
       await _authService.signOut();
       if (mounted) {
-        Navigator.of(context).pushReplacementNamed('/login');
+        // Navigate to splash screen to maintain proper flow
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (context) => const LoginScreen()),
+        );
       }
     } catch (e) {
       if (mounted) {
@@ -99,6 +103,51 @@ class _AntiCorruptionOfficerDashboardScreenState extends State<AntiCorruptionOff
           ],
         ),
       ),
+      bottomNavigationBar: _buildBottomNavigationBar(),
+    );
+  }
+
+  Widget _buildBottomNavigationBar() {
+    return BottomNavigationBar(
+      type: BottomNavigationBarType.fixed,
+      backgroundColor: Colors.white,
+      selectedItemColor: Colors.purple,
+      unselectedItemColor: Colors.grey,
+      currentIndex: 3, // Dashboard is selected (index 3)
+      onTap: (index) {
+        switch (index) {
+          case 0:
+            Navigator.pushNamed(context, '/common-home');
+            break;
+          case 1:
+            Navigator.pushNamed(context, '/budget-viewer');
+            break;
+          case 2:
+            Navigator.pushNamed(context, '/tender-management');
+            break;
+          case 3:
+            // Already on dashboard
+            break;
+        }
+      },
+      items: const [
+        BottomNavigationBarItem(
+          icon: Icon(Icons.home),
+          label: 'Home',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.account_balance),
+          label: 'Budget',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.shopping_cart),
+          label: 'Tenders',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.dashboard),
+          label: 'Dashboard',
+        ),
+      ],
     );
   }
 

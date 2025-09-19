@@ -167,19 +167,19 @@ class _BudgetManagementGroupedScreenState extends State<BudgetManagementGroupedS
       children: [
         _buildStatCard(
           'Total Budget',
-          '₹${NumberFormat('#,##,##,##0').format(totalBudget)}',
+          '\$${NumberFormat('#,##,##,##0').format(totalBudget)}',
           Icons.account_balance,
           Colors.blue,
         ),
         _buildStatCard(
           'Total Spent',
-          '₹${NumberFormat('#,##,##,##0').format(totalSpent)}',
+          '\$${NumberFormat('#,##,##,##0').format(totalSpent)}',
           Icons.trending_down,
           Colors.orange,
         ),
         _buildStatCard(
           'Remaining',
-          '₹${NumberFormat('#,##,##,##0').format(totalRemaining)}',
+          '\$${NumberFormat('#,##,##,##0').format(totalRemaining)}',
           Icons.savings,
           Colors.green,
         ),
@@ -324,7 +324,7 @@ class _BudgetManagementGroupedScreenState extends State<BudgetManagementGroupedS
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Text(
-                      '₹${NumberFormat('#,##,##,##0').format(analytics.totalSpent)} / ₹${NumberFormat('#,##,##,##0').format(analytics.totalAllocated)}',
+                      '\$${NumberFormat('#,##,##,##0').format(analytics.totalSpent)} / \$${NumberFormat('#,##,##,##0').format(analytics.totalAllocated)}',
                       style: const TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
@@ -363,7 +363,7 @@ class _BudgetManagementGroupedScreenState extends State<BudgetManagementGroupedS
     );
   }
 
-  Widget _buildIndividualEntry(BudgetCategory entry) {
+  Widget _buildIndividualEntry(BudgetEntry entry) {
     final percentage = (entry.spentAmount / entry.allocatedAmount) * 100;
     
     return Container(
@@ -385,7 +385,7 @@ class _BudgetManagementGroupedScreenState extends State<BudgetManagementGroupedS
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      entry.description.isNotEmpty ? entry.description : 'No description',
+                      entry.itemName.isNotEmpty ? entry.itemName : 'No description',
                       style: const TextStyle(
                         fontWeight: FontWeight.w500,
                         fontSize: 14,
@@ -406,7 +406,7 @@ class _BudgetManagementGroupedScreenState extends State<BudgetManagementGroupedS
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Text(
-                    '₹${NumberFormat('#,##,##,##0').format(entry.spentAmount)} / ₹${NumberFormat('#,##,##,##0').format(entry.allocatedAmount)}',
+                    '\$${NumberFormat('#,##,##,##0').format(entry.spentAmount)} / \$${NumberFormat('#,##,##,##0').format(entry.allocatedAmount)}',
                     style: const TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w500,
@@ -435,7 +435,7 @@ class _BudgetManagementGroupedScreenState extends State<BudgetManagementGroupedS
           ),
           const SizedBox(height: 4),
           Text(
-            'Remaining: ₹${NumberFormat('#,##,##,##0').format(entry.remainingAmount)}',
+            'Remaining: \$${NumberFormat('#,##,##,##0').format(entry.remainingAmount)}',
             style: TextStyle(
               fontSize: 11,
               color: Colors.grey[600],

@@ -4,6 +4,7 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import '../services/news_service.dart';
 import '../services/media_hub_service.dart';
+import '../services/community_service.dart';
 import '../models/report.dart';
 
 class ArticleDetailScreen extends StatefulWidget {
@@ -16,6 +17,7 @@ class ArticleDetailScreen extends StatefulWidget {
 class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
   final _news = NewsService();
   final _hub = MediaHubService();
+  final _communityService = CommunityService();
   final _commentController = TextEditingController();
 
   @override
@@ -111,36 +113,45 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
                       const Divider(height: 24),
                       if (a.references.isNotEmpty) Text('References\n${a.references}'),
                       const SizedBox(height: 20),
-                      Row(
-                        children: [
-                          ElevatedButton.icon(
-                            onPressed: () => _news.likeArticle(a.id),
-                            icon: const Icon(Icons.thumb_up_alt_outlined),
-                            label: Text('Like (${a.likeCount})'),
-                          ),
-                          const SizedBox(width: 8),
-                          OutlinedButton.icon(
-                            onPressed: () => _downloadPdf(a),
-                            icon: const Icon(Icons.download),
-                            label: const Text('Download PDF'),
-                          ),
-                          const SizedBox(width: 8),
-                          OutlinedButton.icon(
-                            onPressed: () async {
-                              await _hub.shareArticleToHub(
-                                articleId: a.id,
-                                title: a.title,
-                                summary: a.summary,
-                                authorName: a.authorName,
-                              );
-                              if (mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Shared to Media Hub')));
-                              }
-                            },
-                            icon: const Icon(Icons.send),
-                            label: const Text('Share to Media Hub'),
-                          ),
-                        ],
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: [
+                            ElevatedButton.icon(
+                              onPressed: () => _news.likeArticle(a.id),
+                              icon: const Icon(Icons.thumb_up_alt_outlined),
+                              label: Text('Like (${a.likeCount})'),
+                            ),
+                            const SizedBox(width: 8),
+                            OutlinedButton.icon(
+                              onPressed: () => _downloadPdf(a),
+                              icon: const Icon(Icons.download),
+                              label: const Text('Download PDF'),
+                            ),
+                            const SizedBox(width: 8),
+                            OutlinedButton.icon(
+                              onPressed: () async {
+                                await _hub.shareArticleToHub(
+                                  articleId: a.id,
+                                  title: a.title,
+                                  summary: a.summary,
+                                  authorName: a.authorName,
+                                );
+                                if (mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Shared to Media Hub')));
+                                }
+                              },
+                              icon: const Icon(Icons.send),
+                              label: const Text('Share to Media Hub'),
+                            ),
+                            const SizedBox(width: 8),
+                            OutlinedButton.icon(
+                              onPressed: () => _showShareToCommunityDialog(a),
+                              icon: const Icon(Icons.people),
+                              label: const Text('Share to Community'),
+                            ),
+                          ],
+                        ),
                       ),
                       const SizedBox(height: 20),
                       const Text('Comments', style: TextStyle(fontWeight: FontWeight.bold)),
@@ -202,6 +213,110 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
       decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(16)),
       child: Text(label, style: TextStyle(color: color)),
     );
+  }
+
+  void _showShareToCommunityDialog(ReportArticle article) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Share to Community'),
+        content: SizedBox(
+          width: double.maxFinite,
+          height: 400,
+          child: StreamBuilder(
+            stream: _communityService.getUserCommunities(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+
+              if (snapshot.hasError) {
+                return Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.error, size: 48, color: Colors.red),
+                      const SizedBox(height: 16),
+                      Text('Error loading communities: ${snapshot.error}'),
+                    ],
+                  ),
+                );
+              }
+
+              if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                return const Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.people_outline, size: 48, color: Colors.grey),
+                      SizedBox(height: 16),
+                      Text('You are not a member of any communities yet.'),
+                      SizedBox(height: 8),
+                      Text('Join some communities to share this article!'),
+                    ],
+                  ),
+                );
+              }
+
+              final communities = snapshot.data!;
+              return ListView.builder(
+                itemCount: communities.length,
+                itemBuilder: (context, index) {
+                  final community = communities[index];
+                  return ListTile(
+                    leading: CircleAvatar(
+                      backgroundColor: Colors.blue.withOpacity(0.1),
+                      child: const Icon(Icons.people, color: Colors.blue),
+                    ),
+                    title: Text(community.name),
+                    subtitle: Text('${community.memberCount} members'),
+                    onTap: () => _shareToCommunity(article, community),
+                  );
+                },
+              );
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _shareToCommunity(ReportArticle article, dynamic community) async {
+    try {
+      await _communityService.shareNewsToCommunity(
+        communityId: community.id,
+        newsTitle: article.title,
+        newsContent: '${article.summary}\n\n${article.content}',
+        newsId: article.id,
+        authorName: article.authorName,
+      );
+
+      if (mounted) {
+        Navigator.pop(context); // Close dialog
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Successfully shared to ${community.name}!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.pop(context); // Close dialog
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error sharing to community: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 }
 

@@ -171,6 +171,7 @@ class _AdminSetupScreenState extends State<AdminSetupScreen> {
                 ),
                 const SizedBox(height: 16),
 
+
                 // Password Field
                 CustomTextField(
                   controller: _passwordController,

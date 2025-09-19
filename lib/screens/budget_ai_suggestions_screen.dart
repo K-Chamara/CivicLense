@@ -372,7 +372,7 @@ class _BudgetAISuggestionsScreenState extends State<BudgetAISuggestionsScreen> {
                       ),
                       const Spacer(),
                       Text(
-                        '₹${NumberFormat('#,##,##,##0').format(suggestion.recommendedAmount)}',
+                        '\$${NumberFormat('#,##,##,##0').format(suggestion.recommendedAmount)}',
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.bold,
@@ -405,21 +405,9 @@ class _BudgetAISuggestionsScreenState extends State<BudgetAISuggestionsScreen> {
               children: [
                 Expanded(
                   child: OutlinedButton.icon(
-                    onPressed: () => _showApplySuggestionDialog(suggestion),
-                    icon: const Icon(Icons.check, size: 16),
-                    label: const Text('Apply'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.green,
-                      side: const BorderSide(color: Colors.green),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: OutlinedButton.icon(
                     onPressed: () => _showDetailsDialog(suggestion),
                     icon: const Icon(Icons.info_outline, size: 16),
-                    label: const Text('Details'),
+                    label: const Text('View Details'),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: Colors.blue,
                       side: const BorderSide(color: Colors.blue),
@@ -451,11 +439,11 @@ class _BudgetAISuggestionsScreenState extends State<BudgetAISuggestionsScreen> {
           children: [
             Expanded(
               child: ElevatedButton.icon(
-                onPressed: _applyAllHighConfidenceSuggestions,
-                icon: const Icon(Icons.auto_fix_high),
-                label: const Text('Apply High Confidence'),
+                onPressed: _loadSuggestions,
+                icon: const Icon(Icons.refresh),
+                label: const Text('Refresh Suggestions'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green,
+                  backgroundColor: Colors.blue,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 12),
                 ),
@@ -506,44 +494,6 @@ class _BudgetAISuggestionsScreenState extends State<BudgetAISuggestionsScreen> {
     }
   }
 
-  void _showApplySuggestionDialog(AISuggestion suggestion) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Apply Suggestion'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Are you sure you want to apply this suggestion?'),
-            const SizedBox(height: 16),
-            Text(
-              'Category: ${suggestion.category}',
-              style: const TextStyle(fontWeight: FontWeight.bold),
-            ),
-            Text('Suggestion: ${suggestion.suggestion}'),
-            Text(
-              'Amount: ₹${NumberFormat('#,##,##,##0').format(suggestion.recommendedAmount)}',
-              style: const TextStyle(fontWeight: FontWeight.bold),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _applySuggestion(suggestion);
-            },
-            child: const Text('Apply'),
-          ),
-        ],
-      ),
-    );
-  }
 
   void _showDetailsDialog(AISuggestion suggestion) {
     showDialog(
@@ -555,7 +505,7 @@ class _BudgetAISuggestionsScreenState extends State<BudgetAISuggestionsScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildDetailItem('Suggestion', suggestion.suggestion),
-            _buildDetailItem('Recommended Amount', '₹${NumberFormat('#,##,##,##0').format(suggestion.recommendedAmount)}'),
+            _buildDetailItem('Recommended Amount', '\$${NumberFormat('#,##,##,##0').format(suggestion.recommendedAmount)}'),
             _buildDetailItem('Confidence', suggestion.confidence.toUpperCase()),
             _buildDetailItem('Reasoning', suggestion.reasoning),
             const SizedBox(height: 16),
@@ -616,46 +566,6 @@ class _BudgetAISuggestionsScreenState extends State<BudgetAISuggestionsScreen> {
     );
   }
 
-  void _applySuggestion(AISuggestion suggestion) {
-    // Here you would implement the logic to apply the suggestion
-    // For now, we'll just show a success message
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Suggestion applied for ${suggestion.category}'),
-        backgroundColor: Colors.green,
-      ),
-    );
-  }
-
-  void _applyAllHighConfidenceSuggestions() {
-    final highConfidenceSuggestions = _suggestions.where((s) => s.confidence == 'high').length;
-    
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Apply All High Confidence Suggestions'),
-        content: Text('Are you sure you want to apply all $highConfidenceSuggestions high confidence suggestions?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('Applied $highConfidenceSuggestions suggestions'),
-                  backgroundColor: Colors.green,
-                ),
-              );
-            },
-            child: const Text('Apply All'),
-          ),
-        ],
-      ),
-    );
-  }
 
   void _generateReport() {
     // Here you would implement the logic to generate and export a report

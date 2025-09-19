@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import '../models/user_role.dart';
+import 'enhanced_dashboard_screen.dart';
+import 'login_screen.dart';
 
 class PublicUserDashboardScreen extends StatefulWidget {
   const PublicUserDashboardScreen({super.key});
@@ -39,7 +41,10 @@ class _PublicUserDashboardScreenState extends State<PublicUserDashboardScreen> {
     try {
       await _authService.signOut();
       if (mounted) {
-        Navigator.of(context).pushReplacementNamed('/login');
+        // Navigate to splash screen to maintain proper flow
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (context) => const LoginScreen()),
+        );
       }
     } catch (e) {
       if (mounted) {
@@ -55,51 +60,8 @@ class _PublicUserDashboardScreenState extends State<PublicUserDashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (isLoading) {
-      return const Scaffold(
-        body: Center(
-          child: CircularProgressIndicator(),
-        ),
-      );
-    }
-
-    return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5),
-      appBar: AppBar(
-        title: Text('${userRole?.name ?? 'Public User'} Dashboard'),
-        backgroundColor: userRole?.color ?? Colors.blue,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: _signOut,
-          ),
-        ],
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Welcome Section
-            _buildWelcomeCard(),
-            const SizedBox(height: 24),
-
-            // Role-specific content
-            _buildRoleSpecificContent(),
-            const SizedBox(height: 24),
-
-            // Common Features
-            _buildCommonFeatures(),
-            const SizedBox(height: 24),
-
-            // Recent Activities
-            _buildRecentActivities(),
-          ],
-        ),
-      ),
-    );
+    // Use the enhanced dashboard for public users
+    return const EnhancedDashboardScreen();
   }
 
   Widget _buildWelcomeCard() {

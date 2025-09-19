@@ -108,8 +108,6 @@ class _BudgetDashboardScreenState extends State<BudgetDashboardScreen>
                        const SizedBox(height: 24),
                        _buildManageCategoriesSection(),
                        const SizedBox(height: 24),
-                       _buildMonthlyTrends(),
-                      const SizedBox(height: 24),
                       _buildQuickActions(),
                     ],
                   ),
@@ -194,19 +192,19 @@ class _BudgetDashboardScreenState extends State<BudgetDashboardScreen>
       children: [
         _buildStatCard(
           'Total Budget',
-          '₹${NumberFormat('#,##,##,##0').format(_analytics!.totalBudget)}',
+          '\$${NumberFormat('#,##,##,##0').format(_analytics!.totalBudget)}',
           Icons.account_balance,
           Colors.blue,
         ),
         _buildStatCard(
           'Total Spent',
-          '₹${NumberFormat('#,##,##,##0').format(_analytics!.totalSpent)}',
+          '\$${NumberFormat('#,##,##,##0').format(_analytics!.totalSpent)}',
           Icons.trending_down,
           Colors.orange,
         ),
         _buildStatCard(
           'Remaining',
-          '₹${NumberFormat('#,##,##,##0').format(_analytics!.totalRemaining)}',
+          '\$${NumberFormat('#,##,##,##0').format(_analytics!.totalRemaining)}',
           Icons.savings,
           Colors.green,
         ),
@@ -437,96 +435,6 @@ class _BudgetDashboardScreenState extends State<BudgetDashboardScreen>
     );
   }
 
-  Widget _buildMonthlyTrends() {
-    if (_analytics == null) return const SizedBox.shrink();
-
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Monthly Trends',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 20),
-          SizedBox(
-            height: 200,
-            child: LineChart(
-              LineChartData(
-                gridData: FlGridData(show: true),
-                titlesData: FlTitlesData(
-                  leftTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      reservedSize: 40,
-                      getTitlesWidget: (value, meta) {
-                        return Text(
-                          '₹${(value / 1000000).toStringAsFixed(0)}M',
-                          style: const TextStyle(fontSize: 10),
-                        );
-                      },
-                    ),
-                  ),
-                  bottomTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      getTitlesWidget: (value, meta) {
-                        if (value.toInt() < _analytics!.monthlyTrends.length) {
-                          return Text(
-                            _analytics!.monthlyTrends[value.toInt()].month,
-                            style: const TextStyle(fontSize: 10),
-                          );
-                        }
-                        return const Text('');
-                      },
-                    ),
-                  ),
-                  topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                ),
-                borderData: FlBorderData(show: true),
-                lineBarsData: [
-                  LineChartBarData(
-                    spots: _analytics!.monthlyTrends.asMap().entries.map((entry) {
-                      return FlSpot(entry.key.toDouble(), entry.value.budgeted);
-                    }).toList(),
-                    isCurved: true,
-                    color: Colors.blue,
-                    barWidth: 3,
-                    dotData: FlDotData(show: true),
-                  ),
-                  LineChartBarData(
-                    spots: _analytics!.monthlyTrends.asMap().entries.map((entry) {
-                      return FlSpot(entry.key.toDouble(), entry.value.actual);
-                    }).toList(),
-                    isCurved: true,
-                    color: Colors.green,
-                    barWidth: 3,
-                    dotData: FlDotData(show: true),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   Widget _buildQuickActions() {
     return Column(
@@ -670,7 +578,7 @@ class _BudgetDashboardScreenState extends State<BudgetDashboardScreen>
               decoration: const InputDecoration(
                 labelText: 'Allocated Amount',
                 border: OutlineInputBorder(),
-                prefixText: '₹',
+                prefixText: '\$',
               ),
               keyboardType: TextInputType.number,
             ),
@@ -690,6 +598,7 @@ class _BudgetDashboardScreenState extends State<BudgetDashboardScreen>
                     name: nameController.text,
                     description: descriptionController.text,
                     allocatedAmount: double.parse(amountController.text),
+                    spentAmount: 0.0,
                     color: '#FF6B6B',
                     createdAt: DateTime.now(),
                   );

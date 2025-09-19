@@ -4,6 +4,8 @@ import 'package:intl/intl.dart';
 import 'dart:typed_data';
 import '../models/budget_models.dart';
 import '../services/budget_service.dart';
+import 'add_transaction_screen.dart';
+import 'transaction_list_screen.dart';
 
 class BudgetUploadScreen extends StatefulWidget {
   const BudgetUploadScreen({super.key});
@@ -279,34 +281,63 @@ class _BudgetUploadScreenState extends State<BudgetUploadScreen> {
             ),
           ),
           const SizedBox(height: 16),
-          ElevatedButton.icon(
-            onPressed: _showManualEntryDialog,
-            icon: const Icon(Icons.add),
-            label: const Text('Add Budget Category'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.orange,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-            ),
+          Row(
+            children: [
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: _showManualEntryDialog,
+                  icon: const Icon(Icons.category),
+                  label: const Text('Add Category'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.orange,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: () async {
+                    final result = await Navigator.push<bool>(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const AddTransactionScreen(),
+                      ),
+                    );
+                    if (result == true) {
+                      // Refresh if needed
+                    }
+                  },
+                  icon: const Icon(Icons.add_circle),
+                  label: const Text('Add Transaction'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  ),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 12),
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: Colors.orange[50],
+              color: Colors.blue[50],
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.orange[200]!),
+              border: Border.all(color: Colors.blue[200]!),
             ),
             child: Row(
               children: [
-                Icon(Icons.edit, color: Colors.orange[600], size: 20),
+                Icon(Icons.info, color: Colors.blue[600], size: 20),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'Manually add budget categories one by one with custom amounts and descriptions.',
+                    'Add budget categories or record income/expense transactions manually.',
                     style: TextStyle(
                       fontSize: 12,
-                      color: Colors.orange[700],
+                      color: Colors.blue[700],
                     ),
                   ),
                 ),
@@ -410,7 +441,7 @@ class _BudgetUploadScreenState extends State<BudgetUploadScreen> {
           style: TextStyle(color: Colors.grey[600]),
         ),
         trailing: Text(
-          '₹${NumberFormat('#,##,##,##0').format(category.allocatedAmount)}',
+          '\$${NumberFormat('#,##,##,##0').format(category.allocatedAmount)}',
           style: const TextStyle(
             fontWeight: FontWeight.bold,
             fontSize: 16,
@@ -560,7 +591,7 @@ class _BudgetUploadScreenState extends State<BudgetUploadScreen> {
                     labelText: 'Allocated Amount *',
                     border: OutlineInputBorder(),
                     prefixIcon: Icon(Icons.currency_rupee),
-                    prefixText: '₹',
+                    prefixText: '\$',
                   ),
                   keyboardType: TextInputType.number,
                 ),
@@ -608,6 +639,7 @@ class _BudgetUploadScreenState extends State<BudgetUploadScreen> {
                     name: nameController.text,
                     description: descriptionController.text,
                     allocatedAmount: double.parse(amountController.text),
+                    spentAmount: 0.0,
                     color: selectedColor,
                     createdAt: DateTime.now(),
                   );

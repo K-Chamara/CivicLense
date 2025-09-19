@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/budget_models.dart';
 import '../services/budget_service.dart';
+import 'budget_subcategory_screen.dart';
 
 class BudgetCategoryScreen extends StatefulWidget {
   const BudgetCategoryScreen({super.key});
@@ -175,19 +176,28 @@ class _BudgetCategoryScreenState extends State<BudgetCategoryScreen> with Ticker
   }
 
   Widget _buildCategoryCard(BudgetCategory category) {
-    final percentage = category.utilizationPercentage;
     final color = Color(int.parse(category.color.replaceAll('#', '0xFF')));
 
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+      child: InkWell(
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => BudgetSubcategoryScreen(category: category),
+            ),
+          );
+        },
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
               children: [
                 Container(
                   width: 12,
@@ -271,7 +281,7 @@ class _BudgetCategoryScreenState extends State<BudgetCategoryScreen> with Ticker
                       ),
                     ),
                     Text(
-                      '₹${NumberFormat('#,##,##,##0').format(category.allocatedAmount)}',
+                      '\$${NumberFormat('#,##,##,##0').format(category.allocatedAmount)}',
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
@@ -283,14 +293,14 @@ class _BudgetCategoryScreenState extends State<BudgetCategoryScreen> with Ticker
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Text(
-                      'Spent',
+                      'Subcategories',
                       style: TextStyle(
                         fontSize: 12,
                         color: Colors.grey[600],
                       ),
                     ),
                     Text(
-                      '₹${NumberFormat('#,##,##,##0').format(category.spentAmount)}',
+                      '${category.subcategories.length}',
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
@@ -309,13 +319,13 @@ class _BudgetCategoryScreenState extends State<BudgetCategoryScreen> with Ticker
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       LinearProgressIndicator(
-                        value: percentage / 100,
+                        value: category.subcategories.isNotEmpty ? 1.0 : 0.0,
                         backgroundColor: Colors.grey[300],
                         valueColor: AlwaysStoppedAnimation<Color>(color),
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        '${percentage.toStringAsFixed(1)}% utilized',
+                        category.subcategories.isNotEmpty ? 'Has subcategories' : 'No subcategories',
                         style: TextStyle(
                           fontSize: 12,
                           color: Colors.grey[600],
@@ -328,15 +338,15 @@ class _BudgetCategoryScreenState extends State<BudgetCategoryScreen> with Ticker
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: percentage > 80 ? Colors.red[100] : Colors.green[100],
+                    color: category.subcategories.isNotEmpty ? Colors.green[100] : Colors.grey[100],
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
-                    percentage > 80 ? 'High' : percentage > 50 ? 'Medium' : 'Low',
+                    category.subcategories.isNotEmpty ? 'Active' : 'Empty',
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
-                      color: percentage > 80 ? Colors.red[700] : Colors.green[700],
+                      color: category.subcategories.isNotEmpty ? Colors.green[700] : Colors.grey[700],
                     ),
                   ),
                 ),
@@ -344,16 +354,8 @@ class _BudgetCategoryScreenState extends State<BudgetCategoryScreen> with Ticker
             ),
             const SizedBox(height: 12),
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                Text(
-                  'Remaining: ₹${NumberFormat('#,##,##,##0').format(category.remainingAmount)}',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    color: Colors.grey[700],
-                  ),
-                ),
                 Text(
                   'Created: ${DateFormat('MMM dd, yyyy').format(category.createdAt)}',
                   style: TextStyle(
@@ -363,11 +365,13 @@ class _BudgetCategoryScreenState extends State<BudgetCategoryScreen> with Ticker
                 ),
               ],
             ),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
+
 
   void _showAddCategoryDialog() {
     final nameController = TextEditingController();
@@ -409,7 +413,7 @@ class _BudgetCategoryScreenState extends State<BudgetCategoryScreen> with Ticker
                     labelText: 'Allocated Amount *',
                     border: OutlineInputBorder(),
                     prefixIcon: Icon(Icons.currency_rupee),
-                    prefixText: '₹',
+                    prefixText: '\$',
                   ),
                   keyboardType: TextInputType.number,
                 ),
@@ -458,6 +462,7 @@ class _BudgetCategoryScreenState extends State<BudgetCategoryScreen> with Ticker
                       name: nameController.text,
                       description: descriptionController.text,
                       allocatedAmount: double.parse(amountController.text),
+                      spentAmount: 0.0,
                       color: selectedColor,
                       createdAt: DateTime.now(),
                     );
@@ -527,7 +532,7 @@ class _BudgetCategoryScreenState extends State<BudgetCategoryScreen> with Ticker
                     labelText: 'Allocated Amount *',
                     border: OutlineInputBorder(),
                     prefixIcon: Icon(Icons.currency_rupee),
-                    prefixText: '₹',
+                    prefixText: '\$',
                   ),
                   keyboardType: TextInputType.number,
                 ),
@@ -742,7 +747,7 @@ class _BudgetCategoryScreenState extends State<BudgetCategoryScreen> with Ticker
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Text(
-                      '₹${NumberFormat('#,##,##,##0').format(analytics.totalSpent)} / ₹${NumberFormat('#,##,##,##0').format(analytics.totalAllocated)}',
+                      '\$${NumberFormat('#,##,##,##0').format(analytics.totalSpent)} / \$${NumberFormat('#,##,##,##0').format(analytics.totalAllocated)}',
                       style: const TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
@@ -781,7 +786,7 @@ class _BudgetCategoryScreenState extends State<BudgetCategoryScreen> with Ticker
     );
   }
 
-  Widget _buildIndividualEntry(BudgetCategory entry) {
+  Widget _buildIndividualEntry(BudgetEntry entry) {
     final percentage = (entry.spentAmount / entry.allocatedAmount) * 100;
     
     return Container(
@@ -803,7 +808,7 @@ class _BudgetCategoryScreenState extends State<BudgetCategoryScreen> with Ticker
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      entry.description.isNotEmpty ? entry.description : 'No description',
+                      entry.itemName.isNotEmpty ? entry.itemName : 'No item name',
                       style: const TextStyle(
                         fontWeight: FontWeight.w500,
                         fontSize: 14,
@@ -824,7 +829,7 @@ class _BudgetCategoryScreenState extends State<BudgetCategoryScreen> with Ticker
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Text(
-                    '₹${NumberFormat('#,##,##,##0').format(entry.spentAmount)} / ₹${NumberFormat('#,##,##,##0').format(entry.allocatedAmount)}',
+                    '\$${NumberFormat('#,##,##,##0').format(entry.spentAmount)} / \$${NumberFormat('#,##,##,##0').format(entry.allocatedAmount)}',
                     style: const TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w500,
@@ -853,7 +858,7 @@ class _BudgetCategoryScreenState extends State<BudgetCategoryScreen> with Ticker
           ),
           const SizedBox(height: 4),
           Text(
-            'Remaining: ₹${NumberFormat('#,##,##,##0').format(entry.remainingAmount)}',
+            'Remaining: \$${NumberFormat('#,##,##,##0').format(entry.remainingAmount)}',
             style: TextStyle(
               fontSize: 11,
               color: Colors.grey[600],

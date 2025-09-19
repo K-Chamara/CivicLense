@@ -108,7 +108,7 @@ class _BudgetManagementScreenState extends State<BudgetManagementScreen> {
         Expanded(
           child: _buildSummaryCard(
             'Total Budget',
-            '₹${NumberFormat('#,##,##,##0').format(totalBudget)}',
+            '\$${NumberFormat('#,##,##,##0').format(totalBudget)}',
             Icons.account_balance_wallet,
             Colors.blue,
           ),
@@ -117,7 +117,7 @@ class _BudgetManagementScreenState extends State<BudgetManagementScreen> {
         Expanded(
           child: _buildSummaryCard(
             'Total Spent',
-            '₹${NumberFormat('#,##,##,##0').format(totalSpent)}',
+            '\$${NumberFormat('#,##,##,##0').format(totalSpent)}',
             Icons.trending_down,
             Colors.orange,
           ),
@@ -126,7 +126,7 @@ class _BudgetManagementScreenState extends State<BudgetManagementScreen> {
         Expanded(
           child: _buildSummaryCard(
             'Remaining',
-            '₹${NumberFormat('#,##,##,##0').format(totalRemaining)}',
+            '\$${NumberFormat('#,##,##,##0').format(totalRemaining)}',
             Icons.savings,
             Colors.green,
           ),
@@ -281,21 +281,21 @@ class _BudgetManagementScreenState extends State<BudgetManagementScreen> {
                 Expanded(
                   child: _buildAmountInfo(
                     'Allocated',
-                    '₹${NumberFormat('#,##,##,##0').format(category.allocatedAmount)}',
+                    '\$${NumberFormat('#,##,##,##0').format(category.allocatedAmount)}',
                     Colors.blue,
                   ),
                 ),
                 Expanded(
                   child: _buildAmountInfo(
                     'Spent',
-                    '₹${NumberFormat('#,##,##,##0').format(category.spentAmount)}',
+                    '\$${NumberFormat('#,##,##,##0').format(category.spentAmount)}',
                     Colors.orange,
                   ),
                 ),
                 Expanded(
                   child: _buildAmountInfo(
                     'Remaining',
-                    '₹${NumberFormat('#,##,##,##0').format(remaining)}',
+                    '\$${NumberFormat('#,##,##,##0').format(remaining)}',
                     remaining >= 0 ? Colors.green : Colors.red,
                   ),
                 ),
@@ -392,11 +392,11 @@ class _BudgetManagementScreenState extends State<BudgetManagementScreen> {
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
             Text(
-              '₹${NumberFormat('#,##,##,##0').format(subcategory.allocatedAmount)}',
+              '\$${NumberFormat('#,##,##,##0').format(subcategory.allocatedAmount)}',
               style: const TextStyle(fontWeight: FontWeight.bold),
             ),
             Text(
-              'Spent: ₹${NumberFormat('#,##,##,##0').format(subcategory.spentAmount)}',
+              'Spent: \$${NumberFormat('#,##,##,##0').format(subcategory.spentAmount)}',
               style: TextStyle(fontSize: 12, color: Colors.grey[600]),
             ),
           ],
@@ -510,7 +510,7 @@ class _BudgetManagementScreenState extends State<BudgetManagementScreen> {
                     labelText: 'Allocated Amount *',
                     border: OutlineInputBorder(),
                     prefixIcon: Icon(Icons.currency_rupee),
-                    prefixText: '₹',
+                    prefixText: '\$',
                   ),
                   keyboardType: TextInputType.number,
                 ),
@@ -558,6 +558,7 @@ class _BudgetManagementScreenState extends State<BudgetManagementScreen> {
                     name: nameController.text,
                     description: descriptionController.text,
                     allocatedAmount: double.parse(amountController.text),
+                    spentAmount: 0.0,
                     color: selectedColor,
                     createdAt: DateTime.now(),
                   );
@@ -635,7 +636,7 @@ class _BudgetManagementScreenState extends State<BudgetManagementScreen> {
                     labelText: 'Allocated Amount *',
                     border: OutlineInputBorder(),
                     prefixIcon: Icon(Icons.currency_rupee),
-                    prefixText: '₹',
+                    prefixText: '\$',
                   ),
                   keyboardType: TextInputType.number,
                 ),
@@ -761,7 +762,7 @@ class _BudgetManagementScreenState extends State<BudgetManagementScreen> {
                 labelText: 'Allocated Amount *',
                 border: OutlineInputBorder(),
                 prefixIcon: Icon(Icons.currency_rupee),
-                prefixText: '₹',
+                prefixText: '\$',
               ),
               keyboardType: TextInputType.number,
             ),
@@ -780,7 +781,10 @@ class _BudgetManagementScreenState extends State<BudgetManagementScreen> {
                   name: nameController.text,
                   description: descriptionController.text,
                   allocatedAmount: double.parse(amountController.text),
+                  spentAmount: 0.0,
                   categoryId: category.id,
+                  color: '#4A90E2',
+                  createdAt: DateTime.now(),
                 );
                 
                 try {
@@ -854,7 +858,7 @@ class _BudgetManagementScreenState extends State<BudgetManagementScreen> {
                 labelText: 'Allocated Amount *',
                 border: OutlineInputBorder(),
                 prefixIcon: Icon(Icons.currency_rupee),
-                prefixText: '₹',
+                prefixText: '\$',
               ),
               keyboardType: TextInputType.number,
             ),
@@ -875,6 +879,8 @@ class _BudgetManagementScreenState extends State<BudgetManagementScreen> {
                   allocatedAmount: double.parse(amountController.text),
                   spentAmount: subcategory.spentAmount,
                   categoryId: subcategory.categoryId,
+                  color: subcategory.color,
+                  createdAt: subcategory.createdAt,
                 );
                 
                 try {
@@ -921,7 +927,7 @@ class _BudgetManagementScreenState extends State<BudgetManagementScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text('Category: ${category.name}'),
-            Text('Available: ₹${NumberFormat('#,##,##,##0').format(category.remainingAmount)}'),
+            Text('Available: \$${NumberFormat('#,##,##,##0').format(category.remainingAmount)}'),
             const SizedBox(height: 16),
             TextField(
               controller: descriptionController,
@@ -939,7 +945,7 @@ class _BudgetManagementScreenState extends State<BudgetManagementScreen> {
                 labelText: 'Expense Amount *',
                 border: OutlineInputBorder(),
                 prefixIcon: Icon(Icons.currency_rupee),
-                prefixText: '₹',
+                prefixText: '\$',
               ),
               keyboardType: TextInputType.number,
             ),

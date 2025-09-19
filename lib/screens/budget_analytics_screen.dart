@@ -68,6 +68,14 @@ class _BudgetAnalyticsScreenState extends State<BudgetAnalyticsScreen>
           indicatorColor: Colors.white,
           labelColor: Colors.white,
           unselectedLabelColor: Colors.white70,
+          labelStyle: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+          ),
+          unselectedLabelStyle: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.normal,
+          ),
           tabs: const [
             Tab(text: 'Overview'),
             Tab(text: 'Trends'),
@@ -102,8 +110,6 @@ class _BudgetAnalyticsScreenState extends State<BudgetAnalyticsScreen>
           const SizedBox(height: 24),
           _buildModernCategoryChart(),
           const SizedBox(height: 32),
-          _buildUtilizationOverview(),
-          const SizedBox(height: 32),
           _buildTopCategories(),
           const SizedBox(height: 24),
         ],
@@ -122,7 +128,7 @@ class _BudgetAnalyticsScreenState extends State<BudgetAnalyticsScreen>
             Expanded(
               child: _buildSummaryCard(
                 'Total Budget',
-                '₹${NumberFormat('#,##,##,##0').format(_analytics!.totalBudget)}',
+                '\$${NumberFormat('#,##,##,##0').format(_analytics!.totalBudget)}',
                 Icons.account_balance_wallet,
                 Colors.blue,
                 'Available for allocation',
@@ -132,7 +138,7 @@ class _BudgetAnalyticsScreenState extends State<BudgetAnalyticsScreen>
             Expanded(
               child: _buildSummaryCard(
                 'Total Spent',
-                '₹${NumberFormat('#,##,##,##0').format(_analytics!.totalSpent)}',
+                '\$${NumberFormat('#,##,##,##0').format(_analytics!.totalSpent)}',
                 Icons.trending_down,
                 Colors.orange,
                 '${utilizationPercentage.toStringAsFixed(1)}% utilized',
@@ -143,7 +149,7 @@ class _BudgetAnalyticsScreenState extends State<BudgetAnalyticsScreen>
         const SizedBox(height: 16),
         _buildSummaryCard(
           'Remaining Budget',
-          '₹${NumberFormat('#,##,##,##0').format(remainingBudget)}',
+          '\$${NumberFormat('#,##,##,##0').format(remainingBudget)}',
           Icons.savings,
           remainingBudget > 0 ? Colors.green : Colors.red,
           remainingBudget > 0 ? 'Under budget' : 'Over budget',
@@ -160,7 +166,7 @@ class _BudgetAnalyticsScreenState extends State<BudgetAnalyticsScreen>
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withValues(alpha: 0.1),
+            color: Colors.grey.withOpacity(0.1),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -174,7 +180,7 @@ class _BudgetAnalyticsScreenState extends State<BudgetAnalyticsScreen>
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.1),
+                  color: color.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(icon, color: color, size: 20),
@@ -183,7 +189,7 @@ class _BudgetAnalyticsScreenState extends State<BudgetAnalyticsScreen>
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.1),
+                  color: color.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
@@ -231,7 +237,7 @@ class _BudgetAnalyticsScreenState extends State<BudgetAnalyticsScreen>
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withValues(alpha: 0.1),
+            color: Colors.grey.withOpacity(0.1),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -280,8 +286,8 @@ class _BudgetAnalyticsScreenState extends State<BudgetAnalyticsScreen>
               ),
               Text(
                 isOverBudget 
-                  ? 'Over budget by ₹${NumberFormat('#,##,##,##0').format(remainingBudget.abs())}'
-                  : 'Under budget by ₹${NumberFormat('#,##,##,##0').format(remainingBudget)}',
+                  ? 'Over budget by \$${NumberFormat('#,##,##,##0').format(remainingBudget.abs())}'
+                  : 'Under budget by \$${NumberFormat('#,##,##,##0').format(remainingBudget)}',
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
@@ -321,7 +327,7 @@ class _BudgetAnalyticsScreenState extends State<BudgetAnalyticsScreen>
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withValues(alpha: 0.1),
+            color: Colors.grey.withOpacity(0.1),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -346,20 +352,12 @@ class _BudgetAnalyticsScreenState extends State<BudgetAnalyticsScreen>
             ),
           ),
           const SizedBox(height: 24),
-          SizedBox(
-            height: 350,
-            child: Row(
-              children: [
-                Expanded(
-                  flex: 2,
-                  child: _buildDonutChart(sortedCategories, categoryColors),
-                ),
-                const SizedBox(width: 24),
-                Expanded(
-                  flex: 1,
-                  child: _buildCategoryLegend(sortedCategories, categoryColors),
-                ),
-              ],
+          // Centered Pie Chart
+          Center(
+            child: SizedBox(
+              height: 300,
+              width: 300,
+              child: _buildDonutChart(sortedCategories, categoryColors),
             ),
           ),
         ],
@@ -387,7 +385,7 @@ class _BudgetAnalyticsScreenState extends State<BudgetAnalyticsScreen>
                 Shadow(
                   offset: Offset(1, 1),
                   blurRadius: 2,
-                  color: Colors.black,
+                  color: Colors.black54,
                 ),
               ],
             ),
@@ -397,62 +395,6 @@ class _BudgetAnalyticsScreenState extends State<BudgetAnalyticsScreen>
     );
   }
 
-  Widget _buildCategoryLegend(List<MapEntry<String, double>> categories, Map<String, String> categoryColors) {
-    return SingleChildScrollView(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: categories.map((entry) {
-          final percentage = (entry.value / _analytics!.totalBudget) * 100;
-          return Padding(
-            padding: const EdgeInsets.symmetric(vertical: 4),
-            child: Row(
-              children: [
-                Container(
-                  width: 12,
-                  height: 12,
-                  decoration: BoxDecoration(
-                    color: Color(int.parse(categoryColors[entry.key]!.replaceAll('#', '0xFF'))),
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        entry.key,
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                        maxLines: 2,
-                      ),
-                      Text(
-                        '₹${NumberFormat('#,##,##,##0').format(entry.value)}',
-                        style: TextStyle(
-                          fontSize: 10,
-                          color: Colors.grey[600],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Text(
-                  '${percentage.toStringAsFixed(1)}%',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-          );
-        }).toList(),
-      ),
-    );
-  }
 
   Widget _buildUtilizationOverview() {
     return Container(
@@ -462,7 +404,7 @@ class _BudgetAnalyticsScreenState extends State<BudgetAnalyticsScreen>
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withValues(alpha: 0.1),
+            color: Colors.grey.withOpacity(0.1),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -488,11 +430,11 @@ class _BudgetAnalyticsScreenState extends State<BudgetAnalyticsScreen>
           ),
           const SizedBox(height: 20),
           SizedBox(
-            height: 350,
+            height: 400,
             child: BarChart(
               BarChartData(
                 alignment: BarChartAlignment.spaceAround,
-                maxY: 100,
+                maxY: 120,
                 barTouchData: BarTouchData(
                   enabled: true,
                   touchTooltipData: BarTouchTooltipData(
@@ -500,7 +442,7 @@ class _BudgetAnalyticsScreenState extends State<BudgetAnalyticsScreen>
                       final category = _analytics!.categoryAnalytics[group.x];
                       return BarTooltipItem(
                         '${category.categoryName}\n${rod.toY.toStringAsFixed(1)}% utilized',
-                        const TextStyle(color: Colors.white),
+                        const TextStyle(color: Colors.white, fontSize: 12),
                       );
                     },
                   ),
@@ -509,39 +451,17 @@ class _BudgetAnalyticsScreenState extends State<BudgetAnalyticsScreen>
                   leftTitles: AxisTitles(
                     sideTitles: SideTitles(
                       showTitles: true,
-                      reservedSize: 40,
+                      reservedSize: 50,
                       getTitlesWidget: (value, meta) {
                         return Text(
                           '${value.toInt()}%',
-                          style: const TextStyle(fontSize: 10),
+                          style: const TextStyle(fontSize: 11),
                         );
                       },
                     ),
                   ),
-                  bottomTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      reservedSize: 80,
-                      getTitlesWidget: (value, meta) {
-                        if (value.toInt() < _analytics!.categoryAnalytics.length) {
-                          final category = _analytics!.categoryAnalytics[value.toInt()];
-                          return Padding(
-                            padding: const EdgeInsets.only(top: 8),
-                            child: SizedBox(
-                              width: 80,
-                              child: Text(
-                                category.categoryName,
-                                style: const TextStyle(fontSize: 9),
-                                textAlign: TextAlign.center,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          );
-                        }
-                        return const Text('');
-                      },
-                    ),
+                  bottomTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false), // Remove overlapping labels
                   ),
                   topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
                   rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
@@ -568,10 +488,10 @@ class _BudgetAnalyticsScreenState extends State<BudgetAnalyticsScreen>
                       BarChartRodData(
                         toY: utilization,
                         color: utilization > 100 ? Colors.red : color,
-                        width: 16,
+                        width: 20,
                         borderRadius: const BorderRadius.only(
-                          topLeft: Radius.circular(4),
-                          topRight: Radius.circular(4),
+                          topLeft: Radius.circular(6),
+                          topRight: Radius.circular(6),
                         ),
                       ),
                     ],
@@ -580,8 +500,55 @@ class _BudgetAnalyticsScreenState extends State<BudgetAnalyticsScreen>
               ),
             ),
           ),
+          const SizedBox(height: 20),
+          _buildCategoryLegend(),
         ],
       ),
+    );
+  }
+
+  Widget _buildCategoryLegend() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Categories:',
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.bold,
+            color: Colors.black87,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 12,
+          runSpacing: 8,
+          children: _analytics!.categoryAnalytics.map((category) {
+            final color = Color(int.parse(category.color.replaceAll('#', '0xFF')));
+            return Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 12,
+                  height: 12,
+                  decoration: BoxDecoration(
+                    color: color,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  category.categoryName,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            );
+          }).toList(),
+        ),
+      ],
     );
   }
 
@@ -596,7 +563,7 @@ class _BudgetAnalyticsScreenState extends State<BudgetAnalyticsScreen>
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withValues(alpha: 0.1),
+            color: Colors.grey.withOpacity(0.1),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -606,7 +573,7 @@ class _BudgetAnalyticsScreenState extends State<BudgetAnalyticsScreen>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Top Budget Categories',
+            'Budget Categories & Subcategories',
             style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
@@ -614,14 +581,195 @@ class _BudgetAnalyticsScreenState extends State<BudgetAnalyticsScreen>
           ),
           const SizedBox(height: 8),
           Text(
-            'Categories with highest budget allocation',
+            'Detailed breakdown by category and subcategory',
             style: TextStyle(
               fontSize: 14,
               color: Colors.grey[600],
             ),
           ),
           const SizedBox(height: 16),
-          ...sortedCategories.take(5).map((category) => _buildCategoryListItem(category)),
+          ...sortedCategories.take(5).map((category) => _buildCategoryWithSubcategories(category)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCategoryWithSubcategories(CategoryAnalytics category) {
+    final utilization = category.utilizationPercentage;
+    final isOverBudget = utilization > 100;
+    
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isOverBudget ? Colors.red.withOpacity(0.3) : Colors.grey[200]!,
+          width: 1,
+        ),
+      ),
+      child: Column(
+        children: [
+          // Main category header
+          Container(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Container(
+                  width: 12,
+                  height: 12,
+                  decoration: BoxDecoration(
+                    color: Color(int.parse(category.color.replaceAll('#', '0xFF'))),
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        category.categoryName,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 16,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '\$${NumberFormat('#,##,##,##0').format(category.allocatedAmount)} allocated (${((category.allocatedAmount / _analytics!.totalBudget) * 100).toStringAsFixed(1)}%)',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      '${utilization.toStringAsFixed(1)}%',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                        color: isOverBudget ? Colors.red : Colors.green,
+                      ),
+                    ),
+                    Text(
+                      isOverBudget ? 'Over budget' : 'Utilized',
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: isOverBudget ? Colors.red : Colors.green,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          // Subcategories
+          if (category.subcategoryAnalytics.isNotEmpty) ...[
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: const BorderRadius.only(
+                  bottomLeft: Radius.circular(12),
+                  bottomRight: Radius.circular(12),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Subcategories:',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.grey,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  ...category.subcategoryAnalytics.map((subcategory) => _buildSubcategoryItem(subcategory)),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSubcategoryItem(SubcategoryAnalytics subcategory) {
+    final utilization = subcategory.spendingPercentage;
+    final isOverBudget = utilization > 100;
+    
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.grey[100],
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: isOverBudget ? Colors.red.withOpacity(0.2) : Colors.grey[300]!,
+          width: 1,
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(
+              color: isOverBudget ? Colors.red : Colors.grey[600],
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  subcategory.subcategoryName,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w500,
+                    fontSize: 13,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '\$${NumberFormat('#,##,##,##0').format(subcategory.allocatedAmount)} allocated (${((subcategory.allocatedAmount / _analytics!.totalBudget) * 100).toStringAsFixed(1)}%)',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: Colors.grey[600],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                '${utilization.toStringAsFixed(1)}%',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                  color: isOverBudget ? Colors.red : Colors.green,
+                ),
+              ),
+              Text(
+                isOverBudget ? 'Over' : 'Used',
+                style: TextStyle(
+                  fontSize: 9,
+                  color: isOverBudget ? Colors.red : Colors.green,
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );
@@ -638,7 +786,7 @@ class _BudgetAnalyticsScreenState extends State<BudgetAnalyticsScreen>
         color: Colors.grey[50],
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: isOverBudget ? Colors.red.withValues(alpha: 0.3) : Colors.grey[200]!,
+          color: isOverBudget ? Colors.red.withOpacity(0.3) : Colors.grey[200]!,
           width: 1,
         ),
       ),
@@ -666,7 +814,7 @@ class _BudgetAnalyticsScreenState extends State<BudgetAnalyticsScreen>
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '₹${NumberFormat('#,##,##,##0').format(category.allocatedAmount)} allocated',
+                  '\$${NumberFormat('#,##,##,##0').format(category.allocatedAmount)} allocated',
                   style: TextStyle(
                     fontSize: 12,
                     color: Colors.grey[600],
@@ -706,7 +854,7 @@ class _BudgetAnalyticsScreenState extends State<BudgetAnalyticsScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildMonthlyTrendsChart(),
+          _buildUtilizationOverview(),
           const SizedBox(height: 24),
           _buildVarianceAnalysis(),
         ],
@@ -714,104 +862,6 @@ class _BudgetAnalyticsScreenState extends State<BudgetAnalyticsScreen>
     );
   }
 
-  Widget _buildMonthlyTrendsChart() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withValues(alpha: 0.1),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Monthly Budget vs Actual',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 20),
-          SizedBox(
-            height: 300,
-            child: LineChart(
-              LineChartData(
-                gridData: FlGridData(show: true),
-                titlesData: FlTitlesData(
-                  leftTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      reservedSize: 40,
-                      getTitlesWidget: (value, meta) {
-                        return Text(
-                          '₹${(value / 1000000).toStringAsFixed(0)}M',
-                          style: const TextStyle(fontSize: 10),
-                        );
-                      },
-                    ),
-                  ),
-                  bottomTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      getTitlesWidget: (value, meta) {
-                        if (value.toInt() < _analytics!.monthlyTrends.length) {
-                          return Text(
-                            _analytics!.monthlyTrends[value.toInt()].month,
-                            style: const TextStyle(fontSize: 10),
-                          );
-                        }
-                        return const Text('');
-                      },
-                    ),
-                  ),
-                  topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                ),
-                borderData: FlBorderData(show: true),
-                lineBarsData: [
-                  LineChartBarData(
-                    spots: _analytics!.monthlyTrends.asMap().entries.map((entry) {
-                      return FlSpot(entry.key.toDouble(), entry.value.budgeted);
-                    }).toList(),
-                    isCurved: true,
-                    color: Colors.blue,
-                    barWidth: 3,
-                    dotData: FlDotData(show: true),
-                    belowBarData: BarAreaData(show: true, color: Colors.blue.withValues(alpha: 0.1)),
-                  ),
-                  LineChartBarData(
-                    spots: _analytics!.monthlyTrends.asMap().entries.map((entry) {
-                      return FlSpot(entry.key.toDouble(), entry.value.actual);
-                    }).toList(),
-                    isCurved: true,
-                    color: Colors.green,
-                    barWidth: 3,
-                    dotData: FlDotData(show: true),
-                    belowBarData: BarAreaData(show: true, color: Colors.green.withValues(alpha: 0.1)),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              _buildLegendItem('Budgeted', Colors.blue),
-              _buildLegendItem('Actual', Colors.green),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
 
   Widget _buildLegendItem(String label, Color color) {
     return Row(
@@ -830,6 +880,7 @@ class _BudgetAnalyticsScreenState extends State<BudgetAnalyticsScreen>
     );
   }
 
+
   Widget _buildVarianceAnalysis() {
     return Container(
       padding: const EdgeInsets.all(20),
@@ -838,7 +889,7 @@ class _BudgetAnalyticsScreenState extends State<BudgetAnalyticsScreen>
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withValues(alpha: 0.1),
+            color: Colors.grey.withOpacity(0.1),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -876,23 +927,23 @@ class _BudgetAnalyticsScreenState extends State<BudgetAnalyticsScreen>
             ),
           ),
           Text(
-            '₹${NumberFormat('#,##,##,##0').format(trend.budgeted)}',
+            '\$${NumberFormat('#,##,##,##0').format(trend.budgeted)}',
             style: const TextStyle(fontSize: 12),
           ),
           const SizedBox(width: 16),
           Text(
-            '₹${NumberFormat('#,##,##,##0').format(trend.actual)}',
+            '\$${NumberFormat('#,##,##,##0').format(trend.actual)}',
             style: const TextStyle(fontSize: 12),
           ),
           const SizedBox(width: 16),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.1),
+              color: color.withOpacity(0.1),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Text(
-              '${isPositive ? '+' : ''}₹${NumberFormat('#,##,##,##0').format(trend.variance)}',
+              '${isPositive ? '+' : ''}\$${NumberFormat('#,##,##,##0').format(trend.variance)}',
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.bold,
@@ -927,7 +978,7 @@ class _BudgetAnalyticsScreenState extends State<BudgetAnalyticsScreen>
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withValues(alpha: 0.1),
+            color: Colors.grey.withOpacity(0.1),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -959,7 +1010,7 @@ class _BudgetAnalyticsScreenState extends State<BudgetAnalyticsScreen>
                       reservedSize: 40,
                       getTitlesWidget: (value, meta) {
                         return Text(
-                          '₹${(value / 1000000).toStringAsFixed(0)}M',
+                          '\$${(value / 1000000).toStringAsFixed(0)}M',
                           style: const TextStyle(fontSize: 10),
                         );
                       },
@@ -1033,7 +1084,7 @@ class _BudgetAnalyticsScreenState extends State<BudgetAnalyticsScreen>
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withValues(alpha: 0.1),
+            color: Colors.grey.withOpacity(0.1),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -1072,19 +1123,19 @@ class _BudgetAnalyticsScreenState extends State<BudgetAnalyticsScreen>
             ),
           ),
           Text(
-            '₹${NumberFormat('#,##,##,##0').format(comparison.totalBudget)}',
+            '\$${NumberFormat('#,##,##,##0').format(comparison.totalBudget)}',
             style: const TextStyle(fontSize: 12),
           ),
           const SizedBox(width: 16),
           Text(
-            '₹${NumberFormat('#,##,##,##0').format(comparison.totalSpent)}',
+            '\$${NumberFormat('#,##,##,##0').format(comparison.totalSpent)}',
             style: const TextStyle(fontSize: 12),
           ),
           const SizedBox(width: 16),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.1),
+              color: color.withOpacity(0.1),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Text(

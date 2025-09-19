@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'project_details_screen.dart';
+import '../services/budget_service.dart';
 
 class OngoingTendersScreen extends StatefulWidget {
   const OngoingTendersScreen({super.key});
@@ -12,20 +13,12 @@ class OngoingTendersScreen extends StatefulWidget {
 
 class _OngoingTendersScreenState extends State<OngoingTendersScreen> {
   String _selectedCategory = 'All';
-  String _selectedRegion = 'All';
   String _budgetRange = 'All';
   List<Map<String, dynamic>> _projects = [];
   List<Map<String, dynamic>> _filteredProjects = [];
+  final BudgetService _budgetService = BudgetService();
 
-  final List<String> _categories = [
-    'All', 'Infrastructure', 'IT Services', 'Office Supplies', 'Security Services',
-    'Vehicle Maintenance', 'Healthcare', 'Education', 'Transportation', 'Utilities',
-    'Construction', 'Consulting', 'Other'
-  ];
-
-  final List<String> _regions = [
-    'All', 'Central', 'North', 'South', 'East', 'West', 'Northeast', 'Northwest', 'Southeast', 'Southwest'
-  ];
+  List<String> _categories = ['All'];
 
   final List<String> _budgetRanges = [
     'All',
@@ -40,6 +33,12 @@ class _OngoingTendersScreenState extends State<OngoingTendersScreen> {
   void initState() {
     super.initState();
     _loadProjects();
+    _loadCategories();
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
   }
 
   Future<void> _loadProjects() async {
@@ -111,7 +110,9 @@ class _OngoingTendersScreenState extends State<OngoingTendersScreen> {
            'projectLocation': data['location'] ?? '',
            'description': tenderDescription.isNotEmpty ? tenderDescription : (data['description'] ?? 'Project converted from tender'),
            'budget': winningBidAmount > 0 ? winningBidAmount : (data['budget'] ?? 0.0),
+           'originalBudget': data['budget'] ?? 0.0, // Keep original tender budget for reference
            'winningBidder': winningBidder,
+           'hasWinningBidder': winningBidder.isNotEmpty,
            'tenderId': tenderId,
            'deadline': '',
            'category': data['category'] ?? '',
@@ -133,13 +134,38 @@ class _OngoingTendersScreenState extends State<OngoingTendersScreen> {
           continue;
         }
         
+        // Check for winning bidder information for this tender
+        String winningBidder = '';
+        double winningBidAmount = 0.0;
+        
+        try {
+          // Get winning bidder
+          final bidsSnapshot = await FirebaseFirestore.instance
+              .collection('bids')
+              .where('tenderId', isEqualTo: tenderId)
+              .where('status', isEqualTo: 'awarded')
+              .limit(1)
+              .get();
+          
+          if (bidsSnapshot.docs.isNotEmpty) {
+            final bidData = bidsSnapshot.docs.first.data();
+            winningBidder = bidData['bidderName'] ?? '';
+            winningBidAmount = (bidData['bidAmount'] ?? 0.0).toDouble();
+          }
+        } catch (e) {
+          print('Error loading winning bidder for tender $tenderId: $e');
+        }
+        
         allProjects.add({
           'id': doc.id,
           'title': data['title'] ?? '',
           'projectName': data['projectName'] ?? '',
           'projectLocation': data['location'] ?? '',
           'description': data['description'] ?? '',
-          'budget': data['budget'] ?? 0.0,
+          'budget': winningBidAmount > 0 ? winningBidAmount : (data['budget'] ?? 0.0),
+          'originalBudget': data['budget'] ?? 0.0,
+          'winningBidder': winningBidder,
+          'hasWinningBidder': winningBidder.isNotEmpty,
           'deadline': data['deadline'] ?? '',
           'category': data['category'] ?? '',
           'region': data['location'] ?? 'Central',
@@ -177,14 +203,27 @@ class _OngoingTendersScreenState extends State<OngoingTendersScreen> {
     }
   }
 
+  Future<void> _loadCategories() async {
+    try {
+      // Get all categories from budget service (same as Budget Overview)
+      final categories = await _budgetService.getBudgetCategories();
+      setState(() {
+        _categories = ['All', ...categories.map((cat) => cat.name).toList()];
+      });
+    } catch (e) {
+      print('Error loading categories: $e');
+      // Keep default categories if loading fails
+      setState(() {
+        _categories = ['All'];
+      });
+    }
+  }
+
   void _applyFilters() {
     setState(() {
       _filteredProjects = _projects.where((project) {
         // Category filter
         final matchesCategory = _selectedCategory == 'All' || project['category'] == _selectedCategory;
-
-        // Region filter
-        final matchesRegion = _selectedRegion == 'All' || project['region'] == _selectedRegion;
 
         // Budget range filter
         bool matchesBudget = true;
@@ -209,7 +248,7 @@ class _OngoingTendersScreenState extends State<OngoingTendersScreen> {
           }
         }
 
-        return matchesCategory && matchesRegion && matchesBudget;
+        return matchesCategory && matchesBudget;
       }).toList();
     });
   }
@@ -264,90 +303,91 @@ class _OngoingTendersScreenState extends State<OngoingTendersScreen> {
     }
   }
 
+  Widget _buildSearchAndFilterSection() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      color: Colors.white,
+      child: Column(
+        children: [
+          // Category Filter Chips
+          Container(
+            height: 40,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              itemCount: _categories.length,
+              itemBuilder: (context, index) {
+                final category = _categories[index];
+                final isSelected = category == _selectedCategory;
+                
+                return Container(
+                  margin: const EdgeInsets.only(right: 8),
+                  child: FilterChip(
+                    label: Text(category),
+                    selected: isSelected,
+                    onSelected: (selected) {
+                      setState(() {
+                        _selectedCategory = category;
+                      });
+                      _applyFilters();
+                    },
+                    selectedColor: Colors.blue.withOpacity(0.2),
+                    checkmarkColor: Colors.blue,
+                    labelStyle: TextStyle(
+                      color: isSelected ? Colors.blue : Colors.grey[700],
+                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+          
+          const SizedBox(height: 8),
+          
+          // Budget Range Filter Chips
+          Container(
+            height: 40,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              itemCount: _budgetRanges.length,
+              itemBuilder: (context, index) {
+                final range = _budgetRanges[index];
+                final isSelected = range == _budgetRange;
+                
+                return Container(
+                  margin: const EdgeInsets.only(right: 8),
+                  child: FilterChip(
+                    label: Text(range),
+                    selected: isSelected,
+                    onSelected: (selected) {
+                      setState(() {
+                        _budgetRange = range;
+                      });
+                      _applyFilters();
+                    },
+                    selectedColor: Colors.orange.withOpacity(0.2),
+                    checkmarkColor: Colors.orange,
+                    labelStyle: TextStyle(
+                      color: isSelected ? Colors.orange : Colors.grey[700],
+                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
             body: Column(
         children: [
-          // Search and Filters
-          Container(
-            padding: const EdgeInsets.all(16),
-            color: Colors.grey[100],
-            child: Column(
-              children: [
-                // Filter Dropdowns
-                Column(
-                  children: [
-                    DropdownButtonFormField<String>(
-                      value: _selectedCategory,
-                      decoration: const InputDecoration(
-                        labelText: 'Category',
-                        border: OutlineInputBorder(),
-                        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      ),
-                      items: _categories.map((category) {
-                        return DropdownMenuItem(
-                          value: category,
-                          child: Text(
-                            category,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        );
-                      }).toList(),
-                      onChanged: (value) {
-                        setState(() {
-                          _selectedCategory = value!;
-                        });
-                        _applyFilters();
-                      },
-                    ),
-                    const SizedBox(height: 8),
-                    DropdownButtonFormField<String>(
-                      value: _selectedRegion,
-                      decoration: const InputDecoration(
-                        labelText: 'Region',
-                        border: OutlineInputBorder(),
-                        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      ),
-                      items: _regions.map((region) {
-                        return DropdownMenuItem(
-                          value: region,
-                          child: Text(region),
-                        );
-                      }).toList(),
-                      onChanged: (value) {
-                        setState(() {
-                          _selectedRegion = value!;
-                        });
-                        _applyFilters();
-                      },
-                    ),
-                    const SizedBox(height: 8),
-                    DropdownButtonFormField<String>(
-                      value: _budgetRange,
-                      decoration: const InputDecoration(
-                        labelText: 'Budget Range',
-                        border: OutlineInputBorder(),
-                        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      ),
-                      items: _budgetRanges.map((range) {
-                        return DropdownMenuItem(
-                          value: range,
-                          child: Text(range),
-                        );
-                      }).toList(),
-                      onChanged: (value) {
-                        setState(() {
-                          _budgetRange = value!;
-                        });
-                        _applyFilters();
-                      },
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
+          // Search and Filter Section
+          _buildSearchAndFilterSection(),
           
           // Results count and clear filters
           Padding(
@@ -362,12 +402,11 @@ class _OngoingTendersScreenState extends State<OngoingTendersScreen> {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                if (_selectedCategory != 'All' || _selectedRegion != 'All' || _budgetRange != 'All')
+                if (_selectedCategory != 'All' || _budgetRange != 'All')
                   TextButton(
                     onPressed: () {
                       setState(() {
                         _selectedCategory = 'All';
-                        _selectedRegion = 'All';
                         _budgetRange = 'All';
                       });
                       _applyFilters();
@@ -407,28 +446,39 @@ class _OngoingTendersScreenState extends State<OngoingTendersScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               const SizedBox(height: 8),
-                                                             Text(project['type'] == 'project' 
-                                   ? 'Winning Bidder: ${project['winningBidder']}' 
-                                   : 'Project: ${project['projectName']}'),
+                              if (project['type'] == 'project' && project['hasWinningBidder'] == true) ...[
+                                Text(
+                                  'Winning Bidder: ${project['winningBidder']}',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.blue,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                              ],
                               Text('Location: ${project['projectLocation']}'),
                               Text('Description: ${project['description']}'),
                               const SizedBox(height: 8),
-                                                             Row(
-                                 children: [
-                                   Text(
-                                     'Budget: ',
-                                     style: const TextStyle(
-                                       fontWeight: FontWeight.bold,
-                                       color: Colors.green,
-                                     ),
-                                   ),
-                                   Text(
-                                     '\$${_formatBudget(project['budget'])}',
-                                     style: const TextStyle(
-                                       fontWeight: FontWeight.bold,
-                                       color: Colors.green,
-                                     ),
-                                   ),
+                              Row(
+                                children: [
+                                  Text(
+                                    project['hasWinningBidder'] == true 
+                                        ? 'Winning Bid: ' 
+                                        : project['type'] == 'project' 
+                                            ? 'Project Budget: ' 
+                                            : 'Tender Budget: ',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.green,
+                                    ),
+                                  ),
+                                  Text(
+                                    '\$${_formatBudget(project['budget'])}',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.green,
+                                    ),
+                                  ),
                                   if (project['type'] == 'tender') ...[
                                     const SizedBox(width: 16),
                                     Icon(
