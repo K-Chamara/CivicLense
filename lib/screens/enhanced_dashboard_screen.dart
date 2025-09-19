@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import '../services/auth_service.dart';
 import '../models/user_role.dart';
 import 'login_screen.dart';
@@ -8,6 +7,11 @@ import 'citizen_tender_screen.dart';
 import 'raise_concern_screen.dart';
 import 'concern_management_screen.dart';
 import 'public_concerns_screen.dart';
+import 'admin_dashboard_screen.dart';
+import 'finance_officer_dashboard_screen.dart';
+import 'procurement_officer_dashboard_screen.dart';
+import 'anticorruption_officer_dashboard_screen.dart';
+import 'public_user_dashboard_screen.dart';
 
 class EnhancedDashboardScreen extends StatefulWidget {
   const EnhancedDashboardScreen({super.key});
@@ -127,6 +131,12 @@ class _EnhancedDashboardScreenState extends State<EnhancedDashboardScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Pending Status Banner (if user is pending)
+                if (userData?['status'] == 'pending') ...[
+                  _buildPendingStatusBanner(),
+                  const SizedBox(height: 16),
+                ],
+                
                 // Welcome Section
                 _buildWelcomeSection(),
                 const SizedBox(height: 24),
@@ -158,6 +168,7 @@ class _EnhancedDashboardScreenState extends State<EnhancedDashboardScreen>
           ),
         ),
       ),
+      bottomNavigationBar: _buildBottomNavigationBar(),
     );
   }
 
@@ -1069,22 +1080,92 @@ class _EnhancedDashboardScreenState extends State<EnhancedDashboardScreen>
   }
 
   Widget _buildRoleSpecificContent() {
+    // Check if user is pending (not approved) - show citizen content with limited access
+    final status = userData?['status'] ?? 'pending';
+    final isApproved = status == 'approved';
+    
+    // If user is not approved and not a citizen/admin, show citizen content (limited access)
+    if (!isApproved && userRole?.id != 'citizen' && userRole?.id != 'admin') {
+      return _buildPendingUserContent();
+    }
+    
+    // Show full role-specific dashboard content for approved users
     switch (userRole?.id) {
       case 'admin':
-        return _buildAdminContent();
+        return _buildFullAdminDashboard();
       case 'finance_officer':
-        return _buildFinanceOfficerContent();
+        return _buildFullFinanceOfficerDashboard();
       case 'procurement_officer':
-        return _buildProcurementOfficerContent();
+        return _buildFullProcurementOfficerDashboard();
       case 'anticorruption_officer':
-        return _buildAntiCorruptionOfficerContent();
+        return _buildFullAntiCorruptionOfficerDashboard();
       case 'citizen':
         return _buildCitizenContent();
       case 'journalist':
         return _buildJournalistContent();
+      case 'researcher':
+        return _buildResearcherContent();
+      case 'community_leader':
+        return _buildCommunityLeaderContent();
+      case 'ngo':
+        return _buildNGOContent();
       default:
         return _buildDefaultContent();
     }
+  }
+
+  Widget _buildPendingUserContent() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Pending approval notice
+        Container(
+          padding: const EdgeInsets.all(16),
+          margin: const EdgeInsets.only(bottom: 20),
+          decoration: BoxDecoration(
+            color: Colors.orange.withOpacity(0.1),
+            border: Border.all(color: Colors.orange, width: 1),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                Icons.pending_actions,
+                color: Colors.orange,
+                size: 24,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Account Pending Approval',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.orange[800],
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Your account is being reviewed. You currently have limited access with citizen-level features. Full access will be granted once approved by an administrator.',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.orange[700],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        
+        // Show citizen content for pending users
+        _buildCitizenContent(),
+      ],
+    );
   }
 
   Widget _buildAdminContent() {
@@ -1322,6 +1403,143 @@ class _EnhancedDashboardScreenState extends State<EnhancedDashboardScreen>
     );
   }
 
+  Widget _buildResearcherContent() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Researcher Tools',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: Colors.black87,
+          ),
+        ),
+        const SizedBox(height: 16),
+        _buildFeatureCard(
+          'Data Analysis',
+          'Analyze government data and trends',
+          Icons.analytics,
+          Colors.blue,
+          () => _showFeatureComingSoon('Data Analysis'),
+        ),
+        _buildFeatureCard(
+          'Research Reports',
+          'Create and publish research findings',
+          Icons.science,
+          Colors.green,
+          () => _showFeatureComingSoon('Research Reports'),
+        ),
+        _buildFeatureCard(
+          'Budget Research',
+          'Deep dive into budget allocations and spending',
+          Icons.account_balance,
+          Colors.purple,
+          () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const BudgetViewerScreen()),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCommunityLeaderContent() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Community Leader Tools',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: Colors.black87,
+          ),
+        ),
+        const SizedBox(height: 16),
+        _buildFeatureCard(
+          'Community Management',
+          'Manage community groups and discussions',
+          Icons.groups,
+          Colors.blue,
+          () => _showFeatureComingSoon('Community Management'),
+        ),
+        _buildFeatureCard(
+          'Public Concerns',
+          'View and address community concerns',
+          Icons.people_alt,
+          Colors.orange,
+          () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const PublicConcernsScreen(),
+            ),
+          ),
+        ),
+        _buildFeatureCard(
+          'Community Posts',
+          'Create and manage community posts',
+          Icons.post_add,
+          Colors.green,
+          () => _showFeatureComingSoon('Community Posts'),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildNGOContent() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'NGO Tools',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: Colors.black87,
+          ),
+        ),
+        const SizedBox(height: 16),
+        _buildFeatureCard(
+          'Project Management',
+          'Manage NGO projects and initiatives',
+          Icons.work,
+          Colors.blue,
+          () => _showFeatureComingSoon('Project Management'),
+        ),
+        _buildFeatureCard(
+          'Public Concerns',
+          'View and respond to public concerns',
+          Icons.people_alt,
+          Colors.orange,
+          () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const PublicConcernsScreen(),
+            ),
+          ),
+        ),
+        _buildFeatureCard(
+          'Budget Monitoring',
+          'Monitor government budget allocations',
+          Icons.account_balance,
+          Colors.purple,
+          () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const BudgetViewerScreen()),
+          ),
+        ),
+        _buildFeatureCard(
+          'Reports & Analytics',
+          'Generate reports on government spending',
+          Icons.assessment,
+          Colors.green,
+          () => _showFeatureComingSoon('Reports & Analytics'),
+        ),
+      ],
+    );
+  }
+
   Widget _buildDefaultContent() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1399,4 +1617,793 @@ class _EnhancedDashboardScreenState extends State<EnhancedDashboardScreen>
       ),
     );
   }
+
+  Widget _buildBottomNavigationBar() {
+    return BottomNavigationBar(
+      type: BottomNavigationBarType.fixed,
+      backgroundColor: Colors.white,
+      selectedItemColor: userRole?.color ?? Colors.blue,
+      unselectedItemColor: Colors.grey,
+      currentIndex: 3, // Dashboard is selected (index 3)
+      onTap: (index) {
+        switch (index) {
+          case 0:
+            Navigator.pushNamed(context, '/common-home');
+            break;
+          case 1:
+            Navigator.pushNamed(context, '/budget-viewer');
+            break;
+          case 2:
+            Navigator.pushNamed(context, '/tender-management');
+            break;
+          case 3:
+            // Navigate to role-specific dashboard (same as hamburger menu)
+            // This will take you to the full role-specific dashboard
+            _navigateToRoleSpecificDashboard();
+            break;
+        }
+      },
+      items: const [
+        BottomNavigationBarItem(
+          icon: Icon(Icons.home),
+          label: 'Home',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.account_balance),
+          label: 'Budget',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.shopping_cart),
+          label: 'Tenders',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.dashboard),
+          label: 'Dashboard',
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPendingStatusBanner() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Colors.orange.shade400, Colors.orange.shade600],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.orange.withOpacity(0.3),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Icon(
+              Icons.hourglass_empty,
+              color: Colors.white,
+              size: 24,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Account Pending Approval',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Your account is under review. You have limited access to citizen features until approved.',
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.9),
+                    fontSize: 14,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Full Dashboard Content Methods
+  Widget _buildFullAdminDashboard() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Welcome Section
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Colors.blue, Colors.blue.shade700],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.blue.withOpacity(0.3),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(
+                      Icons.admin_panel_settings,
+                      color: Colors.white,
+                      size: 32,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Welcome, ${userData?['firstName'] ?? 'Admin'}!',
+                          style: const TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'System Administrator Dashboard',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: Colors.white.withOpacity(0.9),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 24),
+
+        // Statistics Cards
+        Row(
+          children: [
+            Expanded(
+              child: _buildStatCard(
+                'Total Users',
+                '1,234',
+                Icons.people,
+                Colors.blue,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: _buildStatCard(
+                'Active Concerns',
+                '45',
+                Icons.report_problem,
+                Colors.orange,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            Expanded(
+              child: _buildStatCard(
+                'Budget Allocated',
+                '\$2.5M',
+                Icons.account_balance,
+                Colors.green,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: _buildStatCard(
+                'Pending Approvals',
+                '12',
+                Icons.pending_actions,
+                Colors.purple,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 24),
+
+        // Management Features
+        const Text(
+          'Management Features',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: Colors.black87,
+          ),
+        ),
+        const SizedBox(height: 16),
+        _buildFeatureCard(
+          'User Management',
+          'Manage all users and their roles',
+          Icons.people,
+          Colors.purple,
+          () => Navigator.pushNamed(context, '/user-management'),
+        ),
+        _buildFeatureCard(
+          'System Analytics',
+          'View system-wide analytics and reports',
+          Icons.analytics,
+          Colors.blue,
+          () => Navigator.pushNamed(context, '/analytics'),
+        ),
+        _buildFeatureCard(
+          'Budget Oversight',
+          'Monitor and approve budget allocations',
+          Icons.account_balance_wallet,
+          Colors.green,
+          () => Navigator.pushNamed(context, '/budget-oversight'),
+        ),
+        _buildFeatureCard(
+          'Concern Management',
+          'Review and manage public concerns',
+          Icons.report_problem,
+          Colors.orange,
+          () => Navigator.pushNamed(context, '/concern-management'),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFullFinanceOfficerDashboard() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Welcome Section
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Colors.green, Colors.green.shade700],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.green.withOpacity(0.3),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(
+                      Icons.account_balance,
+                      color: Colors.white,
+                      size: 32,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Welcome, ${userData?['firstName'] ?? 'Finance Officer'}!',
+                          style: const TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Finance Officer Dashboard',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: Colors.white.withOpacity(0.9),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 24),
+
+        // Quick Stats
+        Row(
+          children: [
+            Expanded(
+              child: _buildStatCard(
+                'Total Budget',
+                '\$5.2M',
+                Icons.account_balance_wallet,
+                Colors.green,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: _buildStatCard(
+                'Spent This Month',
+                '\$1.8M',
+                Icons.trending_down,
+                Colors.orange,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            Expanded(
+              child: _buildStatCard(
+                'Pending Approvals',
+                '23',
+                Icons.pending_actions,
+                Colors.blue,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: _buildStatCard(
+                'Active Projects',
+                '15',
+                Icons.work,
+                Colors.purple,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 24),
+
+        // Main Features
+        const Text(
+          'Financial Management',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: Colors.black87,
+          ),
+        ),
+        const SizedBox(height: 16),
+        _buildFeatureCard(
+          'Budget Management',
+          'Manage and monitor government budgets',
+          Icons.account_balance_wallet,
+          Colors.green,
+          () => Navigator.pushNamed(context, '/budget-management'),
+        ),
+        _buildFeatureCard(
+          'Financial Reports',
+          'Generate financial reports and statements',
+          Icons.receipt_long,
+          Colors.blue,
+          () => Navigator.pushNamed(context, '/financial-reports'),
+        ),
+        _buildFeatureCard(
+          'Expense Tracking',
+          'Track and approve government expenses',
+          Icons.trending_up,
+          Colors.orange,
+          () => Navigator.pushNamed(context, '/expense-tracking'),
+        ),
+        _buildFeatureCard(
+          'Audit Management',
+          'Manage financial audits and compliance',
+          Icons.verified,
+          Colors.purple,
+          () => Navigator.pushNamed(context, '/audit-management'),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFullProcurementOfficerDashboard() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Welcome Section
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Colors.blue, Colors.blue.shade700],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.blue.withOpacity(0.3),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(
+                      Icons.shopping_cart,
+                      color: Colors.white,
+                      size: 32,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Welcome, ${userData?['firstName'] ?? 'Procurement Officer'}!',
+                          style: const TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Procurement Officer Dashboard',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: Colors.white.withOpacity(0.9),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 24),
+
+        // Quick Stats
+        Row(
+          children: [
+            Expanded(
+              child: _buildStatCard(
+                'Active Tenders',
+                '28',
+                Icons.shopping_cart,
+                Colors.blue,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: _buildStatCard(
+                'Total Value',
+                '\$3.2M',
+                Icons.account_balance,
+                Colors.green,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            Expanded(
+              child: _buildStatCard(
+                'Pending Bids',
+                '156',
+                Icons.pending_actions,
+                Colors.orange,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: _buildStatCard(
+                'Completed Projects',
+                '42',
+                Icons.check_circle,
+                Colors.purple,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 24),
+
+        // Main Features
+        const Text(
+          'Procurement Management',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: Colors.black87,
+          ),
+        ),
+        const SizedBox(height: 16),
+        _buildFeatureCard(
+          'Tender Management',
+          'Create and manage government tenders',
+          Icons.shopping_cart,
+          Colors.orange,
+          () => Navigator.pushNamed(context, '/tender-management'),
+        ),
+        _buildFeatureCard(
+          'Vendor Management',
+          'Manage vendor relationships and contracts',
+          Icons.business,
+          Colors.blue,
+          () => Navigator.pushNamed(context, '/vendor-management'),
+        ),
+        _buildFeatureCard(
+          'Purchase Orders',
+          'Create and track purchase orders',
+          Icons.shopping_bag,
+          Colors.green,
+          () => Navigator.pushNamed(context, '/purchase-orders'),
+        ),
+        _buildFeatureCard(
+          'Contract Management',
+          'Manage procurement contracts',
+          Icons.description,
+          Colors.purple,
+          () => Navigator.pushNamed(context, '/contract-management'),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFullAntiCorruptionOfficerDashboard() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Welcome Section
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Colors.purple, Colors.purple.shade700],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.purple.withOpacity(0.3),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(
+                      Icons.security,
+                      color: Colors.white,
+                      size: 32,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Welcome, ${userData?['firstName'] ?? 'Anti-Corruption Officer'}!',
+                          style: const TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Anti-Corruption Officer Dashboard',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: Colors.white.withOpacity(0.9),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 24),
+
+        // Quick Stats
+        Row(
+          children: [
+            Expanded(
+              child: _buildStatCard(
+                'Active Investigations',
+                '12',
+                Icons.search,
+                Colors.purple,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: _buildStatCard(
+                'Resolved Cases',
+                '89',
+                Icons.check_circle,
+                Colors.green,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            Expanded(
+              child: _buildStatCard(
+                'Pending Reviews',
+                '34',
+                Icons.pending_actions,
+                Colors.orange,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: _buildStatCard(
+                'Compliance Score',
+                '94%',
+                Icons.verified,
+                Colors.blue,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 24),
+
+        // Main Features
+        const Text(
+          'Anti-Corruption Management',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: Colors.black87,
+          ),
+        ),
+        const SizedBox(height: 16),
+        _buildFeatureCard(
+          'Concern Management',
+          'Review and manage public concerns',
+          Icons.report_problem,
+          Colors.red,
+          () => Navigator.pushNamed(context, '/concern-management'),
+        ),
+        _buildFeatureCard(
+          'Investigation Tools',
+          'Tools for corruption investigations',
+          Icons.search,
+          Colors.orange,
+          () => Navigator.pushNamed(context, '/investigation-tools'),
+        ),
+        _buildFeatureCard(
+          'Compliance Monitoring',
+          'Monitor compliance with anti-corruption policies',
+          Icons.verified,
+          Colors.green,
+          () => Navigator.pushNamed(context, '/compliance-monitoring'),
+        ),
+        _buildFeatureCard(
+          'Risk Assessment',
+          'Assess and manage corruption risks',
+          Icons.assessment,
+          Colors.blue,
+          () => Navigator.pushNamed(context, '/risk-assessment'),
+        ),
+      ],
+    );
+  }
+
+  void _navigateToRoleSpecificDashboard() {
+    // Navigate to role-specific dashboard (same logic as hamburger menu)
+    Widget dashboard;
+    
+    // Check if user is pending (not approved yet)
+    final isPending = userData?['status'] == 'pending';
+    
+    if (isPending) {
+      // Pending users get limited access with EnhancedDashboardScreen
+      dashboard = const EnhancedDashboardScreen();
+    } else {
+      // Approved users get full access based on their role
+      switch (userRole?.id) {
+        case 'admin':
+          dashboard = const AdminDashboardScreen();
+          break;
+        case 'finance_officer':
+          dashboard = const FinanceOfficerDashboardScreen();
+          break;
+        case 'procurement_officer':
+          dashboard = const ProcurementOfficerDashboardScreen();
+          break;
+        case 'anticorruption_officer':
+          dashboard = const AntiCorruptionOfficerDashboardScreen();
+          break;
+        case 'citizen':
+        case 'journalist':
+        case 'community_leader':
+        case 'researcher':
+        case 'ngo':
+          dashboard = const PublicUserDashboardScreen();
+          break;
+        default:
+          dashboard = const EnhancedDashboardScreen();
+      }
+    }
+    
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => dashboard),
+    );
+  }
+
 }

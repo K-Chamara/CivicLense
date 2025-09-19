@@ -13,14 +13,9 @@ import 'screens/public_concerns_screen.dart';
 import 'screens/budget_viewer_screen.dart';
 import 'screens/tender_management_screen.dart';
 import 'screens/login_screen.dart';
-import 'screens/dashboard_screen.dart';
-import 'screens/admin_dashboard_screen.dart';
-import 'screens/finance_officer_dashboard_screen.dart';
-import 'screens/procurement_officer_dashboard_screen.dart';
-import 'screens/anticorruption_officer_dashboard_screen.dart';
-import 'screens/public_user_dashboard_screen.dart';
-import 'services/auth_service.dart';
-import 'models/user_role.dart';
+import 'screens/common_home_screen.dart';
+import 'screens/document_upload_screen.dart';
+import 'services/user_service.dart';
 import 'utils/create_admin.dart';
 import 'screens/admin_setup_screen.dart';
 
@@ -29,6 +24,10 @@ void main() async {
   
   // Initialize Firebase
   await Firebase.initializeApp();
+  
+  print('🚀 Civic Lense App Starting...');
+  print('📁 File uploads: Using Cloudinary (free)');
+  print('🔥 Firebase: Using production services');
   
   runApp(const MyApp());
 }
@@ -62,6 +61,15 @@ class MyApp extends StatelessWidget {
         '/budget-viewer': (context) => const BudgetViewerScreen(),
         '/tender-management': (context) => const TenderManagementScreen(),
         '/login': (context) => const LoginScreen(),
+        '/common-home': (context) => const CommonHomeScreen(),
+        '/public-dashboard': (context) => const CommonHomeScreen(), // Add missing route
+        '/document-upload': (context) {
+          final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+          return DocumentUploadScreen(
+            userRole: args?['userRole'] ?? 'citizen',
+            userId: args?['userId'] ?? '',
+          );
+        },
       },
     );
   }
@@ -80,6 +88,35 @@ class AppInitializer extends StatelessWidget {
 class AuthWrapper extends StatelessWidget {
   const AuthWrapper({super.key});
 
+  Future<Map<String, dynamic>> _checkUserStatus(String userId) async {
+    try {
+      final userService = UserService();
+      final userData = await userService.getCurrentUserData();
+      
+      if (userData == null) {
+        return {'role': 'citizen', 'needsUpload': false, 'isApproved': true, 'canLogin': false};
+      }
+
+      final role = userData['role'] ?? 'citizen';
+      final status = userData['status'] ?? 'pending';
+      final needsUpload = await userService.needsDocumentUpload(userId);
+      final canLogin = await userService.canUserLogin(userId);
+      final isApproved = status == 'approved';
+
+      print('User status check: role=$role, status=$status, needsUpload=$needsUpload, isApproved=$isApproved, canLogin=$canLogin');
+
+      return {
+        'role': role,
+        'needsUpload': needsUpload,
+        'isApproved': isApproved,
+        'canLogin': canLogin,
+      };
+    } catch (e) {
+      print('Error checking user status: $e');
+      return {'role': 'citizen', 'needsUpload': false, 'isApproved': true, 'canLogin': false};
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<User?>(
@@ -94,11 +131,11 @@ class AuthWrapper extends StatelessWidget {
         }
 
         if (snapshot.hasData && snapshot.data != null) {
-          // User is signed in, check their role and show appropriate dashboard
-          return FutureBuilder<UserRole?>(
-            future: AuthService().getUserRole(snapshot.data!.uid),
-            builder: (context, roleSnapshot) {
-              if (roleSnapshot.connectionState == ConnectionState.waiting) {
+          // User is signed in, check their role and document upload status
+          return FutureBuilder<Map<String, dynamic>>(
+            future: _checkUserStatus(snapshot.data!.uid),
+            builder: (context, statusSnapshot) {
+              if (statusSnapshot.connectionState == ConnectionState.waiting) {
                 return const Scaffold(
                   body: Center(
                     child: CircularProgressIndicator(),
@@ -106,30 +143,49 @@ class AuthWrapper extends StatelessWidget {
                 );
               }
 
-              final userRole = roleSnapshot.data;
-              
-              if (userRole != null) {
-                switch (userRole.id) {
-                  case 'admin':
-                    return const AdminDashboardScreen();
-                  case 'procurement_officer':
-                    return const ProcurementOfficerDashboardScreen();
-                  case 'finance_officer':
-                    return const FinanceOfficerDashboardScreen();
-                  case 'anticorruption_officer':
-                    return const AntiCorruptionOfficerDashboardScreen();
-                  case 'citizen':
-                  case 'journalist':
-                  case 'community_leader':
-                  case 'researcher':
-                  case 'ngo':
-                    return const PublicUserDashboardScreen();
-                  default:
-                    return const DashboardScreen();
-                }
-              } else {
-                return const DashboardScreen();
+              final userData = statusSnapshot.data;
+              if (userData == null) {
+                return const CommonHomeScreen();
               }
+
+              final userRole = userData['role'];
+              final needsUpload = userData['needsUpload'] ?? false;
+              final isApproved = userData['isApproved'] ?? false;
+              final canLogin = userData['canLogin'] ?? false;
+
+              // Extract role ID from role object or string
+              String roleId = 'citizen';
+              if (userRole is String) {
+                roleId = userRole;
+              } else if (userRole is Map && userRole['id'] != null) {
+                roleId = userRole['id'];
+              }
+
+              // If user cannot login (email not verified), sign them out and redirect to login
+              if (!canLogin) {
+                FirebaseAuth.instance.signOut();
+                return const LoginScreen();
+              }
+
+              // If user needs document upload, redirect to upload page
+              // Only for non-citizen, non-admin users who are pending or haven't uploaded documents
+              print('🔍 AuthWrapper: Checking document upload requirement...');
+              print('🔍 needsUpload: $needsUpload, roleId: $roleId');
+              print('🔍 Condition check: needsUpload=$needsUpload && roleId!="citizen"=$roleId != "citizen" && roleId!="admin"=$roleId != "admin"');
+              
+              if (needsUpload && roleId != 'citizen' && roleId != 'admin') {
+                print('📄 AuthWrapper: Redirecting to document upload screen');
+                return DocumentUploadScreen(
+                  userRole: roleId,
+                  userId: snapshot.data!.uid,
+                );
+              }
+              
+              print('🏠 AuthWrapper: Proceeding to CommonHomeScreen');
+
+              // All users (approved and pending) can use the app
+              // Pending users will get limited functionality in the CommonHomeScreen
+              return const CommonHomeScreen();
             },
           );
         }
