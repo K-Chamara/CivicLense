@@ -487,35 +487,51 @@ class _ProcurementOfficerDashboardScreenState extends State<ProcurementOfficerDa
         ],
       ),
       body: screens[_currentIndex],
-             bottomNavigationBar: BottomNavigationBar(
-         type: BottomNavigationBarType.fixed,
-         currentIndex: _currentIndex,
-         selectedItemColor: Colors.lightBlue,
-         unselectedItemColor: Colors.grey,
-        onTap: (index) {
-          setState(() {
-            _currentIndex = index;
-          });
-        },
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home),
-            label: 'Home',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.manage_accounts),
-            label: 'Tenders',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.assignment),
-            label: 'Projects',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.notifications),
-            label: 'Notifications',
-          ),
-        ],
-      ),
+             bottomNavigationBar: _buildBottomNavigationBar(),
+    );
+  }
+
+  Widget _buildBottomNavigationBar() {
+    return BottomNavigationBar(
+      type: BottomNavigationBarType.fixed,
+      backgroundColor: Colors.white,
+      selectedItemColor: Colors.blue,
+      unselectedItemColor: Colors.grey,
+      currentIndex: 3, // Dashboard is selected (index 3)
+      onTap: (index) {
+        switch (index) {
+          case 0:
+            Navigator.pushNamed(context, '/common-home');
+            break;
+          case 1:
+            Navigator.pushNamed(context, '/budget-viewer');
+            break;
+          case 2:
+            Navigator.pushNamed(context, '/tender-management');
+            break;
+          case 3:
+            // Already on dashboard
+            break;
+        }
+      },
+      items: const [
+        BottomNavigationBarItem(
+          icon: Icon(Icons.home),
+          label: 'Home',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.account_balance),
+          label: 'Budget',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.shopping_cart),
+          label: 'Tenders',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.dashboard),
+          label: 'Dashboard',
+        ),
+      ],
     );
   }
 

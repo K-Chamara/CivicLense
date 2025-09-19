@@ -1,15 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:async';
 import 'login_screen.dart';
+import 'document_upload_screen.dart';
 import '../widgets/custom_button.dart';
 
 class EmailVerificationScreen extends StatefulWidget {
   final String email;
+  final String? userRole;
+  final String? userId;
 
   const EmailVerificationScreen({
     super.key,
     required this.email,
+    this.userRole,
+    this.userId,
   });
 
   @override
@@ -54,6 +60,21 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
     if (isEmailVerified) {
       timer?.cancel();
       
+      // Update email verification status in Firestore
+      if (widget.userId != null) {
+        try {
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(widget.userId!)
+              .update({
+            'emailVerified': true,
+          });
+          print('✅ Updated email verification status in Firestore');
+        } catch (e) {
+          print('❌ Error updating email verification status: $e');
+        }
+      }
+      
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -62,11 +83,25 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
           ),
         );
         
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(
-            builder: (context) => const LoginScreen(),
-          ),
-        );
+        // Navigate based on user role after email verification
+        if (widget.userRole != null && widget.userRole != 'citizen' && widget.userId != null) {
+          // Non-citizen users go to document upload
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder: (context) => DocumentUploadScreen(
+                userRole: widget.userRole!,
+                userId: widget.userId!,
+              ),
+            ),
+          );
+        } else {
+          // Citizen users go to login
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder: (context) => const LoginScreen(),
+            ),
+          );
+        }
       }
     }
   }

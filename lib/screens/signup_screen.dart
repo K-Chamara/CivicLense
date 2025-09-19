@@ -5,6 +5,7 @@ import '../widgets/custom_button.dart';
 import '../widgets/custom_text_field.dart';
 import '../models/user_role.dart';
 import 'email_verification_screen.dart';
+import 'document_upload_screen.dart';
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
@@ -64,10 +65,14 @@ class _SignupScreenState extends State<SignupScreen> {
       );
 
       if (mounted) {
+        // ALL users must verify their email first, regardless of role
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(
-            builder: (context) =>
-                EmailVerificationScreen(email: _emailController.text.trim()),
+            builder: (context) => EmailVerificationScreen(
+              email: _emailController.text.trim(),
+              userRole: _selectedRole!.id, // Pass the role for after verification
+              userId: userCredential.user!.uid,
+            ),
           ),
         );
       }

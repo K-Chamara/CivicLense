@@ -6,6 +6,7 @@ import '../utils/onboarding_utils.dart';
 import '../utils/create_admin.dart';
 import 'onboarding_screen.dart';
 import 'login_screen.dart';
+import 'common_home_screen.dart';
 import 'dashboard_screen.dart';
 import 'admin_dashboard_screen.dart';
 import 'admin_setup_screen.dart';
@@ -346,26 +347,10 @@ class AuthWrapper extends StatelessWidget {
               final userRole = roleSnapshot.data;
               
               if (userRole != null) {
-                switch (userRole.id) {
-                  case 'admin':
-                    return const AdminDashboardScreen();
-                  case 'procurement_officer':
-                    return const ProcurementOfficerDashboardScreen();
-                  case 'finance_officer':
-                    return const FinanceOfficerDashboardScreen();
-                  case 'anticorruption_officer':
-                    return const AntiCorruptionOfficerDashboardScreen();
-                  case 'citizen':
-                  case 'journalist':
-                  case 'community_leader':
-                  case 'researcher':
-                  case 'ngo':
-                    return const PublicUserDashboardScreen();
-                  default:
-                    return const DashboardScreen();
-                }
+                // Route all users to the common home page first
+                return const CommonHomeScreen();
               } else {
-                return const DashboardScreen();
+                return const CommonHomeScreen();
               }
             },
           );

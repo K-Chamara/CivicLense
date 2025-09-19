@@ -105,11 +105,15 @@ class AuthService {
     UserRole role,
   ) async {
     try {
+      // Determine if user needs document upload based on role
+      final needsUpload = role.id != 'citizen' && role.id != 'admin';
+      
       await _firestore.collection('users').doc(uid).set({
         'email': email,
         'firstName': firstName,
         'lastName': lastName,
-        'role': role.toMap(),
+        'role': role.toMap(), // Store full role object for proper login handling
+        'status': needsUpload ? 'pending' : 'approved', // Set status based on role
         'createdAt': FieldValue.serverTimestamp(),
         'isActive': true,
         'emailVerified': false,
@@ -175,7 +179,18 @@ class AuthService {
     try {
       final userData = await getUserData(uid);
       if (userData != null && userData['role'] != null) {
-        return UserRole.fromMap(userData['role']);
+        // Handle both string role ID and role object
+        if (userData['role'] is String) {
+          // Find role by ID
+          final roleId = userData['role'] as String;
+          return UserRole.allRoles.firstWhere(
+            (role) => role.id == roleId,
+            orElse: () => UserRole.allRoles.firstWhere((role) => role.id == 'citizen'),
+          );
+        } else {
+          // Handle role object
+          return UserRole.fromMap(userData['role']);
+        }
       }
       return null;
     } catch (e) {

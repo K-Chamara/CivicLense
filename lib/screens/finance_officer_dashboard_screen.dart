@@ -141,6 +141,51 @@ class _FinanceOfficerDashboardScreenState extends State<FinanceOfficerDashboardS
           ],
         ),
       ),
+      bottomNavigationBar: _buildBottomNavigationBar(),
+    );
+  }
+
+  Widget _buildBottomNavigationBar() {
+    return BottomNavigationBar(
+      type: BottomNavigationBarType.fixed,
+      backgroundColor: Colors.white,
+      selectedItemColor: Colors.green,
+      unselectedItemColor: Colors.grey,
+      currentIndex: 3, // Dashboard is selected (index 3)
+      onTap: (index) {
+        switch (index) {
+          case 0:
+            Navigator.pushNamed(context, '/common-home');
+            break;
+          case 1:
+            Navigator.pushNamed(context, '/budget-viewer');
+            break;
+          case 2:
+            Navigator.pushNamed(context, '/tender-management');
+            break;
+          case 3:
+            // Already on dashboard
+            break;
+        }
+      },
+      items: const [
+        BottomNavigationBarItem(
+          icon: Icon(Icons.home),
+          label: 'Home',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.account_balance),
+          label: 'Budget',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.shopping_cart),
+          label: 'Tenders',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.dashboard),
+          label: 'Dashboard',
+        ),
+      ],
     );
   }
 
