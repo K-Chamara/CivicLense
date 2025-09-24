@@ -161,7 +161,7 @@ class _FinanceOfficerDashboardScreenState extends State<FinanceOfficerDashboardS
             Navigator.pushNamed(context, '/budget-viewer');
             break;
           case 2:
-            Navigator.pushNamed(context, '/tender-management');
+            Navigator.pushNamed(context, '/citizen-tender');
             break;
           case 3:
             // Already on dashboard

@@ -12,6 +12,7 @@ import 'screens/concern_management_screen.dart';
 import 'screens/public_concerns_screen.dart';
 import 'screens/budget_viewer_screen.dart';
 import 'screens/tender_management_screen.dart';
+import 'screens/citizen_tender_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/common_home_screen.dart';
 import 'screens/document_upload_screen.dart';
@@ -39,6 +40,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Civic Lense',
+      debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
         useMaterial3: true,
@@ -60,6 +62,7 @@ class MyApp extends StatelessWidget {
         '/public-concerns': (context) => const PublicConcernsScreen(),
         '/budget-viewer': (context) => const BudgetViewerScreen(),
         '/tender-management': (context) => const TenderManagementScreen(),
+        '/citizen-tender': (context) => const CitizenTenderScreen(),
         '/login': (context) => const LoginScreen(),
         '/common-home': (context) => const CommonHomeScreen(),
         '/public-dashboard': (context) => const CommonHomeScreen(), // Add missing route
@@ -153,12 +156,14 @@ class AuthWrapper extends StatelessWidget {
               final isApproved = userData['isApproved'] ?? false;
               final canLogin = userData['canLogin'] ?? false;
 
-              // Extract role ID from role object or string
+              // Extract role ID and userType from role object or string
               String roleId = 'citizen';
+              String userType = 'public';
               if (userRole is String) {
                 roleId = userRole;
-              } else if (userRole is Map && userRole['id'] != null) {
-                roleId = userRole['id'];
+              } else if (userRole is Map) {
+                roleId = userRole['id'] ?? 'citizen';
+                userType = userRole['userType'] ?? 'public';
               }
 
               // If user cannot login (email not verified), sign them out and redirect to login
@@ -171,9 +176,9 @@ class AuthWrapper extends StatelessWidget {
               // Only for non-citizen, non-admin users who are pending or haven't uploaded documents
               print('🔍 AuthWrapper: Checking document upload requirement...');
               print('🔍 needsUpload: $needsUpload, roleId: $roleId');
-              print('🔍 Condition check: needsUpload=$needsUpload && roleId!="citizen"=$roleId != "citizen" && roleId!="admin"=$roleId != "admin"');
+              print('🔍 Condition check: needsUpload=$needsUpload, roleId=$roleId, userType=$userType');
               
-              if (needsUpload && roleId != 'citizen' && roleId != 'admin') {
+              if (needsUpload && roleId != 'citizen' && roleId != 'admin' && userType != 'government') {
                 print('📄 AuthWrapper: Redirecting to document upload screen');
                 return DocumentUploadScreen(
                   userRole: roleId,
