@@ -2,6 +2,9 @@ const functions = require('firebase-functions');
 const admin = require('firebase-admin');
 const nodemailer = require('nodemailer');
 
+// Import auto-prioritization functions
+const { autoPrioritizeConcerns } = require('./huggingface_sentiment');
+
 // Initialize Firebase Admin SDK
 admin.initializeApp();
 
@@ -305,4 +308,7 @@ exports.verifyEmailOtp = functions.https.onCall(async (data, context) => {
     throw new functions.https.HttpsError('internal', 'Failed to verify email OTP');
   }
 });
+
+// Export auto-prioritization function
+exports.autoPrioritizeConcerns = autoPrioritizeConcerns;
 

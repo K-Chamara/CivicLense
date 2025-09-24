@@ -106,19 +106,21 @@ class UserService {
         final data = doc.data() as Map<String, dynamic>;
         final roleData = data['role'];
         
-        // Extract role ID from role object or string
+        // Extract role ID and userType from role object or string
         String roleId = 'citizen';
+        String userType = 'public';
         if (roleData is String) {
           roleId = roleData.toLowerCase();
-        } else if (roleData is Map && roleData['id'] != null) {
-          roleId = roleData['id'].toString().toLowerCase();
+        } else if (roleData is Map) {
+          roleId = roleData['id']?.toString().toLowerCase() ?? 'citizen';
+          userType = roleData['userType']?.toString().toLowerCase() ?? 'public';
         }
         
-        print('🔍 needsDocumentUpload: roleId=$roleId, documents=${data['documents']}');
+        print('🔍 needsDocumentUpload: roleId=$roleId, userType=$userType, documents=${data['documents']}');
         
-        // If user is citizen or admin, they don't need document upload
-        if (roleId == 'citizen' || roleId == 'admin') {
-          print('🔍 needsDocumentUpload: User is citizen/admin, no upload needed');
+        // If user is citizen, admin, or any government role, they don't need document upload
+        if (roleId == 'citizen' || roleId == 'admin' || userType == 'government') {
+          print('🔍 needsDocumentUpload: User is citizen/admin/government role, no upload needed');
           return false;
         }
         

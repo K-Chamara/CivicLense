@@ -536,9 +536,7 @@ class _PublicConcernsScreenState extends State<PublicConcernsScreen>
                 
                 // Recent
                 StreamBuilder<List<Concern>>(
-                  stream: _concernService.getConcerns(
-                    filter: ConcernFilter(isPublic: true),
-                  ),
+                  stream: _concernService.getAllPublicConcerns(),
                   builder: (context, snapshot) {
                     if (snapshot.connectionState == ConnectionState.waiting) {
                       return const Center(child: CircularProgressIndicator());
@@ -572,6 +570,9 @@ class _PublicConcernsScreenState extends State<PublicConcernsScreen>
                           }
                           
                           final concerns = fallbackSnapshot.data ?? [];
+                          // Sort by creation date (most recent first)
+                          concerns.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+                          
                           if (concerns.isEmpty) {
                             return const Center(
                               child: Column(
@@ -597,6 +598,8 @@ class _PublicConcernsScreenState extends State<PublicConcernsScreen>
                     }
                     
                     final concerns = snapshot.data ?? [];
+                    // Sort by creation date (most recent first)
+                    concerns.sort((a, b) => b.createdAt.compareTo(a.createdAt));
                     
                     if (concerns.isEmpty) {
                       return const Center(
