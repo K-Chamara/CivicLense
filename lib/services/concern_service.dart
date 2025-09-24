@@ -1,10 +1,15 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/concern_models.dart';
+import 'sentiment_service.dart';
 
 class ConcernService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  final SentimentService _sentimentService;
+
+  ConcernService({String? apiKey}) 
+      : _sentimentService = SentimentService(apiKey: apiKey ?? '');
   
   // Collection references
   CollectionReference<Map<String, dynamic>> get _concernsCol => 
@@ -16,7 +21,93 @@ class ConcernService {
   CollectionReference<Map<String, dynamic>> get _concernSupportsCol => 
       _db.collection('concern_supports');
 
-  /// Create a new concern
+  /// Create a new concern with sentiment analysis
+  Future<String> createConcernWithSentiment(Concern concern) async {
+    try {
+      // Analyze sentiment of the concern text
+      final sentimentResult = await _sentimentService.analyzeSentiment(
+        '${concern.title} ${concern.description}'
+      );
+      
+      // Determine priority based on sentiment
+      final autoPriority = _sentimentService.determinePriorityFromSentiment(sentimentResult);
+      
+      // Create enhanced concern with sentiment data
+      final enhancedConcern = Concern(
+        id: concern.id,
+        title: concern.title,
+        description: concern.description,
+        authorId: concern.authorId,
+        authorName: concern.authorName,
+        authorEmail: concern.authorEmail,
+        category: concern.category,
+        type: concern.type,
+        priority: autoPriority, // Use auto-determined priority
+        status: concern.status,
+        createdAt: concern.createdAt,
+        updatedAt: concern.updatedAt,
+        resolvedAt: concern.resolvedAt,
+        sentimentScore: sentimentResult.sentimentScore,
+        sentimentMagnitude: sentimentResult.magnitude,
+        assignedOfficerId: concern.assignedOfficerId,
+        assignedOfficerName: concern.assignedOfficerName,
+        tags: concern.tags,
+        relatedBudgetIds: concern.relatedBudgetIds,
+        relatedTenderIds: concern.relatedTenderIds,
+        communityId: concern.communityId,
+        engagementScore: concern.engagementScore,
+        isFlaggedByCitizens: concern.isFlaggedByCitizens,
+        comments: concern.comments,
+        attachments: concern.attachments,
+        relatedBudgetId: concern.relatedBudgetId,
+        relatedTenderId: concern.relatedTenderId,
+        relatedCommunityId: concern.relatedCommunityId,
+        isAnonymous: concern.isAnonymous,
+        isPublic: concern.isPublic,
+        upvotes: concern.upvotes,
+        downvotes: concern.downvotes,
+        supportCount: concern.supportCount,
+        commentCount: concern.commentCount,
+        updates: concern.updates,
+        metadata: {
+          ...concern.metadata,
+          'sentiment_analysis': {
+            'score': sentimentResult.score,
+            'magnitude': sentimentResult.magnitude,
+            'sentiment': sentimentResult.sentimentScore.name,
+            'auto_priority': autoPriority.name,
+            'analyzed_at': DateTime.now().toIso8601String(),
+          }
+        },
+      );
+      
+      final doc = await _concernsCol.add(enhancedConcern.toFirestore());
+      
+      // Create initial update record
+      await _concernUpdatesCol.add(ConcernUpdate(
+        id: '',
+        concernId: doc.id,
+        officerId: _auth.currentUser?.uid ?? '',
+        officerName: concern.authorName,
+        action: 'created',
+        description: 'Concern created by ${concern.authorName} with auto-priority: ${autoPriority.name}',
+        createdAt: DateTime.now(),
+        changes: {
+          'status': concern.status.name,
+          'priority': autoPriority.name,
+          'sentiment_score': sentimentResult.score,
+          'sentiment_magnitude': sentimentResult.magnitude,
+        },
+      ).toFirestore());
+      
+      return doc.id;
+    } catch (e) {
+      print('Error creating concern with sentiment analysis: $e');
+      throw Exception('Failed to create concern: $e');
+    }
+  }
+
+  /// Create a new concern (legacy method for backward compatibility)
   Future<String> createConcern(Concern concern) async {
     try {
       final doc = await _concernsCol.add(concern.toFirestore());
@@ -238,7 +329,6 @@ class ConcernService {
     String authorId,
     String authorName, {
     bool isOfficial = false,
-    bool isInternal = false,
   }) async {
     try {
       final comment = ConcernComment(
@@ -249,7 +339,6 @@ class ConcernService {
         content: content,
         createdAt: DateTime.now(),
         isOfficial: isOfficial,
-        isInternal: isInternal,
       );
 
       final doc = await _concernCommentsCol.add(comment.toFirestore());
@@ -274,7 +363,7 @@ class ConcernService {
         .orderBy('createdAt', descending: false)
         .snapshots()
         .map((snapshot) => snapshot.docs
-            .map((doc) => ConcernComment.fromFirestore(doc))
+            .map((doc) => ConcernComment.fromFirestore(doc as DocumentSnapshot))
             .toList());
   }
 
@@ -285,7 +374,7 @@ class ConcernService {
         .orderBy('createdAt', descending: true)
         .snapshots()
         .map((snapshot) => snapshot.docs
-            .map((doc) => ConcernUpdate.fromFirestore(doc))
+            .map((doc) => ConcernUpdate.fromFirestore(doc as DocumentSnapshot))
             .toList());
   }
 
@@ -469,37 +558,46 @@ class ConcernService {
   /// Support/Unsupport a concern (like Facebook/Instagram)
   Future<void> toggleSupport(String concernId) async {
     try {
-      final userId = _auth.currentUser!.uid;
-      final user = _auth.currentUser!;
+      final user = _auth.currentUser;
+      if (user == null) throw Exception('Not authenticated');
+      
+      final userId = user.uid;
       final userName = user.displayName ?? user.email?.split('@').first ?? 'Anonymous';
       
       final supportDocId = '${concernId}_$userId';
-      final supportDoc = await _concernSupportsCol.doc(supportDocId).get();
       
-      if (supportDoc.exists) {
-        // User already supports this concern, remove support
-        await _concernSupportsCol.doc(supportDocId).delete();
-        await _concernsCol.doc(concernId).update({
-          'supportCount': FieldValue.increment(-1),
-          'updatedAt': Timestamp.now(),
-        });
-        print('✅ Support removed for concern $concernId');
-      } else {
-        // User doesn't support this concern, add support
-        await _concernSupportsCol.doc(supportDocId).set(ConcernSupport(
-          id: supportDocId,
-          concernId: concernId,
-          userId: userId,
-          userName: userName,
-          supportedAt: DateTime.now(),
-        ).toFirestore());
+      // Use transaction to prevent race conditions
+      await _db.runTransaction((txn) async {
+        final supportRef = _concernSupportsCol.doc(supportDocId);
+        final concernRef = _concernsCol.doc(concernId);
         
-        await _concernsCol.doc(concernId).update({
-          'supportCount': FieldValue.increment(1),
-          'updatedAt': Timestamp.now(),
-        });
-        print('✅ Support added for concern $concernId');
-      }
+        final supportSnap = await txn.get(supportRef);
+        
+        if (supportSnap.exists) {
+          // User already supports this concern, remove support
+          txn.delete(supportRef);
+          txn.update(concernRef, {
+            'supportCount': FieldValue.increment(-1),
+            'updatedAt': Timestamp.now(),
+          });
+          print('✅ Support removed for concern $concernId');
+        } else {
+          // User doesn't support this concern, add support
+          txn.set(supportRef, ConcernSupport(
+            id: supportDocId,
+            concernId: concernId,
+            userId: userId,
+            userName: userName,
+            supportedAt: DateTime.now(),
+          ).toFirestore());
+          
+          txn.update(concernRef, {
+            'supportCount': FieldValue.increment(1),
+            'updatedAt': Timestamp.now(),
+          });
+          print('✅ Support added for concern $concernId');
+        }
+      });
     } catch (e) {
       print('Error toggling support: $e');
       throw Exception('Failed to toggle support: $e');
@@ -524,19 +622,18 @@ class ConcernService {
     int limit = 20,
     DocumentSnapshot? startAfter,
   }) {
-    // Use completely index-free approach
-    return _concernsCol
-        .orderBy('createdAt', descending: true)
-        .snapshots()
-        .map((snapshot) {
-      // Filter public concerns and sort by support count in memory
-      final allConcerns = snapshot.docs.map((doc) => Concern.fromFirestore(doc)).toList();
-      final publicConcerns = allConcerns.where((concern) => concern.isPublic).toList();
-      
-      // Sort by support count (most supported first) in memory
-      publicConcerns.sort((a, b) => b.supportCount.compareTo(a.supportCount));
-      
-      return publicConcerns.take(limit).toList();
+    Query query = _concernsCol
+        .where('isPublic', isEqualTo: true)
+        .orderBy('supportCount', descending: true);
+    
+    if (startAfter != null) {
+      query = query.startAfterDocument(startAfter);
+    }
+    
+    query = query.limit(limit);
+    
+    return query.snapshots().map((snapshot) {
+      return snapshot.docs.map((doc) => Concern.fromFirestore(doc)).toList();
     });
   }
 

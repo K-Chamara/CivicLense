@@ -17,6 +17,22 @@ enum ConcernPriority {
   critical
 }
 
+enum SentimentScore {
+  veryNegative,
+  negative,
+  neutral,
+  positive,
+  veryPositive
+}
+
+enum CommunityType {
+  budget,
+  tender,
+  corruption,
+  transparency,
+  general
+}
+
 enum ConcernStatus {
   pending,
   underReview,
@@ -48,20 +64,27 @@ class Concern {
   final DateTime createdAt;
   final DateTime? updatedAt;
   final DateTime? resolvedAt;
+  final SentimentScore? sentimentScore;
+  final double? sentimentMagnitude;
+  final String? assignedOfficerId;
+  final String? assignedOfficerName;
+  final List<String> tags;
+  final List<String> relatedBudgetIds;
+  final List<String> relatedTenderIds;
+  final String? communityId;
+  final int engagementScore;
+  final bool isFlaggedByCitizens;
+  final List<ConcernComment> comments;
+  final List<ConcernAttachment> attachments;
   final String? relatedBudgetId;
   final String? relatedTenderId;
   final String? relatedCommunityId;
-  final List<String> tags;
-  final List<String> attachments;
   final bool isAnonymous;
   final bool isPublic;
   final int upvotes;
   final int downvotes;
   final int supportCount;
   final int commentCount;
-  final String? assignedOfficerId;
-  final String? assignedOfficerName;
-  final List<ConcernComment> comments;
   final List<ConcernUpdate> updates;
   final Map<String, dynamic> metadata;
 
@@ -74,25 +97,32 @@ class Concern {
     required this.authorEmail,
     required this.category,
     required this.type,
-    required this.priority,
+    this.priority = ConcernPriority.medium,
     required this.status,
     required this.createdAt,
     this.updatedAt,
     this.resolvedAt,
+    this.sentimentScore,
+    this.sentimentMagnitude,
+    this.assignedOfficerId,
+    this.assignedOfficerName,
+    this.tags = const [],
+    this.relatedBudgetIds = const [],
+    this.relatedTenderIds = const [],
+    this.communityId,
+    this.engagementScore = 0,
+    this.isFlaggedByCitizens = false,
+    this.comments = const [],
+    this.attachments = const [],
     this.relatedBudgetId,
     this.relatedTenderId,
     this.relatedCommunityId,
-    this.tags = const [],
-    this.attachments = const [],
     this.isAnonymous = false,
     this.isPublic = true,
     this.upvotes = 0,
     this.downvotes = 0,
     this.supportCount = 0,
     this.commentCount = 0,
-    this.assignedOfficerId,
-    this.assignedOfficerName,
-    this.comments = const [],
     this.updates = const [],
     this.metadata = const {},
   });
@@ -112,19 +142,28 @@ class Concern {
       'createdAt': Timestamp.fromDate(createdAt),
       'updatedAt': updatedAt != null ? Timestamp.fromDate(updatedAt!) : null,
       'resolvedAt': resolvedAt != null ? Timestamp.fromDate(resolvedAt!) : null,
+      'sentimentScore': sentimentScore?.name,
+      'sentimentMagnitude': sentimentMagnitude,
+      'assignedOfficerId': assignedOfficerId,
+      'assignedOfficerName': assignedOfficerName,
+      'tags': tags,
+      'relatedBudgetIds': relatedBudgetIds,
+      'relatedTenderIds': relatedTenderIds,
+      'communityId': communityId,
+      'engagementScore': engagementScore,
+      'isFlaggedByCitizens': isFlaggedByCitizens,
+      'comments': comments.map((c) => c.toFirestore()).toList(),
+      'attachments': attachments.map((a) => a.toFirestore()).toList(),
       'relatedBudgetId': relatedBudgetId,
       'relatedTenderId': relatedTenderId,
       'relatedCommunityId': relatedCommunityId,
-      'tags': tags,
-      'attachments': attachments,
       'isAnonymous': isAnonymous,
       'isPublic': isPublic,
       'upvotes': upvotes,
       'downvotes': downvotes,
       'supportCount': supportCount,
       'commentCount': commentCount,
-      'assignedOfficerId': assignedOfficerId,
-      'assignedOfficerName': assignedOfficerName,
+      'updates': updates.map((u) => u.toFirestore()).toList(),
       'metadata': metadata,
     };
   }
@@ -161,19 +200,39 @@ class Concern {
       resolvedAt: data['resolvedAt'] != null 
           ? (data['resolvedAt'] as Timestamp).toDate() 
           : null,
+      sentimentScore: data['sentimentScore'] != null 
+          ? SentimentScore.values.firstWhere(
+              (e) => e.name == data['sentimentScore'],
+              orElse: () => SentimentScore.neutral,
+            )
+          : null,
+      sentimentMagnitude: data['sentimentMagnitude']?.toDouble(),
+      assignedOfficerId: data['assignedOfficerId'],
+      assignedOfficerName: data['assignedOfficerName'],
+      tags: List<String>.from(data['tags'] ?? []),
+      relatedBudgetIds: List<String>.from(data['relatedBudgetIds'] ?? []),
+      relatedTenderIds: List<String>.from(data['relatedTenderIds'] ?? []),
+      communityId: data['communityId'],
+      engagementScore: data['engagementScore'] ?? 0,
+      isFlaggedByCitizens: data['isFlaggedByCitizens'] ?? false,
+      comments: (data['comments'] as List<dynamic>? ?? [])
+          .map((c) => ConcernComment.fromFirestore(c as DocumentSnapshot))
+          .toList(),
+      attachments: (data['attachments'] as List<dynamic>? ?? [])
+          .map((a) => ConcernAttachment.fromFirestore(a as DocumentSnapshot))
+          .toList(),
       relatedBudgetId: data['relatedBudgetId'],
       relatedTenderId: data['relatedTenderId'],
       relatedCommunityId: data['relatedCommunityId'],
-      tags: List<String>.from(data['tags'] ?? []),
-      attachments: List<String>.from(data['attachments'] ?? []),
       isAnonymous: data['isAnonymous'] ?? false,
       isPublic: data['isPublic'] ?? true,
       upvotes: data['upvotes'] ?? 0,
       downvotes: data['downvotes'] ?? 0,
       supportCount: data['supportCount'] ?? 0,
       commentCount: data['commentCount'] ?? 0,
-      assignedOfficerId: data['assignedOfficerId'],
-      assignedOfficerName: data['assignedOfficerName'],
+      updates: (data['updates'] as List<dynamic>? ?? [])
+          .map((u) => ConcernUpdate.fromFirestore(u as DocumentSnapshot))
+          .toList(),
       metadata: Map<String, dynamic>.from(data['metadata'] ?? {}),
     );
   }
@@ -192,20 +251,27 @@ class Concern {
     DateTime? createdAt,
     DateTime? updatedAt,
     DateTime? resolvedAt,
+    SentimentScore? sentimentScore,
+    double? sentimentMagnitude,
+    String? assignedOfficerId,
+    String? assignedOfficerName,
+    List<String>? tags,
+    List<String>? relatedBudgetIds,
+    List<String>? relatedTenderIds,
+    String? communityId,
+    int? engagementScore,
+    bool? isFlaggedByCitizens,
+    List<ConcernComment>? comments,
+    List<ConcernAttachment>? attachments,
     String? relatedBudgetId,
     String? relatedTenderId,
     String? relatedCommunityId,
-    List<String>? tags,
-    List<String>? attachments,
     bool? isAnonymous,
     bool? isPublic,
     int? upvotes,
     int? downvotes,
     int? supportCount,
     int? commentCount,
-    String? assignedOfficerId,
-    String? assignedOfficerName,
-    List<ConcernComment>? comments,
     List<ConcernUpdate>? updates,
     Map<String, dynamic>? metadata,
   }) {
@@ -223,78 +289,33 @@ class Concern {
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       resolvedAt: resolvedAt ?? this.resolvedAt,
+      sentimentScore: sentimentScore ?? this.sentimentScore,
+      sentimentMagnitude: sentimentMagnitude ?? this.sentimentMagnitude,
+      assignedOfficerId: assignedOfficerId ?? this.assignedOfficerId,
+      assignedOfficerName: assignedOfficerName ?? this.assignedOfficerName,
+      tags: tags ?? this.tags,
+      relatedBudgetIds: relatedBudgetIds ?? this.relatedBudgetIds,
+      relatedTenderIds: relatedTenderIds ?? this.relatedTenderIds,
+      communityId: communityId ?? this.communityId,
+      engagementScore: engagementScore ?? this.engagementScore,
+      isFlaggedByCitizens: isFlaggedByCitizens ?? this.isFlaggedByCitizens,
+      comments: comments ?? this.comments,
+      attachments: attachments ?? this.attachments,
       relatedBudgetId: relatedBudgetId ?? this.relatedBudgetId,
       relatedTenderId: relatedTenderId ?? this.relatedTenderId,
       relatedCommunityId: relatedCommunityId ?? this.relatedCommunityId,
-      tags: tags ?? this.tags,
-      attachments: attachments ?? this.attachments,
       isAnonymous: isAnonymous ?? this.isAnonymous,
       isPublic: isPublic ?? this.isPublic,
       upvotes: upvotes ?? this.upvotes,
       downvotes: downvotes ?? this.downvotes,
       supportCount: supportCount ?? this.supportCount,
       commentCount: commentCount ?? this.commentCount,
-      assignedOfficerId: assignedOfficerId ?? this.assignedOfficerId,
-      assignedOfficerName: assignedOfficerName ?? this.assignedOfficerName,
-      comments: comments ?? this.comments,
       updates: updates ?? this.updates,
       metadata: metadata ?? this.metadata,
     );
   }
 }
 
-class ConcernComment {
-  final String id;
-  final String concernId;
-  final String authorId;
-  final String authorName;
-  final String content;
-  final DateTime createdAt;
-  final bool isOfficial;
-  final bool isInternal;
-  final List<String> attachments;
-
-  ConcernComment({
-    required this.id,
-    required this.concernId,
-    required this.authorId,
-    required this.authorName,
-    required this.content,
-    required this.createdAt,
-    this.isOfficial = false,
-    this.isInternal = false,
-    this.attachments = const [],
-  });
-
-  Map<String, dynamic> toFirestore() {
-    return {
-      'id': id,
-      'concernId': concernId,
-      'authorId': authorId,
-      'authorName': authorName,
-      'content': content,
-      'createdAt': Timestamp.fromDate(createdAt),
-      'isOfficial': isOfficial,
-      'isInternal': isInternal,
-      'attachments': attachments,
-    };
-  }
-
-  static ConcernComment fromFirestore(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
-    return ConcernComment(
-      id: doc.id,
-      concernId: data['concernId'] ?? '',
-      authorId: data['authorId'] ?? '',
-      authorName: data['authorName'] ?? '',
-      content: data['content'] ?? '',
-      createdAt: (data['createdAt'] as Timestamp).toDate(),
-      isOfficial: data['isOfficial'] ?? false,
-      isInternal: data['isInternal'] ?? false,
-      attachments: List<String>.from(data['attachments'] ?? []),
-    );
-  }
-}
 
 class ConcernUpdate {
   final String id;
@@ -436,4 +457,163 @@ class ConcernStats {
     required this.concernsThisMonth,
     required this.concernsLastMonth,
   });
+}
+
+// New classes for enhanced concern management
+class ConcernComment {
+  final String id;
+  final String concernId;
+  final String authorId;
+  final String authorName;
+  final String content;
+  final DateTime createdAt;
+  final bool isOfficial;
+  final String? officerId;
+
+  ConcernComment({
+    required this.id,
+    required this.concernId,
+    required this.authorId,
+    required this.authorName,
+    required this.content,
+    required this.createdAt,
+    this.isOfficial = false,
+    this.officerId,
+  });
+
+  Map<String, dynamic> toFirestore() {
+    return {
+      'id': id,
+      'concernId': concernId,
+      'authorId': authorId,
+      'authorName': authorName,
+      'content': content,
+      'createdAt': Timestamp.fromDate(createdAt),
+      'isOfficial': isOfficial,
+      'officerId': officerId,
+    };
+  }
+
+  static ConcernComment fromFirestore(DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>;
+    return ConcernComment(
+      id: doc.id,
+      concernId: data['concernId'] ?? '',
+      authorId: data['authorId'] ?? '',
+      authorName: data['authorName'] ?? '',
+      content: data['content'] ?? '',
+      createdAt: (data['createdAt'] as Timestamp).toDate(),
+      isOfficial: data['isOfficial'] ?? false,
+      officerId: data['officerId'],
+    );
+  }
+}
+
+class ConcernAttachment {
+  final String id;
+  final String concernId;
+  final String fileName;
+  final String fileUrl;
+  final String fileType;
+  final int fileSize;
+  final DateTime uploadedAt;
+  final String uploadedBy;
+
+  ConcernAttachment({
+    required this.id,
+    required this.concernId,
+    required this.fileName,
+    required this.fileUrl,
+    required this.fileType,
+    required this.fileSize,
+    required this.uploadedAt,
+    required this.uploadedBy,
+  });
+
+  Map<String, dynamic> toFirestore() {
+    return {
+      'id': id,
+      'concernId': concernId,
+      'fileName': fileName,
+      'fileUrl': fileUrl,
+      'fileType': fileType,
+      'fileSize': fileSize,
+      'uploadedAt': Timestamp.fromDate(uploadedAt),
+      'uploadedBy': uploadedBy,
+    };
+  }
+
+  static ConcernAttachment fromFirestore(DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>;
+    return ConcernAttachment(
+      id: doc.id,
+      concernId: data['concernId'] ?? '',
+      fileName: data['fileName'] ?? '',
+      fileUrl: data['fileUrl'] ?? '',
+      fileType: data['fileType'] ?? '',
+      fileSize: data['fileSize'] ?? 0,
+      uploadedAt: (data['uploadedAt'] as Timestamp).toDate(),
+      uploadedBy: data['uploadedBy'] ?? '',
+    );
+  }
+}
+
+class ConcernCommunity {
+  final String id;
+  final String name;
+  final String description;
+  final CommunityType type;
+  final String createdBy;
+  final DateTime createdAt;
+  final List<String> members;
+  final List<String> moderators;
+  final bool isActive;
+  final Map<String, dynamic> settings;
+
+  ConcernCommunity({
+    required this.id,
+    required this.name,
+    required this.description,
+    required this.type,
+    required this.createdBy,
+    required this.createdAt,
+    this.members = const [],
+    this.moderators = const [],
+    this.isActive = true,
+    this.settings = const {},
+  });
+
+  Map<String, dynamic> toFirestore() {
+    return {
+      'id': id,
+      'name': name,
+      'description': description,
+      'type': type.name,
+      'createdBy': createdBy,
+      'createdAt': Timestamp.fromDate(createdAt),
+      'members': members,
+      'moderators': moderators,
+      'isActive': isActive,
+      'settings': settings,
+    };
+  }
+
+  static ConcernCommunity fromFirestore(DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>;
+    return ConcernCommunity(
+      id: doc.id,
+      name: data['name'] ?? '',
+      description: data['description'] ?? '',
+      type: CommunityType.values.firstWhere(
+        (e) => e.name == data['type'],
+        orElse: () => CommunityType.general,
+      ),
+      createdBy: data['createdBy'] ?? '',
+      createdAt: (data['createdAt'] as Timestamp).toDate(),
+      members: List<String>.from(data['members'] ?? []),
+      moderators: List<String>.from(data['moderators'] ?? []),
+      isActive: data['isActive'] ?? true,
+      settings: Map<String, dynamic>.from(data['settings'] ?? {}),
+    );
+  }
 }
