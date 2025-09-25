@@ -19,5 +19,6 @@ class OnboardingUtils {
   static Future<void> resetOnboardingStatus() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_onboardingKey);
+    print('🔄 Onboarding status reset - next launch will show onboarding');
   }
 }
