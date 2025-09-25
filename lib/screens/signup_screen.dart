@@ -126,6 +126,7 @@ class _SignupScreenState extends State<SignupScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(
         title: const Text('Create Account'),
         backgroundColor: Colors.transparent,
@@ -140,7 +141,12 @@ class _SignupScreenState extends State<SignupScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 // App Logo/Title
-                const Icon(Icons.account_balance, size: 60, color: Colors.blue),
+                Image.asset(
+                  'assets/images/logo.png',
+                  width: 60,
+                  height: 60,
+                  fit: BoxFit.contain,
+                ),
                 const SizedBox(height: 16),
                 const Text(
                   'Join Civic Lense',
