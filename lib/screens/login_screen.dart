@@ -103,14 +103,9 @@ class _LoginScreenState extends State<LoginScreen> {
         }
       }
 
-      // Sign in the user
-      await AuthService().signInWithEmailAndPassword(email, password);
-
-      await _saveCredentials();
-
       if (mounted) {
         if (isGovernmentUser && userRole != null) {
-          // For government users, redirect to email OTP verification
+          // For government users, redirect to email OTP verification without signing in yet
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(
               builder: (context) => GovernmentOtpVerificationScreen(
@@ -122,7 +117,9 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
           );
         } else {
-          // For regular users, let AuthWrapper handle routing
+          // For regular users, sign in and let AuthWrapper handle routing
+          await AuthService().signInWithEmailAndPassword(email, password);
+          await _saveCredentials();
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(
               builder: (context) => const AuthWrapper(),

@@ -78,12 +78,44 @@ class GovernmentAuthService {
       print('🔍 Verifying OTP:');
       print('📧 Stored OTP: $_emailOtp');
       print('📧 Entered OTP: $enteredOtp');
-      print('📧 Match: ${_emailOtp == enteredOtp}');
       
-      if (_emailOtp == enteredOtp) {
-        print('✅ OTP verification successful!');
+      // First check in-memory OTP (for backward compatibility)
+      if (_emailOtp != null && _emailOtp == enteredOtp) {
+        print('✅ OTP verification successful (in-memory)!');
         return true;
       }
+      
+      // If in-memory check fails, check Firestore
+      if (_emailVerificationId != null) {
+        final otpDoc = await _firestore.collection('email_otps').doc(_emailVerificationId!).get();
+        if (otpDoc.exists) {
+          final otpData = otpDoc.data()!;
+          final storedOtp = otpData['otp'] as String;
+          final expiresAt = (otpData['expiresAt'] as Timestamp).toDate();
+          
+          print('📧 Firestore OTP: $storedOtp');
+          print('📧 Match: ${storedOtp == enteredOtp}');
+          
+          // Check if OTP is expired
+          if (DateTime.now().isAfter(expiresAt)) {
+            print('❌ OTP has expired!');
+            return false;
+          }
+          
+          if (storedOtp == enteredOtp) {
+            print('✅ OTP verification successful (Firestore)!');
+            // Clean up the OTP document after successful verification
+            try {
+              await _firestore.collection('email_otps').doc(_emailVerificationId!).delete();
+              print('🧹 Cleaned up OTP document from Firestore');
+            } catch (e) {
+              print('⚠️ Failed to clean up OTP document: $e');
+            }
+            return true;
+          }
+        }
+      }
+      
       print('❌ OTP verification failed!');
       return false;
     } catch (e) {
@@ -146,11 +178,15 @@ class GovernmentAuthService {
     required String emailOtp,
   }) async {
     try {
+      print('🔐 Attempting to sign in government user: $email');
+      
       // First, sign in with email and password
       final userCredential = await _auth.signInWithEmailAndPassword(
         email: email,
         password: password,
       );
+      
+      print('✅ Firebase Auth sign-in successful for: $email');
 
       // Get user data to verify role
       final userData = await getUserData(userCredential.user!.uid);
@@ -163,10 +199,7 @@ class GovernmentAuthService {
         throw Exception('Access denied: Government users only');
       }
 
-      // Send email OTP for verification
-      await sendEmailOtp(email, userRole);
-
-      // Verify email OTP
+      // Verify email OTP (don't send a new one - use the existing OTP from login flow)
       final emailVerified = await verifyEmailOtp(emailOtp);
 
       if (!emailVerified) {
@@ -174,17 +207,47 @@ class GovernmentAuthService {
         throw Exception('Invalid OTP code');
       }
 
-      // Update last login timestamp
+      // Update last login timestamp and mark email as verified
       await _firestore.collection('users').doc(userCredential.user!.uid).update({
         'lastLogin': FieldValue.serverTimestamp(),
         'isActive': true,
+        'emailVerified': true, // Mark email as verified after successful OTP verification
       });
 
       // Clear verification data
       _clearVerificationData();
 
       return userCredential;
+    } on FirebaseAuthException catch (e) {
+      print('❌ Firebase Auth error: ${e.code} - ${e.message}');
+      String errorMessage = 'Authentication failed';
+      
+      switch (e.code) {
+        case 'user-not-found':
+          errorMessage = 'No government user found with this email address. Please contact your administrator.';
+          break;
+        case 'wrong-password':
+          errorMessage = 'Incorrect password for government user.';
+          break;
+        case 'invalid-email':
+          errorMessage = 'Please enter a valid email address.';
+          break;
+        case 'user-disabled':
+          errorMessage = 'This government account has been disabled.';
+          break;
+        case 'too-many-requests':
+          errorMessage = 'Too many failed attempts. Please try again later.';
+          break;
+        case 'invalid-credential':
+          errorMessage = 'Invalid credentials. Please check your email and password.';
+          break;
+        default:
+          errorMessage = 'Authentication error: ${e.message}';
+      }
+      
+      throw Exception(errorMessage);
     } catch (e) {
+      print('❌ Unexpected error during government user login: $e');
       rethrow;
     }
   }
