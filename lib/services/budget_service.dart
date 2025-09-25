@@ -1,9 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart' hide Transaction;
 import 'package:intl/intl.dart';
 import '../models/budget_models.dart';
+import 'notification_service.dart';
 
 class BudgetService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final NotificationService _notificationService = NotificationService();
   
   // Collection names
   static const String budgetCategoriesCollection = 'budget_categories';
@@ -750,6 +752,30 @@ class BudgetService {
           .collection(budgetItemsCollection)
           .doc(item.id)
           .set(item.toFirestore());
+
+      // Get category and subcategory names for notification
+      try {
+        final categoryDoc = await _firestore.collection(budgetCategoriesCollection).doc(categoryId).get();
+        final subcategoryDoc = await _firestore
+            .collection(budgetCategoriesCollection)
+            .doc(categoryId)
+            .collection(budgetSubcategoriesCollection)
+            .doc(subcategoryId)
+            .get();
+
+        final categoryName = categoryDoc.data()?['name'] ?? 'Unknown Category';
+        final subcategoryName = subcategoryDoc.data()?['name'] ?? 'Unknown Subcategory';
+
+        // Create notification for new budget allocation
+        await _notificationService.notifyNewBudgetAllocation(
+          categoryName: categoryName,
+          subcategoryName: subcategoryName,
+          itemName: item.name,
+          amount: item.allocatedAmount,
+        );
+      } catch (e) {
+        print('Error getting category/subcategory names for notification: $e');
+      }
     } catch (e) {
       print('Error creating budget item: $e');
       throw Exception('Failed to create budget item: $e');

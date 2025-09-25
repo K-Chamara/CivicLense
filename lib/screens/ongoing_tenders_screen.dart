@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'project_details_screen.dart';
 import '../services/budget_service.dart';
+import '../services/project_service.dart';
 
 class OngoingTendersScreen extends StatefulWidget {
   const OngoingTendersScreen({super.key});
@@ -16,6 +17,7 @@ class _OngoingTendersScreenState extends State<OngoingTendersScreen> {
   String _budgetRange = 'All';
   List<Map<String, dynamic>> _projects = [];
   List<Map<String, dynamic>> _filteredProjects = [];
+  bool _isLoading = true;
   final BudgetService _budgetService = BudgetService();
 
   List<String> _categories = ['All'];
@@ -46,135 +48,74 @@ class _OngoingTendersScreenState extends State<OngoingTendersScreen> {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) return;
 
-      // Load projects from projects collection (these are the converted projects)
-      final projectsSnapshot = await FirebaseFirestore.instance
-          .collection('projects')
-          .where('createdBy', isEqualTo: user.uid)
-          .get();
-
-      // Load non-active tenders that haven't been converted to projects yet
-      final tendersSnapshot = await FirebaseFirestore.instance
-          .collection('tenders')
-          .where('status', whereIn: ['closed', 'awarded', 'cancelled'])
-          .get();
-
+      print('📊 Loading projects from new projects table...');
+      
+      // Use ProjectService to get all projects
+      final projects = await ProjectService.getAllProjects();
+      
+      print('Found ${projects.length} projects in database');
+      
       final List<Map<String, dynamic>> allProjects = [];
-      final Set<String> projectTenderIds = <String>{};
 
-             // First, add projects and track their tender IDs
-       for (final doc in projectsSnapshot.docs) {
-         final data = doc.data();
-         final tenderId = data['tenderId'] as String?;
-         if (tenderId != null) {
-           projectTenderIds.add(tenderId);
-         }
-         
-                   // Get winning bidder information and tender description for this project
-          String winningBidder = '';
-          double winningBidAmount = 0.0;
-          String tenderDescription = '';
-          
-          try {
-            // Get tender description
-            final tenderDoc = await FirebaseFirestore.instance
-                .collection('tenders')
-                .doc(tenderId)
-                .get();
-            
-            if (tenderDoc.exists) {
-              final tenderData = tenderDoc.data()!;
-              tenderDescription = tenderData['description'] ?? '';
-            }
-            
-            // Get winning bidder
-            final bidsSnapshot = await FirebaseFirestore.instance
-                .collection('bids')
-                .where('tenderId', isEqualTo: tenderId)
-                .where('status', isEqualTo: 'awarded')
-                .limit(1)
-                .get();
-            
-            if (bidsSnapshot.docs.isNotEmpty) {
-              final bidData = bidsSnapshot.docs.first.data();
-              winningBidder = bidData['bidderName'] ?? '';
-              winningBidAmount = (bidData['bidAmount'] ?? 0.0).toDouble();
-            }
-          } catch (e) {
-            print('Error loading winning bidder: $e');
-          }
-         
-         allProjects.add({
-           'id': doc.id,
-           'title': data['tenderTitle'] ?? '',
-           'projectName': data['projectName'] ?? '',
-           'projectLocation': data['location'] ?? '',
-           'description': tenderDescription.isNotEmpty ? tenderDescription : (data['description'] ?? 'Project converted from tender'),
-           'budget': winningBidAmount > 0 ? winningBidAmount : (data['budget'] ?? 0.0),
-           'originalBudget': data['budget'] ?? 0.0, // Keep original tender budget for reference
-           'winningBidder': winningBidder,
-           'hasWinningBidder': winningBidder.isNotEmpty,
-           'tenderId': tenderId,
-           'deadline': '',
-           'category': data['category'] ?? '',
-           'region': data['location'] ?? 'Central',
-           'status': data['status'] ?? 'active',
-           'totalBids': 0,
-           'createdAt': data['createdAt'],
-           'type': 'project',
-         });
-       }
-
-      // Then add tenders that haven't been converted to projects yet
-      for (final doc in tendersSnapshot.docs) {
-        final data = doc.data();
-        final tenderId = doc.id;
+      for (final project in projects) {
+        print('Project ${project['id']}: ${project['projectName']} - Status: ${project['projectStatus']}');
         
-        // Skip if this tender has already been converted to a project
-        if (projectTenderIds.contains(tenderId)) {
-          continue;
-        }
-        
-        // Check for winning bidder information for this tender
-        String winningBidder = '';
-        double winningBidAmount = 0.0;
+        // Safely access nested data with proper type checking
+        Map<String, dynamic>? winningBidder;
+        Map<String, dynamic>? sourceTender;
         
         try {
-          // Get winning bidder
-          final bidsSnapshot = await FirebaseFirestore.instance
-              .collection('bids')
-              .where('tenderId', isEqualTo: tenderId)
-              .where('status', isEqualTo: 'awarded')
-              .limit(1)
-              .get();
-          
-          if (bidsSnapshot.docs.isNotEmpty) {
-            final bidData = bidsSnapshot.docs.first.data();
-            winningBidder = bidData['bidderName'] ?? '';
-            winningBidAmount = (bidData['bidAmount'] ?? 0.0).toDouble();
+          final winningBidderData = project['winningBidder'];
+          if (winningBidderData is Map<String, dynamic>) {
+            winningBidder = winningBidderData;
+          } else if (winningBidderData is String) {
+            // Handle case where winningBidder might be stored as a string
+            winningBidder = {'name': winningBidderData};
           }
         } catch (e) {
-          print('Error loading winning bidder for tender $tenderId: $e');
+          print('⚠️ Error accessing winningBidder: $e');
+          winningBidder = null;
+        }
+        
+        try {
+          final sourceTenderData = project['sourceTender'];
+          if (sourceTenderData is Map<String, dynamic>) {
+            sourceTender = sourceTenderData;
+          }
+        } catch (e) {
+          print('⚠️ Error accessing sourceTender: $e');
+          sourceTender = null;
         }
         
         allProjects.add({
-          'id': doc.id,
-          'title': data['title'] ?? '',
-          'projectName': data['projectName'] ?? '',
-          'projectLocation': data['location'] ?? '',
-          'description': data['description'] ?? '',
-          'budget': winningBidAmount > 0 ? winningBidAmount : (data['budget'] ?? 0.0),
-          'originalBudget': data['budget'] ?? 0.0,
-          'winningBidder': winningBidder,
-          'hasWinningBidder': winningBidder.isNotEmpty,
-          'deadline': data['deadline'] ?? '',
-          'category': data['category'] ?? '',
-          'region': data['location'] ?? 'Central',
-          'status': data['status'] ?? 'active',
-          'totalBids': data['totalBids'] ?? 0,
-          'createdAt': data['createdAt'],
-          'type': 'tender',
+          'id': project['id'],
+          'title': project['projectName'] ?? '',
+          'projectName': project['projectName'] ?? '',
+          'projectLocation': project['projectLocation'] ?? '',
+          'description': project['projectDescription'] ?? 'Project converted from tender',
+          'budget': _safeDouble(project['projectBudget']),
+          'originalBudget': _safeDouble(project['originalTenderBudget']),
+          'winningBidder': winningBidder?['name'] ?? '',
+          'hasWinningBidder': project['hasWinningBidder'] ?? false,
+          'tenderId': sourceTender?['tenderId'] ?? '',
+          'deadline': project['expectedCompletionDate'] ?? '',
+          'handoverDate': project['handoverDate'] ?? '',
+          'category': project['projectCategory'] ?? '',
+          'region': project['projectLocation'] ?? 'Central',
+          'status': project['projectStatus'] ?? 'ongoing',
+          'totalBids': 0,
+          'createdAt': project['createdAt'],
+          'type': 'project',
+          // Additional project-specific fields
+          'projectId': project['projectId'],
+          'projectPhase': project['projectPhase'],
+          'completionPercentage': _safeInt(project['completionPercentage']),
+          'priority': project['priority'],
+          'riskLevel': project['riskLevel'],
         });
       }
+      
+      print('📊 Total projects loaded: ${allProjects.length}');
 
       setState(() {
         _projects = allProjects;
@@ -190,16 +131,24 @@ class _OngoingTendersScreenState extends State<OngoingTendersScreen> {
         });
         
         _applyFilters();
+        _isLoading = false;
       });
     } catch (e) {
+      print('❌ Error loading projects: $e');
+      print('❌ Error type: ${e.runtimeType}');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error loading projects: $e'),
             backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
           ),
         );
       }
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
     }
   }
 
@@ -216,6 +165,87 @@ class _OngoingTendersScreenState extends State<OngoingTendersScreen> {
       setState(() {
         _categories = ['All'];
       });
+    }
+  }
+
+  Future<void> _createTestProject() async {
+    try {
+      print('🧪 Creating test project...');
+      
+      // Show loading indicator
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Creating test project...'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+      
+      // Create test project
+      final projectId = await ProjectService.createTestProject();
+      
+      print('✅ Test project created with ID: $projectId');
+      
+      // Reload projects to show the new test project
+      await _loadProjects();
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✅ Test project created successfully!'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+    } catch (e) {
+      print('❌ Error creating test project: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Error creating test project: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    }
+  }
+
+  // Helper methods for safe type conversion
+  double _safeDouble(dynamic value) {
+    if (value == null) return 0.0;
+    if (value is double) return value;
+    if (value is int) return value.toDouble();
+    if (value is String) return double.tryParse(value) ?? 0.0;
+    return 0.0;
+  }
+
+  int _safeInt(dynamic value) {
+    if (value == null) return 0;
+    if (value is int) return value;
+    if (value is double) return value.toInt();
+    if (value is String) return int.tryParse(value) ?? 0;
+    return 0;
+  }
+
+  // Check if a project should show NEW indicator
+  // Shows NEW only for projects with null status (newly created from tenders)
+  bool _shouldShowNewIndicator(Map<String, dynamic> project) {
+    try {
+      final status = project['status'];
+      
+      // Show NEW only if status is null (newly created from tender, not yet set)
+      if (status == null) {
+        return true;
+      }
+      
+      // Don't show NEW for any project with a set status (ongoing, done, delayed)
+      return false;
+    } catch (e) {
+      print('Error checking if project should show NEW indicator: $e');
+      return false;
     }
   }
 
@@ -384,7 +414,25 @@ class _OngoingTendersScreenState extends State<OngoingTendersScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-            body: Column(
+      appBar: AppBar(
+        title: const Text('Active Projects'),
+        backgroundColor: Colors.lightBlue,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _loadProjects,
+            tooltip: 'Refresh',
+          ),
+          IconButton(
+            icon: const Icon(Icons.bug_report),
+            onPressed: _createTestProject,
+            tooltip: 'Create Test Project',
+          ),
+        ],
+      ),
+      body: Column(
         children: [
           // Search and Filter Section
           _buildSearchAndFilterSection(),
@@ -420,10 +468,43 @@ class _OngoingTendersScreenState extends State<OngoingTendersScreen> {
           // Projects List
           Expanded(
             child: _filteredProjects.isEmpty
-                ? const Center(
-                    child: Text(
-                      'No projects found',
-                      style: TextStyle(fontSize: 18, color: Colors.grey),
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(
+                          Icons.work_outline,
+                          size: 64,
+                          color: Colors.grey,
+                        ),
+                        const SizedBox(height: 16),
+                        const Text(
+                          'No projects found',
+                          style: TextStyle(
+                            fontSize: 18,
+                            color: Colors.grey,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        const Text(
+                          'Projects will appear here when tenders are closed with winning bidders.',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 16),
+                        ElevatedButton.icon(
+                          onPressed: _createTestProject,
+                          icon: const Icon(Icons.bug_report),
+                          label: const Text('Create Test Project'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.blue,
+                            foregroundColor: Colors.white,
+                          ),
+                        ),
+                      ],
                     ),
                   )
                 : ListView.builder(
@@ -433,7 +514,9 @@ class _OngoingTendersScreenState extends State<OngoingTendersScreen> {
                       final project = _filteredProjects[index];
                       return Card(
                         margin: const EdgeInsets.only(bottom: 16),
-                        child: ListTile(
+                        child: Stack(
+                          children: [
+                            ListTile(
                           contentPadding: const EdgeInsets.all(16),
                           title: Text(
                             project['title'],
@@ -497,31 +580,33 @@ class _OngoingTendersScreenState extends State<OngoingTendersScreen> {
                                 ],
                               ),
                               const SizedBox(height: 8),
-                              Row(
+                              // Use Wrap instead of Row to prevent overflow
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 4,
                                 children: [
-                                  if (project['type'] == 'tender' && project['deadline'].isNotEmpty) ...[
+                                  if (project['handoverDate'] != null && project['handoverDate'].toString().isNotEmpty) ...[
                                     Container(
                                       padding: const EdgeInsets.symmetric(
                                         horizontal: 8,
                                         vertical: 4,
                                       ),
                                       decoration: BoxDecoration(
-                                        color: _getStatusColor(project['deadline']).withOpacity(0.1),
+                                        color: Colors.green.withOpacity(0.1),
                                         borderRadius: BorderRadius.circular(12),
                                         border: Border.all(
-                                          color: _getStatusColor(project['deadline']),
+                                          color: Colors.green,
                                         ),
                                       ),
                                       child: Text(
-                                        _getDaysRemaining(project['deadline']),
-                                        style: TextStyle(
-                                          color: _getStatusColor(project['deadline']),
+                                        'Deadline: ${project['handoverDate']}',
+                                        style: const TextStyle(
+                                          color: Colors.green,
                                           fontSize: 12,
                                           fontWeight: FontWeight.bold,
                                         ),
                                       ),
                                     ),
-                                    const SizedBox(width: 8),
                                   ],
                                   Container(
                                     padding: const EdgeInsets.symmetric(
@@ -550,21 +635,149 @@ class _OngoingTendersScreenState extends State<OngoingTendersScreen> {
                                       ),
                                     ),
                                   ),
+                                  // Status indicator - only show if status is not null
+                                  if (project['status'] != null)
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 4,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: _getStatusColorForCard(project['status']).withOpacity(0.1),
+                                        borderRadius: BorderRadius.circular(12),
+                                        border: Border.all(
+                                          color: _getStatusColorForCard(project['status']),
+                                        ),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(
+                                            _getStatusIconForCard(project['status']),
+                                            size: 12,
+                                            color: _getStatusColorForCard(project['status']),
+                                          ),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            _getStatusTextForCard(project['status']),
+                                            style: TextStyle(
+                                              color: _getStatusColorForCard(project['status']),
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
                                 ],
                               ),
                             ],
                           ),
-                                                     trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                           onTap: () {
-                             Navigator.push(
-                               context,
-                               MaterialPageRoute(
-                                 builder: (context) => ProjectDetailsScreen(
-                                   project: project,
-                                 ),
-                               ),
-                             );
-                           },
+                          trailing: PopupMenuButton<String>(
+                            icon: const Icon(Icons.more_vert, size: 20),
+                            onSelected: (value) {
+                              if (value == 'status') {
+                                _showStatusPopup(project);
+                              } else if (value == 'details') {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => ProjectDetailsScreen(
+                                      project: project,
+                                    ),
+                                  ),
+                                );
+                              } else if (value == 'edit') {
+                                _showEditProjectPopup(project);
+                              }
+                            },
+                            itemBuilder: (BuildContext context) => [
+                              const PopupMenuItem<String>(
+                                value: 'status',
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.flag, size: 16, color: Colors.blue),
+                                    SizedBox(width: 8),
+                                    Text('Project Status'),
+                                  ],
+                                ),
+                              ),
+                              const PopupMenuItem<String>(
+                                value: 'edit',
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.edit, size: 16, color: Colors.orange),
+                                    SizedBox(width: 8),
+                                    Text('Edit Project'),
+                                  ],
+                                ),
+                              ),
+                              const PopupMenuItem<String>(
+                                value: 'details',
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.info, size: 16, color: Colors.grey),
+                                    SizedBox(width: 8),
+                                    Text('View Details'),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => ProjectDetailsScreen(
+                                  project: project,
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                            // NEW indicator in top-right corner
+                            if (_shouldShowNewIndicator(project))
+                              Positioned(
+                                top: 8,
+                                right: 8,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 6,
+                                    vertical: 2,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.red,
+                                    borderRadius: BorderRadius.circular(8),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withOpacity(0.2),
+                                        blurRadius: 2,
+                                        offset: const Offset(0, 1),
+                                      ),
+                                    ],
+                                  ),
+                                  child: const Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        Icons.new_releases,
+                                        size: 10,
+                                        color: Colors.white,
+                                      ),
+                                      SizedBox(width: 2),
+                                      Text(
+                                        'NEW',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                          ],
                         ),
                       );
                     },
@@ -572,6 +785,561 @@ class _OngoingTendersScreenState extends State<OngoingTendersScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  void _showStatusPopup(Map<String, dynamic> project) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Project Status - ${project['title']}'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Select the current status of this project:',
+                style: TextStyle(fontSize: 16),
+              ),
+              const SizedBox(height: 20),
+              
+              // Ongoing Option
+              ListTile(
+                leading: const Icon(Icons.play_circle, color: Colors.blue),
+                title: const Text('Ongoing'),
+                subtitle: const Text('Project is currently in progress'),
+                onTap: () {
+                  _updateProjectStatus(project, 'ongoing');
+                  Navigator.of(context).pop();
+                },
+              ),
+              
+              // Done Option
+              ListTile(
+                leading: const Icon(Icons.check_circle, color: Colors.green),
+                title: const Text('Done'),
+                subtitle: const Text('Project has been completed'),
+                onTap: () {
+                  _updateProjectStatus(project, 'done');
+                  Navigator.of(context).pop();
+                },
+              ),
+              
+              // Delayed Option
+              ListTile(
+                leading: const Icon(Icons.schedule, color: Colors.orange),
+                title: const Text('Delayed'),
+                subtitle: const Text('Project is behind schedule'),
+                onTap: () {
+                  _updateProjectStatus(project, 'delayed');
+                  Navigator.of(context).pop();
+                },
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showEditProjectPopup(Map<String, dynamic> project) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return EditProjectDialog(
+          project: project,
+          onProjectUpdated: () {
+            _loadProjects(); // Reload projects after edit
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _updateProjectStatus(Map<String, dynamic> project, String status) async {
+    try {
+      bool updateSuccessful = false;
+      String? errorMessage;
+
+      // Only update in projects collection to avoid affecting tenders
+      if (project['type'] == 'project') {
+        try {
+          await FirebaseFirestore.instance
+              .collection('projects')
+              .doc(project['id'])
+              .update({
+            'projectStatus': status,
+            'status': status, // Also update the status field for consistency
+            'statusUpdatedAt': FieldValue.serverTimestamp(),
+            'statusUpdatedBy': FirebaseAuth.instance.currentUser?.uid,
+          });
+          updateSuccessful = true;
+          print('✅ Project status updated in projects collection');
+        } catch (e) {
+          print('❌ Failed to update project status: $e');
+          errorMessage = 'Failed to update project status: $e';
+        }
+      } else {
+        // For tenders, only update if status is not 'done' to avoid affecting tender status
+        if (status != 'done') {
+          try {
+            await FirebaseFirestore.instance
+                .collection('tenders')
+                .doc(project['id'])
+                .update({
+              'status': status,
+              'statusUpdatedAt': FieldValue.serverTimestamp(),
+              'statusUpdatedBy': FirebaseAuth.instance.currentUser?.uid,
+            });
+            updateSuccessful = true;
+            print('✅ Tender status updated in tenders collection');
+          } catch (e) {
+            print('❌ Failed to update tender status: $e');
+            errorMessage = 'Failed to update tender status: $e';
+          }
+        } else {
+          // For tenders marked as 'done', create a project entry instead
+          try {
+            await FirebaseFirestore.instance
+                .collection('projects')
+                .add({
+              'tenderId': project['id'],
+              'tenderTitle': project['title'],
+              'projectName': project['title'],
+              'location': project['projectLocation'] ?? '',
+              'description': project['description'] ?? '',
+              'budget': project['budget'] ?? 0.0,
+              'category': project['category'] ?? '',
+              'status': 'done',
+              'createdBy': FirebaseAuth.instance.currentUser?.uid,
+              'createdAt': FieldValue.serverTimestamp(),
+              'statusUpdatedAt': FieldValue.serverTimestamp(),
+              'statusUpdatedBy': FirebaseAuth.instance.currentUser?.uid,
+            });
+            updateSuccessful = true;
+            print('✅ Created project entry for completed tender');
+          } catch (e) {
+            print('❌ Failed to create project entry: $e');
+            errorMessage = 'Failed to create project entry: $e';
+          }
+        }
+      }
+
+      if (updateSuccessful) {
+        // Show success message
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Project status updated to ${status.toUpperCase()}'),
+              backgroundColor: _getStatusColorForUpdate(status),
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
+
+        // Reload projects to reflect the change
+        _loadProjects();
+      } else {
+        // Show error message
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error updating project status: ${errorMessage ?? "Unknown error"}'),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      print('❌ Unexpected error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error updating project status: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    }
+  }
+
+  Color _getStatusColorForUpdate(String status) {
+    switch (status.toLowerCase()) {
+      case 'ongoing':
+        return Colors.blue;
+      case 'done':
+        return Colors.green;
+      case 'delayed':
+        return Colors.orange;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  Color _getStatusColorForCard(String status) {
+    switch (status?.toLowerCase() ?? 'ongoing') {
+      case 'ongoing':
+        return Colors.blue;
+      case 'done':
+        return Colors.green;
+      case 'delayed':
+        return Colors.orange;
+      default:
+        return Colors.blue;
+    }
+  }
+
+  IconData _getStatusIconForCard(String status) {
+    switch (status?.toLowerCase() ?? 'ongoing') {
+      case 'ongoing':
+        return Icons.play_circle;
+      case 'done':
+        return Icons.check_circle;
+      case 'delayed':
+        return Icons.schedule;
+      default:
+        return Icons.play_circle;
+    }
+  }
+
+  String _getStatusTextForCard(String status) {
+    switch (status?.toLowerCase() ?? 'ongoing') {
+      case 'ongoing':
+        return 'ONGOING';
+      case 'done':
+        return 'DONE';
+      case 'delayed':
+        return 'DELAYED';
+      default:
+        return 'ONGOING';
+    }
+  }
+
+  String _mapTenderStatusToProjectStatus(String tenderStatus) {
+    switch (tenderStatus.toLowerCase()) {
+      case 'active':
+      case 'open':
+        return 'ongoing';
+      case 'closed':
+      case 'awarded':
+        return 'ongoing'; // These are ongoing projects
+      case 'cancelled':
+        return 'delayed'; // Treat cancelled as delayed
+      default:
+        return 'ongoing';
+    }
+  }
+
+  Future<String?> _findDocumentCollection(String documentId) async {
+    try {
+      // Check if document exists in projects collection
+      final projectDoc = await FirebaseFirestore.instance
+          .collection('projects')
+          .doc(documentId)
+          .get();
+      
+      if (projectDoc.exists) {
+        return 'projects';
+      }
+    } catch (e) {
+      // Document doesn't exist in projects collection
+    }
+
+    try {
+      // Check if document exists in tenders collection
+      final tenderDoc = await FirebaseFirestore.instance
+          .collection('tenders')
+          .doc(documentId)
+          .get();
+      
+      if (tenderDoc.exists) {
+        return 'tenders';
+      }
+    } catch (e) {
+      // Document doesn't exist in tenders collection
+    }
+
+    return null; // Document not found in either collection
+  }
+}
+
+class EditProjectDialog extends StatefulWidget {
+  final Map<String, dynamic> project;
+  final VoidCallback onProjectUpdated;
+
+  const EditProjectDialog({
+    super.key,
+    required this.project,
+    required this.onProjectUpdated,
+  });
+
+  @override
+  State<EditProjectDialog> createState() => _EditProjectDialogState();
+}
+
+class _EditProjectDialogState extends State<EditProjectDialog> {
+  final _formKey = GlobalKey<FormState>();
+  final _titleController = TextEditingController();
+  final _locationController = TextEditingController();
+  final _budgetController = TextEditingController();
+  final _categoryController = TextEditingController();
+  final _handoverDateController = TextEditingController();
+  
+  bool _isLoading = false;
+  String _selectedStatus = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _titleController.text = widget.project['title'] ?? '';
+    _locationController.text = widget.project['projectLocation'] ?? '';
+    _budgetController.text = (widget.project['budget'] ?? 0.0).toString();
+    _categoryController.text = widget.project['category'] ?? '';
+    _handoverDateController.text = widget.project['handoverDate'] ?? '';
+    _selectedStatus = widget.project['status'] ?? 'ongoing';
+  }
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _locationController.dispose();
+    _budgetController.dispose();
+    _categoryController.dispose();
+    _handoverDateController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _updateProject() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      // Update in projects collection if it's a project
+      if (widget.project['type'] == 'project') {
+        await FirebaseFirestore.instance
+            .collection('projects')
+            .doc(widget.project['id'])
+            .update({
+          'projectName': _titleController.text.trim(),
+          'projectLocation': _locationController.text.trim(),
+          'projectBudget': double.tryParse(_budgetController.text) ?? 0.0,
+          'projectCategory': _categoryController.text.trim(),
+          'handoverDate': _handoverDateController.text.trim(),
+          'projectStatus': _selectedStatus,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      } else {
+        // Update in tenders collection if it's a tender
+        await FirebaseFirestore.instance
+            .collection('tenders')
+            .doc(widget.project['id'])
+            .update({
+          'title': _titleController.text.trim(),
+          'location': _locationController.text.trim(),
+          'budget': double.tryParse(_budgetController.text) ?? 0.0,
+          'category': _categoryController.text.trim(),
+          'handoverDate': _handoverDateController.text.trim(),
+          'status': _selectedStatus,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Project updated successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        widget.onProjectUpdated();
+        Navigator.of(context).pop();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error updating project: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Edit Project'),
+      content: SingleChildScrollView(
+        child: Form(
+          key: _formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Title
+              TextFormField(
+                controller: _titleController,
+                decoration: const InputDecoration(
+                  labelText: 'Project Title',
+                  border: OutlineInputBorder(),
+                ),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Please enter a project title';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+
+              // Location
+              TextFormField(
+                controller: _locationController,
+                decoration: const InputDecoration(
+                  labelText: 'Location',
+                  border: OutlineInputBorder(),
+                ),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Please enter a location';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+
+              // Budget
+              TextFormField(
+                controller: _budgetController,
+                decoration: const InputDecoration(
+                  labelText: 'Budget',
+                  border: OutlineInputBorder(),
+                  prefixText: '\$',
+                ),
+                keyboardType: TextInputType.number,
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Please enter a budget';
+                  }
+                  if (double.tryParse(value) == null) {
+                    return 'Please enter a valid number';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+
+              // Category
+              TextFormField(
+                controller: _categoryController,
+                decoration: const InputDecoration(
+                  labelText: 'Category',
+                  border: OutlineInputBorder(),
+                ),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Please enter a category';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+
+              // Handover Date
+              TextFormField(
+                controller: _handoverDateController,
+                decoration: const InputDecoration(
+                  labelText: 'Handover Date (YYYY-MM-DD)',
+                  border: OutlineInputBorder(),
+                  hintText: 'e.g., 2024-12-31',
+                ),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Please enter a handover date';
+                  }
+                  // Basic date format validation
+                  final dateRegex = RegExp(r'^\d{4}-\d{2}-\d{2}$');
+                  if (!dateRegex.hasMatch(value.trim())) {
+                    return 'Please enter date in YYYY-MM-DD format';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+
+              // Status
+              DropdownButtonFormField<String>(
+                value: _selectedStatus.isNotEmpty && ['ongoing', 'done', 'delayed'].contains(_selectedStatus) ? _selectedStatus : null,
+                decoration: const InputDecoration(
+                  labelText: 'Status',
+                  border: OutlineInputBorder(),
+                ),
+                items: const [
+                  DropdownMenuItem<String>(
+                    value: 'ongoing',
+                    child: Text('Ongoing'),
+                  ),
+                  DropdownMenuItem<String>(
+                    value: 'done',
+                    child: Text('Done'),
+                  ),
+                  DropdownMenuItem<String>(
+                    value: 'delayed',
+                    child: Text('Delayed'),
+                  ),
+                ],
+                onChanged: (value) {
+                  if (value != null) {
+                    setState(() {
+                      _selectedStatus = value;
+                    });
+                  }
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _isLoading ? null : () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton(
+          onPressed: _isLoading ? null : _updateProject,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.blue,
+            foregroundColor: Colors.white,
+          ),
+          child: _isLoading
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    color: Colors.white,
+                    strokeWidth: 2,
+                  ),
+                )
+              : const Text('Update'),
+        ),
+      ],
     );
   }
 }

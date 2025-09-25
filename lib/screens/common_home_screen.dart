@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../services/auth_service.dart';
+import '../services/budget_service.dart';
 import '../models/user_role.dart';
 import 'login_screen.dart';
 import 'budget_viewer_screen.dart';
@@ -26,11 +29,17 @@ class CommonHomeScreen extends StatefulWidget {
 class _CommonHomeScreenState extends State<CommonHomeScreen>
     with TickerProviderStateMixin {
   final AuthService _authService = AuthService();
+  final BudgetService _budgetService = BudgetService();
   UserRole? userRole;
   Map<String, dynamic>? userData;
   bool isLoading = true;
   bool showPendingScreen = true;
   bool hasChosenLimitedAccess = false;
+  
+  // Dashboard statistics
+  int allocationsCount = 0;
+  int activeTendersCount = 0;
+  int projectsCount = 0;
   
   late AnimationController _fadeController;
   late AnimationController _slideController;
@@ -54,6 +63,7 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
     _initializeAnimations();
     _loadUserData();
     _checkPendingScreenPreference();
+    _loadDashboardData();
   }
 
   void _initializeAnimations() {
@@ -171,6 +181,101 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
       setState(() {
         hasChosenLimitedAccess = hasChosen;
       });
+    }
+  }
+
+  Future<void> _loadDashboardData() async {
+    print('Loading home page dashboard data...');
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        print('No user found, returning');
+        return;
+      }
+      print('User found: ${user.uid}');
+
+      // Load ALL tenders in the database
+      final tendersQuery = await FirebaseFirestore.instance
+          .collection('tenders')
+          .get();
+
+      final tenders = tendersQuery.docs.map((doc) => doc.data()).toList();
+      print('Found ${tenders.length} tenders');
+      
+      // Load ALL projects in the database
+      final projectsQuery = await FirebaseFirestore.instance
+          .collection('projects')
+          .get();
+
+      final projects = projectsQuery.docs.map((doc) => doc.data()).toList();
+      print('Found ${projects.length} projects');
+
+      // Calculate statistics (same logic as PO Dashboard)
+      activeTendersCount = tenders.length; // All tenders in DB
+      projectsCount = projects.length; // Projects should show actual projects in DB
+      
+      // TEMPORARY TEST: Force some values to see if UI updates
+      print('BEFORE calculations:');
+      print('tenders.length: ${tenders.length}');
+      print('projects.length: ${projects.length}');
+      
+      // If we have data but counts are 0, there might be an issue
+      if (tenders.length > 0 && activeTendersCount == 0) {
+        print('WARNING: Found tenders but activeTendersCount is 0');
+        activeTendersCount = tenders.length;
+      }
+      if (tenders.length > 0 && projectsCount == 0) {
+        print('WARNING: Found tenders but projectsCount is 0');
+        projectsCount = tenders.length;
+      }
+      
+      // Load allocations count using BudgetService (same as PO Dashboard)
+      try {
+        int totalBudgetItems = 0;
+        
+        // Use the same method as PO Dashboard and BudgetItemsOverviewScreen
+        final categories = await _budgetService.getBudgetCategories();
+        print('Found ${categories.length} budget categories');
+        
+        for (final category in categories) {
+          try {
+            final subcategories = await _budgetService.getBudgetSubcategories(category.id);
+            print('Category ${category.id} has ${subcategories.length} subcategories');
+            
+            for (final subcategory in subcategories) {
+              try {
+                final items = await _budgetService.getBudgetItems(category.id, subcategory.id);
+                print('Subcategory ${subcategory.id} has ${items.length} items');
+                totalBudgetItems += items.length;
+              } catch (e) {
+                print('Error loading items for subcategory ${subcategory.id}: $e');
+              }
+            }
+          } catch (e) {
+            print('Error loading subcategories for category ${category.id}: $e');
+          }
+        }
+        
+        allocationsCount = totalBudgetItems;
+        print('Allocations count loaded using BudgetService: $allocationsCount');
+      } catch (e) {
+        print('Error loading allocations count with BudgetService: $e');
+        allocationsCount = 0;
+      }
+      
+      print('Home page dashboard statistics loaded:');
+      print('Allocations: $allocationsCount');
+      print('Active Tenders: $activeTendersCount');
+      print('Projects: $projectsCount');
+      
+      // Update the UI
+      if (mounted) {
+        setState(() {
+          // Force UI update with real data
+        });
+      }
+    } catch (e) {
+      print('Error loading home page dashboard data: $e');
     }
   }
 
@@ -400,31 +505,31 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
         children: [
           Expanded(
             child: _buildStatCard(
-              'Active Tenders',
-              '24',
-              Icons.shopping_cart,
+              'Allocations',
+              allocationsCount.toString(),
+              Icons.account_balance_wallet,
               Colors.orange,
-              '+12% this month',
+              'Budget items',
             ),
           ),
           const SizedBox(width: 16),
           Expanded(
             child: _buildStatCard(
-              'Budget Allocated',
-              '\$2.4M',
-              Icons.account_balance_wallet,
-              Colors.green,
-              'Across 8 sectors',
+              'Active Tenders',
+              activeTendersCount.toString(),
+              Icons.assignment,
+              Colors.blue,
+              'In progress',
             ),
           ),
           const SizedBox(width: 16),
           Expanded(
             child: _buildStatCard(
               'Projects',
-              '12',
-              Icons.construction,
-              Colors.purple,
-              'In progress',
+              projectsCount.toString(),
+              Icons.work,
+              Colors.green,
+              'Ongoing',
             ),
           ),
         ],
@@ -1422,14 +1527,6 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
 
           // Recent Highlights
           _buildRecentHighlights(),
-          const SizedBox(height: 32),
-
-          // Role-specific Quick Actions
-          _buildRoleSpecificActions(),
-          const SizedBox(height: 32),
-
-          // App Purpose & Transparency
-          _buildAppPurposeSection(),
           const SizedBox(height: 20),
         ],
       ),
@@ -1450,11 +1547,11 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
                 return Transform.scale(
                   scale: _pulseAnimation.value,
                   child: _buildStatCard(
-                    'Active Tenders',
-                    '24',
-                    Icons.shopping_cart,
+                    'Allocations',
+                    allocationsCount.toString(),
+                    Icons.account_balance_wallet,
                     Colors.orange,
-                    '+12% this month',
+                    'Budget items',
                   ),
                 );
               },
@@ -1468,11 +1565,11 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
                 return Transform.scale(
                   scale: _pulseAnimation.value * 0.95,
                   child: _buildStatCard(
-                    'Budget Allocated',
-                    '\$2.4M',
-                    Icons.account_balance_wallet,
-                    Colors.green,
-                    'Across 8 sectors',
+                    'Active Tenders',
+                    activeTendersCount.toString(),
+                    Icons.assignment,
+                    Colors.blue,
+                    'In progress',
                   ),
                 );
               },
@@ -1487,10 +1584,10 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
                   scale: _pulseAnimation.value * 0.9,
                   child: _buildStatCard(
                     'Projects',
-                    '12',
-                    Icons.construction,
-                    Colors.purple,
-                    'In progress',
+                    projectsCount.toString(),
+                    Icons.work,
+                    Colors.green,
+                    'Ongoing',
                   ),
                 );
               },
@@ -1535,6 +1632,12 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
   }
 
   Widget _buildPieChart() {
+    // Calculate total for percentage calculations
+    final total = allocationsCount + activeTendersCount + projectsCount;
+    final allocationsPercent = total > 0 ? (allocationsCount / total * 100) : 0;
+    final tendersPercent = total > 0 ? (activeTendersCount / total * 100) : 0;
+    final projectsPercent = total > 0 ? (projectsCount / total * 100) : 0;
+    
     return Container(
       height: 200,
       padding: const EdgeInsets.all(20),
@@ -1556,9 +1659,20 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
             PieChartData(
               sections: [
                 PieChartSectionData(
+                  color: Colors.orange,
+                  value: allocationsPercent * _chartAnimation.value,
+                  title: '${allocationsPercent.toInt()}%',
+                  radius: 50,
+                  titleStyle: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+                PieChartSectionData(
                   color: Colors.blue,
-                  value: 40 * _chartAnimation.value,
-                  title: '40%',
+                  value: tendersPercent * _chartAnimation.value,
+                  title: '${tendersPercent.toInt()}%',
                   radius: 50,
                   titleStyle: const TextStyle(
                     fontSize: 12,
@@ -1568,30 +1682,8 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
                 ),
                 PieChartSectionData(
                   color: Colors.green,
-                  value: 30 * _chartAnimation.value,
-                  title: '30%',
-                  radius: 50,
-                  titleStyle: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-                PieChartSectionData(
-                  color: Colors.orange,
-                  value: 20 * _chartAnimation.value,
-                  title: '20%',
-                  radius: 50,
-                  titleStyle: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-                PieChartSectionData(
-                  color: Colors.red,
-                  value: 10 * _chartAnimation.value,
-                  title: '10%',
+                  value: projectsPercent * _chartAnimation.value,
+                  title: '${projectsPercent.toInt()}%',
                   radius: 50,
                   titleStyle: const TextStyle(
                     fontSize: 12,
@@ -1630,7 +1722,7 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
           return BarChart(
             BarChartData(
               alignment: BarChartAlignment.spaceAround,
-              maxY: 100,
+              maxY: [allocationsCount, activeTendersCount, projectsCount].reduce((a, b) => a > b ? a : b).toDouble(),
               barTouchData: BarTouchData(enabled: false),
               titlesData: FlTitlesData(
                 show: true,
@@ -1644,16 +1736,13 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
                       Widget text;
                       switch (value.toInt()) {
                         case 0:
-                          text = const Text('Jan', style: style);
+                          text = const Text('Allocations', style: style);
                           break;
                         case 1:
-                          text = const Text('Feb', style: style);
+                          text = const Text('Tenders', style: style);
                           break;
                         case 2:
-                          text = const Text('Mar', style: style);
-                          break;
-                        case 3:
-                          text = const Text('Apr', style: style);
+                          text = const Text('Projects', style: style);
                           break;
                         default:
                           text = const Text('', style: style);
@@ -1682,8 +1771,8 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
                   x: 0,
                   barRods: [
                     BarChartRodData(
-                      toY: 60 * _chartAnimation.value,
-                      color: Colors.blue,
+                      toY: (allocationsCount * _chartAnimation.value).toDouble(),
+                      color: Colors.orange,
                       width: 20,
                       borderRadius: const BorderRadius.only(
                         topLeft: Radius.circular(4),
@@ -1696,8 +1785,8 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
                   x: 1,
                   barRods: [
                     BarChartRodData(
-                      toY: 80 * _chartAnimation.value,
-                      color: Colors.green,
+                      toY: (activeTendersCount * _chartAnimation.value).toDouble(),
+                      color: Colors.blue,
                       width: 20,
                       borderRadius: const BorderRadius.only(
                         topLeft: Radius.circular(4),
@@ -1710,22 +1799,8 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
                   x: 2,
                   barRods: [
                     BarChartRodData(
-                      toY: 45 * _chartAnimation.value,
-                      color: Colors.orange,
-                      width: 20,
-                      borderRadius: const BorderRadius.only(
-                        topLeft: Radius.circular(4),
-                        topRight: Radius.circular(4),
-                      ),
-                    ),
-                  ],
-                ),
-                BarChartGroupData(
-                  x: 3,
-                  barRods: [
-                    BarChartRodData(
-                      toY: 90 * _chartAnimation.value,
-                      color: Colors.purple,
+                      toY: (projectsCount * _chartAnimation.value).toDouble(),
+                      color: Colors.green,
                       width: 20,
                       borderRadius: const BorderRadius.only(
                         topLeft: Radius.circular(4),
@@ -1811,10 +1886,10 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
               lineBarsData: [
                 LineChartBarData(
                   spots: [
-                    FlSpot(0, 3 * _chartAnimation.value),
-                    FlSpot(1, 5 * _chartAnimation.value),
-                    FlSpot(2, 4 * _chartAnimation.value),
-                    FlSpot(3, 7 * _chartAnimation.value),
+                    FlSpot(0, (allocationsCount * _chartAnimation.value).toDouble()),
+                    FlSpot(1, (activeTendersCount * _chartAnimation.value).toDouble()),
+                    FlSpot(2, (projectsCount * _chartAnimation.value).toDouble()),
+                    FlSpot(3, ((allocationsCount + activeTendersCount + projectsCount) * _chartAnimation.value).toDouble()),
                   ],
                   isCurved: true,
                   color: Colors.blue,
