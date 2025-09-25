@@ -1634,7 +1634,7 @@ class _EnhancedDashboardScreenState extends State<EnhancedDashboardScreen>
             Navigator.pushNamed(context, '/budget-viewer');
             break;
           case 2:
-            Navigator.pushNamed(context, '/tender-management');
+            Navigator.pushNamed(context, '/citizen-tender');
             break;
           case 3:
             // Navigate to role-specific dashboard (same as hamburger menu)

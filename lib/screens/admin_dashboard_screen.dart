@@ -190,7 +190,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
             Navigator.pushNamed(context, '/budget-viewer');
             break;
           case 2:
-            Navigator.pushNamed(context, '/tender-management');
+            Navigator.pushNamed(context, '/citizen-tender');
             break;
           case 3:
             // Already on dashboard
@@ -407,7 +407,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                   title: 'Tender Management',
                   onTap: () {
                     Navigator.pop(context);
-                    Navigator.pushNamed(context, '/tender-management');
+                    Navigator.pushNamed(context, '/citizen-tender');
                   },
                 ),
                 _buildDrawerItem(
