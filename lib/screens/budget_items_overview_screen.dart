@@ -48,6 +48,10 @@ class _BudgetItemsOverviewScreenState extends State<BudgetItemsOverviewScreen> w
     super.dispose();
   }
 
+  Future<void> _refreshBudgetItems() async {
+    await _loadAllBudgetItems();
+  }
+
   Future<void> _loadAllBudgetItems() async {
     try {
       setState(() => _isLoading = true);
@@ -115,15 +119,22 @@ class _BudgetItemsOverviewScreenState extends State<BudgetItemsOverviewScreen> w
       
       // Check for existing tenders for each budget item
       for (final itemWithContext in items) {
+        // Check by title match
         final tenderQuery = await FirebaseFirestore.instance
             .collection('tenders')
             .where('title', isEqualTo: itemWithContext.item.name)
             .get();
         
+        // Also check by sourceBudgetItem.itemId
+        final sourceQuery = await FirebaseFirestore.instance
+            .collection('tenders')
+            .where('sourceBudgetItem.itemId', isEqualTo: itemWithContext.item.id)
+            .get();
+        
         // Check if any tender exists (regardless of status)
-        if (tenderQuery.docs.isNotEmpty) {
+        if (tenderQuery.docs.isNotEmpty || sourceQuery.docs.isNotEmpty) {
           _tenderCalledItems.add(itemWithContext.item.id);
-          print('Tender found for item: ${itemWithContext.item.name}');
+          print('Tender found for item: ${itemWithContext.item.name} (by title: ${tenderQuery.docs.isNotEmpty}, by source: ${sourceQuery.docs.isNotEmpty})');
         } else {
           print('No tender found for item: ${itemWithContext.item.name}');
         }
@@ -195,6 +206,9 @@ class _BudgetItemsOverviewScreenState extends State<BudgetItemsOverviewScreen> w
         print('Added ${itemWithContext.item.id} to _tenderCalledItems');
         print('Current _tenderCalledItems: $_tenderCalledItems');
       });
+
+      // Refresh the data to ensure UI is updated
+      await _refreshBudgetItems();
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

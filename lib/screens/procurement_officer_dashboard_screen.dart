@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/auth_service.dart';
+import '../services/budget_service.dart';
+import '../services/background_notification_service.dart';
+import '../services/project_service.dart';
 import '../models/user_role.dart';
 import 'add_tender_screen.dart';
 import 'ongoing_tenders_screen.dart';
@@ -19,6 +22,8 @@ class ProcurementOfficerDashboardScreen extends StatefulWidget {
 
 class _ProcurementOfficerDashboardScreenState extends State<ProcurementOfficerDashboardScreen> {
   final AuthService _authService = AuthService();
+  final BudgetService _budgetService = BudgetService();
+  final BackgroundNotificationService _backgroundNotificationService = BackgroundNotificationService();
   UserRole? userRole;
   Map<String, dynamic>? userData;
   bool isLoading = true;
@@ -36,6 +41,7 @@ class _ProcurementOfficerDashboardScreenState extends State<ProcurementOfficerDa
     super.initState();
     _loadUserData();
     _loadDashboardData();
+    _checkDueDateNotifications();
   }
 
   Future<void> _loadUserData() async {
@@ -49,6 +55,19 @@ class _ProcurementOfficerDashboardScreenState extends State<ProcurementOfficerDa
         userData = data;
       });
     }
+  }
+
+  Future<void> _checkDueDateNotifications() async {
+    try {
+      // Check for due date notifications in the background
+      await _backgroundNotificationService.runAllNotificationChecks();
+    } catch (e) {
+      print('Error checking due date notifications: $e');
+    }
+  }
+
+  Future<void> _refreshDashboard() async {
+    await _loadDashboardData();
   }
 
   Future<void> _loadDashboardData() async {
@@ -66,7 +85,11 @@ class _ProcurementOfficerDashboardScreenState extends State<ProcurementOfficerDa
           .collection('tenders')
           .get();
 
-      final tenders = tendersQuery.docs.map((doc) => doc.data()).toList();
+      final tenders = tendersQuery.docs.map((doc) {
+        final data = doc.data();
+        data['id'] = doc.id; // Add document ID to the data
+        return data;
+      }).toList();
       print('Found ${tenders.length} tenders');
       
       // Debug: Print tender details
@@ -74,22 +97,30 @@ class _ProcurementOfficerDashboardScreenState extends State<ProcurementOfficerDa
         print('Tender $i: ${tenders[i]}');
       }
 
-      // Load ALL projects in the database
-      final projectsQuery = await FirebaseFirestore.instance
-          .collection('projects')
-          .get();
-
-      final projects = projectsQuery.docs.map((doc) => doc.data()).toList();
-      print('Found ${projects.length} projects');
+      // Load projects using ProjectService
+      final projects = await ProjectService.getAllProjects();
+      print('Found ${projects.length} projects using ProjectService');
       
       // Debug: Print project details
       for (int i = 0; i < projects.length; i++) {
-        print('Project $i: ${projects[i]}');
+        print('Project $i: ${projects[i]['projectName']} - Status: ${projects[i]['projectStatus']}');
       }
 
-      // Calculate new statistics
-      activeTendersCount = tenders.length; // All tenders in DB
-      projectsCount = tenders.length; // Projects should show amount of tenders in DB
+      // Calculate statistics with correct logic:
+      // - Active Tenders: Only tenders that are still active (not closed)
+      // - Projects: Only actual projects in the projects collection (created from closed tenders)
+      
+      // Count active tenders (not closed)
+      activeTendersCount = tenders.where((tender) => tender['status'] == 'active').length;
+      
+      // Count actual projects (from projects collection)
+      // These are created when tenders are closed and awarded
+      projectsCount = projects.length;
+      
+      print('📊 Dashboard - Found ${projects.length} projects in database');
+      for (int i = 0; i < projects.length; i++) {
+        print('Project $i: ${projects[i]['projectName']} - Status: ${projects[i]['projectStatus']}');
+      }
       
       // TEMPORARY TEST: Force some values to see if UI updates
       print('BEFORE calculations:');
@@ -133,78 +164,38 @@ class _ProcurementOfficerDashboardScreenState extends State<ProcurementOfficerDa
         print('Test query failed: $e');
       }
       
-      // Load allocations count (total budget items)
+      // Load allocations count using BudgetService (same as home page)
       try {
         int totalBudgetItems = 0;
         
-        // Try the direct collectionGroup approach first (simpler)
-        try {
-          final directItemsQuery = await FirebaseFirestore.instance
-              .collectionGroup('items')
-              .get();
-          totalBudgetItems = directItemsQuery.docs.length;
-          print('Direct collectionGroup query found: $totalBudgetItems items');
-        } catch (e) {
-          print('Direct collectionGroup query failed: $e');
+        // Use the same method as home page and BudgetItemsOverviewScreen
+        final categories = await _budgetService.getBudgetCategories();
+        print('Found ${categories.length} budget categories');
+        
+        for (final category in categories) {
+          try {
+            final subcategories = await _budgetService.getBudgetSubcategories(category.id);
+            print('Category ${category.id} has ${subcategories.length} subcategories');
+            
+            for (final subcategory in subcategories) {
+              try {
+                final items = await _budgetService.getBudgetItems(category.id, subcategory.id);
+                print('Subcategory ${subcategory.id} has ${items.length} items');
+                totalBudgetItems += items.length;
+              } catch (e) {
+                print('Error loading items for subcategory ${subcategory.id}: $e');
+              }
+            }
+          } catch (e) {
+            print('Error loading subcategories for category ${category.id}: $e');
+          }
         }
         
-        // If direct query didn't work, try the nested approach
-        if (totalBudgetItems == 0) {
-          final categoriesSnapshot = await FirebaseFirestore.instance
-              .collection('budget_categories')
-              .get();
-          
-          print('Found ${categoriesSnapshot.docs.length} budget categories');
-          
-          for (final categoryDoc in categoriesSnapshot.docs) {
-            final subcategoriesSnapshot = await FirebaseFirestore.instance
-                .collection('budget_categories')
-                .doc(categoryDoc.id)
-                .collection('subcategories')
-                .get();
-            
-            print('Category ${categoryDoc.id} has ${subcategoriesSnapshot.docs.length} subcategories');
-            
-            for (final subcategoryDoc in subcategoriesSnapshot.docs) {
-              final itemsSnapshot = await FirebaseFirestore.instance
-                  .collection('budget_categories')
-                  .doc(categoryDoc.id)
-                  .collection('subcategories')
-                  .doc(subcategoryDoc.id)
-                  .collection('items')
-                  .get();
-              
-              print('Subcategory ${subcategoryDoc.id} has ${itemsSnapshot.docs.length} items');
-              totalBudgetItems += itemsSnapshot.docs.length;
-            }
-          }
-        }
         allocationsCount = totalBudgetItems;
-        print('Allocations count loaded: $allocationsCount');
+        print('Allocations count loaded using BudgetService: $allocationsCount');
       } catch (e) {
-        print('Error loading allocations count: $e');
-        // Try a simpler fallback - just count categories
-        try {
-          final simpleQuery = await FirebaseFirestore.instance
-              .collection('budget_categories')
-              .get();
-          allocationsCount = simpleQuery.docs.length;
-          print('Fallback allocations count (categories only): $allocationsCount');
-        } catch (e2) {
-          print('Fallback also failed: $e2');
-          // Try an even simpler approach - check if there are any items at all
-          try {
-            // Try to query items directly (in case the structure is different)
-            final directItemsQuery = await FirebaseFirestore.instance
-                .collectionGroup('items')
-                .get();
-            allocationsCount = directItemsQuery.docs.length;
-            print('Direct items query found: $allocationsCount items');
-          } catch (e3) {
-            print('Direct items query also failed: $e3');
-            allocationsCount = 0;
-          }
-        }
+        print('Error loading allocations count with BudgetService: $e');
+        allocationsCount = 0;
       }
       
       // Load notifications count (placeholder for now)
@@ -477,7 +468,7 @@ class _ProcurementOfficerDashboardScreenState extends State<ProcurementOfficerDa
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
-            onPressed: _loadDashboardData,
+            onPressed: _refreshDashboard,
             tooltip: 'Refresh Data',
           ),
           IconButton(
@@ -504,10 +495,22 @@ class _ProcurementOfficerDashboardScreenState extends State<ProcurementOfficerDa
             Navigator.pushNamed(context, '/common-home');
             break;
           case 1:
-            Navigator.pushNamed(context, '/budget-viewer');
+            // Navigate to Active Projects (same as Procurement Management Tools)
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const OngoingTendersScreen(),
+              ),
+            );
             break;
           case 2:
-            Navigator.pushNamed(context, '/citizen-tender');
+            // Navigate to Tender Management (same as Procurement Management Tools)
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const TenderManagementScreen(),
+              ),
+            );
             break;
           case 3:
             // Already on dashboard
@@ -520,8 +523,8 @@ class _ProcurementOfficerDashboardScreenState extends State<ProcurementOfficerDa
           label: 'Home',
         ),
         BottomNavigationBarItem(
-          icon: Icon(Icons.account_balance),
-          label: 'Budget',
+          icon: Icon(Icons.work),
+          label: 'Projects',
         ),
         BottomNavigationBarItem(
           icon: Icon(Icons.shopping_cart),
@@ -767,9 +770,12 @@ class _ProcurementOfficerDashboardScreenState extends State<ProcurementOfficerDa
           Icons.manage_accounts,
           Colors.green,
           () {
-            setState(() {
-              _currentIndex = 1;
-            });
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const TenderManagementScreen(),
+              ),
+            );
           },
         ),
         _buildFeatureCard(
@@ -778,9 +784,12 @@ class _ProcurementOfficerDashboardScreenState extends State<ProcurementOfficerDa
           Icons.assignment,
           Colors.blue,
           () {
-            setState(() {
-              _currentIndex = 2;
-            });
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const OngoingTendersScreen(),
+              ),
+            );
           },
         ),
         _buildFeatureCard(
@@ -789,9 +798,12 @@ class _ProcurementOfficerDashboardScreenState extends State<ProcurementOfficerDa
           Icons.notifications,
           Colors.teal,
           () {
-            setState(() {
-              _currentIndex = 3;
-            });
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const NotificationsScreen(),
+              ),
+            );
           },
         ),
       ],

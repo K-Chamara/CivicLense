@@ -51,6 +51,86 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
     super.dispose();
   }
 
+  bool _shouldShowAddButton() {
+    // Hide the add button if project status is 'done'
+    final projectStatus = widget.project['status'] as String?;
+    return projectStatus != 'done';
+  }
+
+  Widget _buildStatusRow() {
+    final status = widget.project['status'] as String? ?? 'ongoing';
+    final statusColor = _getStatusColor(status);
+    final statusText = status.toUpperCase();
+    
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      child: Row(
+        children: [
+          const Text(
+            'Status: ',
+            style: TextStyle(
+              fontWeight: FontWeight.w600,
+              fontSize: 16,
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: statusColor.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: statusColor),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  _getStatusIcon(status),
+                  size: 16,
+                  color: statusColor,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  statusText,
+                  style: TextStyle(
+                    color: statusColor,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Color _getStatusColor(String status) {
+    switch (status.toLowerCase()) {
+      case 'ongoing':
+        return Colors.blue;
+      case 'done':
+        return Colors.green;
+      case 'delayed':
+        return Colors.orange;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  IconData _getStatusIcon(String status) {
+    switch (status.toLowerCase()) {
+      case 'ongoing':
+        return Icons.play_circle;
+      case 'done':
+        return Icons.check_circle;
+      case 'delayed':
+        return Icons.schedule;
+      default:
+        return Icons.help;
+    }
+  }
+
   Future<void> _loadProjectData() async {
     try {
       final user = FirebaseAuth.instance.currentUser;
@@ -324,12 +404,12 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
         backgroundColor: Colors.lightBlue,
         foregroundColor: Colors.white,
       ),
-      floatingActionButton: FloatingActionButton(
+      floatingActionButton: _shouldShowAddButton() ? FloatingActionButton(
         onPressed: () => _showAddMilestoneDialog(),
         backgroundColor: Colors.lightBlue,
         foregroundColor: Colors.white,
         child: const Icon(Icons.add),
-      ),
+      ) : null,
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
@@ -356,6 +436,7 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
                           _buildInfoRow('Description', widget.project['description'] ?? ''),
                           if (widget.project['winningBidder'] != null)
                             _buildInfoRow('Winning Bidder', widget.project['winningBidder']),
+                          _buildStatusRow(),
                         ],
                       ),
                     ),
@@ -572,19 +653,6 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
     );
   }
 
-  Color _getStatusColor(String status) {
-    switch (status) {
-      case 'done':
-        return Colors.green;
-      case 'ongoing':
-        return Colors.lightBlue;
-      case 'delayed':
-        return Colors.red;
-      case 'pending':
-      default:
-        return Colors.grey;
-    }
-  }
 
   void _showAddMilestoneDialog() {
     showDialog(
