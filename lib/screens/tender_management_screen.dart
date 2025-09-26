@@ -3,6 +3,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'bidder_management_screen.dart';
 import '../services/budget_service.dart';
+import '../services/admin_service.dart';
+import '../models/user_role.dart';
 
 class TenderManagementScreen extends StatefulWidget {
   const TenderManagementScreen({super.key});
@@ -17,6 +19,11 @@ class _TenderManagementScreenState extends State<TenderManagementScreen> {
   String _selectedStatus = 'All';
   String _selectedCategory = 'All';
   final BudgetService _budgetService = BudgetService();
+  final AdminService _adminService = AdminService();
+  
+  // User permissions
+  bool _canEditTenders = false;
+  bool _canAwardBidders = false;
 
   final List<String> _statuses = ['All', 'active', 'closed', 'cancelled'];
   List<String> _categories = ['All'];
@@ -26,6 +33,7 @@ class _TenderManagementScreenState extends State<TenderManagementScreen> {
     super.initState();
     _loadTenders();
     _loadCategories();
+    _checkUserPermissions();
   }
 
   @override
@@ -33,19 +41,67 @@ class _TenderManagementScreenState extends State<TenderManagementScreen> {
     super.dispose();
   }
 
-  Future<void> _loadTenders() async {
+  Future<void> _checkUserPermissions() async {
     try {
       final user = FirebaseAuth.instance.currentUser;
-      if (user == null) return;
+      
+      // If no user is logged in, allow view-only access
+      if (user == null) {
+        setState(() {
+          _canEditTenders = false;
+          _canAwardBidders = false;
+        });
+        return;
+      }
 
+      // Check if user is admin
+      final isAdmin = await _adminService.isAdmin(user.uid);
+      
+      // Check if user is procurement officer
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+      
+      bool isProcurementOfficer = false;
+      if (userDoc.exists) {
+        final userData = userDoc.data();
+        final roleData = userData?['role'];
+        if (roleData != null) {
+          final role = UserRole.fromMap(roleData);
+          isProcurementOfficer = role.id == 'procurement_officer';
+        }
+      }
+
+      setState(() {
+        _canEditTenders = isAdmin || isProcurementOfficer;
+        _canAwardBidders = isAdmin || isProcurementOfficer;
+      });
+    } catch (e) {
+      print('Error checking user permissions: $e');
+      // Default to no permissions on error
+      setState(() {
+        _canEditTenders = false;
+        _canAwardBidders = false;
+      });
+    }
+  }
+
+  Future<void> _loadTenders() async {
+    try {
+      print('🔄 Loading tenders for any user (no restrictions)...');
+      
+      // Load all tenders for any user (no user restriction)
       final querySnapshot = await FirebaseFirestore.instance
           .collection('tenders')
-          .where('createdBy', isEqualTo: user.uid)
           .get();
+
+      print('📊 Found ${querySnapshot.docs.length} tenders in database');
 
       setState(() {
         _tenders = querySnapshot.docs.map((doc) {
           final data = doc.data();
+          print('📋 Tender: ${data['title']} (Status: ${data['status']})');
           return {
             'id': doc.id,
             'title': data['title'] ?? '',
@@ -65,23 +121,106 @@ class _TenderManagementScreenState extends State<TenderManagementScreen> {
           };
         }).toList();
         
+        print('✅ Loaded ${_tenders.length} tenders successfully');
+        
+        // If no tenders found, create some sample data for testing
+        if (_tenders.isEmpty) {
+          print('📝 No tenders found, creating sample data...');
+          _createSampleTenders();
+        }
+        
         _isLoading = false;
       });
     } catch (e) {
+      print('❌ Error loading tenders: $e');
       setState(() {
         _isLoading = false;
       });
     }
   }
 
+  Future<void> _createSampleTenders() async {
+    try {
+      print('🔄 Creating sample tenders...');
+      
+      final sampleTenders = [
+        {
+          'title': 'Road Construction - Main Street',
+          'description': 'Construction of a new main street with proper drainage system',
+          'location': 'Downtown Area',
+          'budget': 250000.0,
+          'deadline': '2024-12-31',
+          'category': 'Infrastructure',
+          'status': 'active',
+          'totalBids': 5,
+          'lowestBid': 220000.0,
+          'highestBid': 280000.0,
+          'createdAt': FieldValue.serverTimestamp(),
+          'createdBy': 'system',
+        },
+        {
+          'title': 'School Building Renovation',
+          'description': 'Renovation of the old school building with modern facilities',
+          'location': 'Education District',
+          'budget': 150000.0,
+          'deadline': '2024-11-30',
+          'category': 'Education',
+          'status': 'closed',
+          'totalBids': 3,
+          'lowestBid': 140000.0,
+          'highestBid': 160000.0,
+          'awardedTo': 'ABC Construction Ltd',
+          'awardedAmount': 145000.0,
+          'createdAt': FieldValue.serverTimestamp(),
+          'createdBy': 'system',
+        },
+        {
+          'title': 'Hospital Equipment Purchase',
+          'description': 'Purchase of medical equipment for the local hospital',
+          'location': 'Medical District',
+          'budget': 75000.0,
+          'deadline': '2024-10-15',
+          'category': 'Healthcare',
+          'status': 'active',
+          'totalBids': 8,
+          'lowestBid': 68000.0,
+          'highestBid': 78000.0,
+          'createdAt': FieldValue.serverTimestamp(),
+          'createdBy': 'system',
+        },
+      ];
+
+      for (final tender in sampleTenders) {
+        await FirebaseFirestore.instance
+            .collection('tenders')
+            .add(tender);
+        print('✅ Created sample tender: ${tender['title']}');
+      }
+      
+      print('🎉 Sample tenders created successfully!');
+      
+      // Reload tenders after creating samples
+      await _loadTenders();
+      
+    } catch (e) {
+      print('❌ Error creating sample tenders: $e');
+    }
+  }
+
   Future<void> _loadCategories() async {
     try {
+      print('🔄 Loading categories...');
+      
       // Get all categories from budget service (same as Budget Overview)
       final categories = await _budgetService.getBudgetCategories();
+      print('📊 Found ${categories.length} categories');
+      
       setState(() {
         final categoryNames = categories.map((cat) => cat.name).toList();
         final uniqueCategories = categoryNames.toSet().toList();
         _categories = ['All', ...uniqueCategories];
+        
+        print('✅ Categories loaded: $_categories');
         
         // Ensure selected category is still valid
         if (!_categories.contains(_selectedCategory)) {
@@ -89,7 +228,7 @@ class _TenderManagementScreenState extends State<TenderManagementScreen> {
         }
       });
     } catch (e) {
-      print('Error loading categories: $e');
+      print('❌ Error loading categories: $e');
       // Keep default categories if loading fails
       setState(() {
         _categories = ['All'];
@@ -99,11 +238,20 @@ class _TenderManagementScreenState extends State<TenderManagementScreen> {
   }
 
   List<Map<String, dynamic>> get _filteredTenders {
-    return _tenders.where((tender) {
+    print('🔍 Filtering tenders: Status=$_selectedStatus, Category=$_selectedCategory');
+    print('📊 Total tenders: ${_tenders.length}');
+    
+    final filtered = _tenders.where((tender) {
       final statusMatch = _selectedStatus == 'All' || tender['status'] == _selectedStatus;
       final categoryMatch = _selectedCategory == 'All' || tender['category'] == _selectedCategory;
+      
+      print('📋 Tender: ${tender['title']} - Status: ${tender['status']} (match: $statusMatch), Category: ${tender['category']} (match: $categoryMatch)');
+      
       return statusMatch && categoryMatch;
     }).toList();
+    
+    print('✅ Filtered results: ${filtered.length} tenders');
+    return filtered;
   }
 
   String _formatBudget(double budget) {
@@ -139,6 +287,7 @@ class _TenderManagementScreenState extends State<TenderManagementScreen> {
       builder: (context) => TenderDetailsSheet(
         tender: tender,
         onStatusChanged: () => _loadTenders(),
+        canAwardBidders: _canAwardBidders,
       ),
     );
   }
@@ -264,8 +413,26 @@ class _TenderManagementScreenState extends State<TenderManagementScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
-            onPressed: _loadTenders,
+            onPressed: () async {
+              setState(() {
+                _isLoading = true;
+              });
+              await _loadTenders();
+            },
             tooltip: 'Refresh',
+          ),
+          IconButton(
+            icon: const Icon(Icons.add),
+            onPressed: () async {
+              await _createSampleTenders();
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Sample tenders created!'),
+                  backgroundColor: Colors.green,
+                ),
+              );
+            },
+            tooltip: 'Create Sample Data',
           ),
         ],
       ),
@@ -296,10 +463,64 @@ class _TenderManagementScreenState extends State<TenderManagementScreen> {
                 // Tenders list
                 Expanded(
                   child: _filteredTenders.isEmpty
-                      ? const Center(
-                          child: Text(
-                            'No tenders found',
-                            style: TextStyle(fontSize: 18, color: Colors.grey),
+                      ? Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.assignment_outlined,
+                                size: 64,
+                                color: Colors.grey[400],
+                              ),
+                              const SizedBox(height: 16),
+                              const Text(
+                                'No tenders found',
+                                style: TextStyle(fontSize: 18, color: Colors.grey),
+                              ),
+                              const SizedBox(height: 8),
+                              const Text(
+                                'Tenders will appear here when they are created',
+                                style: TextStyle(fontSize: 14, color: Colors.grey),
+                              ),
+                              const SizedBox(height: 16),
+                              ElevatedButton.icon(
+                                onPressed: () {
+                                  // Show info about how to create tenders
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Contact an admin or procurement officer to create tenders'),
+                                      duration: Duration(seconds: 3),
+                                    ),
+                                  );
+                                },
+                                icon: const Icon(Icons.info_outline),
+                                label: const Text('How to create tenders?'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.blue,
+                                  foregroundColor: Colors.white,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              ElevatedButton.icon(
+                                onPressed: () async {
+                                  // Create sample data for testing
+                                  await _createSampleTenders();
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Sample tenders created! Refresh to see them.'),
+                                      backgroundColor: Colors.green,
+                                      duration: Duration(seconds: 3),
+                                    ),
+                                  );
+                                },
+                                icon: const Icon(Icons.add),
+                                label: const Text('Create Sample Data'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.orange,
+                                  foregroundColor: Colors.white,
+                                ),
+                              ),
+                            ],
                           ),
                         )
                       : ListView.builder(
@@ -363,29 +584,31 @@ class _TenderManagementScreenState extends State<TenderManagementScreen> {
                                                   ],
                                                 ),
                                               ),
-                                              PopupMenuItem(
-                                                value: 'edit',
-                                                enabled: tender['status'] != 'cancelled' && tender['status'] != 'closed',
-                                                child: Row(
-                                                  children: [
-                                                    Icon(
-                                                      Icons.edit,
-                                                      color: (tender['status'] == 'cancelled' || tender['status'] == 'closed')
-                                                          ? Colors.grey
-                                                          : null,
-                                                    ),
-                                                    const SizedBox(width: 8),
-                                                    Text(
-                                                      'Edit',
-                                                      style: TextStyle(
+                                              // Only show edit option if user has permission
+                                              if (_canEditTenders)
+                                                PopupMenuItem(
+                                                  value: 'edit',
+                                                  enabled: tender['status'] != 'cancelled' && tender['status'] != 'closed',
+                                                  child: Row(
+                                                    children: [
+                                                      Icon(
+                                                        Icons.edit,
                                                         color: (tender['status'] == 'cancelled' || tender['status'] == 'closed')
                                                             ? Colors.grey
                                                             : null,
                                                       ),
-                                                    ),
-                                                  ],
+                                                      const SizedBox(width: 8),
+                                                      Text(
+                                                        'Edit',
+                                                        style: TextStyle(
+                                                          color: (tender['status'] == 'cancelled' || tender['status'] == 'closed')
+                                                              ? Colors.grey
+                                                              : null,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
                                                 ),
-                                              ),
                                               const PopupMenuItem(
                                                 value: 'bidders',
                                                 child: Row(
@@ -557,11 +780,13 @@ class _TenderManagementScreenState extends State<TenderManagementScreen> {
 class TenderDetailsSheet extends StatefulWidget {
   final Map<String, dynamic> tender;
   final VoidCallback onStatusChanged;
+  final bool canAwardBidders;
 
   const TenderDetailsSheet({
     super.key,
     required this.tender,
     required this.onStatusChanged,
+    required this.canAwardBidders,
   });
 
   @override
@@ -770,17 +995,19 @@ class _TenderDetailsSheetState extends State<TenderDetailsSheet> {
           // If another bidder is awarded, show nothing for this bidder
           return const SizedBox.shrink();
         } else {
-          // Show Award button if no bidder is awarded yet
-          return ElevatedButton(
-            onPressed: () => _awardBidder(bidder),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.green,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-              minimumSize: const Size(0, 32),
-            ),
-            child: const Text('Award', style: TextStyle(fontSize: 12)),
-          );
+          // Show Award button only if user has permission and no bidder is awarded yet
+          return widget.canAwardBidders
+              ? ElevatedButton(
+                  onPressed: () => _awardBidder(bidder),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                    minimumSize: const Size(0, 32),
+                  ),
+                  child: const Text('Award', style: TextStyle(fontSize: 12)),
+                )
+              : const SizedBox.shrink();
         }
       }
 
