@@ -493,18 +493,16 @@ class _EnhancedOnboardingScreenState extends State<EnhancedOnboardingScreen>
   }
 
   Widget _buildParticleBackground() {
-    return Positioned.fill(
-      child: AnimatedBuilder(
-        animation: _particleAnimation,
-        builder: (context, child) {
-          return CustomPaint(
-            painter: ParticlePainter(
-              animation: _particleAnimation,
-              color: _onboardingData[_currentPage].primaryColor,
-            ),
-          );
-        },
-      ),
+    return AnimatedBuilder(
+      animation: _particleAnimation,
+      builder: (context, child) {
+        return CustomPaint(
+          painter: ParticlePainter(
+            animation: _particleAnimation,
+            color: _onboardingData[_currentPage].primaryColor,
+          ),
+        );
+      },
     );
   }
 

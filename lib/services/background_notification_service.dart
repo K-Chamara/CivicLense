@@ -33,13 +33,15 @@ class BackgroundNotificationService {
             if (deadlineDate.isBefore(threeDaysFromNow) && deadlineDate.isAfter(now)) {
               final daysLeft = deadlineDate.difference(now).inDays + 1;
               
-              await _notificationService.createNotification(
+              await NotificationService.createNotification(
                 userId: createdBy,
                 title: '🚨 Project Deadline Approaching',
-                message: 'Project "$projectTitle" is due in $daysLeft day${daysLeft == 1 ? '' : 's'}! Please take action.',
+                body: 'Project "$projectTitle" is due in $daysLeft day${daysLeft == 1 ? '' : 's'}! Please take action.',
                 type: 'deadline_alert',
-                projectId: projectDoc.id,
-                priority: 'high',
+                data: {
+                  'projectId': projectDoc.id,
+                  'priority': 'high',
+                },
               );
               
               notificationsCreated++;
@@ -49,13 +51,15 @@ class BackgroundNotificationService {
             else if (deadlineDate.isBefore(oneWeekFromNow) && deadlineDate.isAfter(threeDaysFromNow)) {
               final daysLeft = deadlineDate.difference(now).inDays + 1;
               
-              await _notificationService.createNotification(
+              await NotificationService.createNotification(
                 userId: createdBy,
                 title: '⏰ Project Deadline Reminder',
-                message: 'Project "$projectTitle" is due in $daysLeft day${daysLeft == 1 ? '' : 's'}. Please review progress.',
+                body: 'Project "$projectTitle" is due in $daysLeft day${daysLeft == 1 ? '' : 's'}. Please review progress.',
                 type: 'deadline_reminder',
-                projectId: projectDoc.id,
-                priority: 'normal',
+                data: {
+                  'projectId': projectDoc.id,
+                  'priority': 'normal',
+                },
               );
               
               notificationsCreated++;
@@ -96,13 +100,15 @@ class BackgroundNotificationService {
             if (deadlineDate.isBefore(now)) {
               final daysOverdue = now.difference(deadlineDate).inDays;
               
-              await _notificationService.createNotification(
+              await NotificationService.createNotification(
                 userId: createdBy,
                 title: '⚠️ Project Overdue',
-                message: 'Project "$projectTitle" is $daysOverdue day${daysOverdue == 1 ? '' : 's'} overdue! Please update status.',
+                body: 'Project "$projectTitle" is $daysOverdue day${daysOverdue == 1 ? '' : 's'} overdue! Please update status.',
                 type: 'overdue_alert',
-                projectId: projectDoc.id,
-                priority: 'high',
+                data: {
+                  'projectId': projectDoc.id,
+                  'priority': 'high',
+                },
               );
               
               overdueNotificationsCreated++;

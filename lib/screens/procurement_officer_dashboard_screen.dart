@@ -11,6 +11,8 @@ import 'ongoing_tenders_screen.dart';
 import 'notifications_screen.dart';
 import 'tender_management_screen.dart';
 import 'budget_items_overview_screen.dart';
+import 'user_concern_tracking_screen.dart';
+import 'public_tender_viewer_screen.dart';
 import 'login_screen.dart';
 
 class ProcurementOfficerDashboardScreen extends StatefulWidget {
@@ -346,6 +348,15 @@ class _ProcurementOfficerDashboardScreenState extends State<ProcurementOfficerDa
       }
     } catch (e) {
       print('Error loading dashboard data: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error loading dashboard data: ${e.toString()}'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
       setState(() {
         isLoading = false;
       });
@@ -460,6 +471,7 @@ class _ProcurementOfficerDashboardScreenState extends State<ProcurementOfficerDa
 
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
+      drawer: _buildNavigationDrawer(),
       appBar: AppBar(
         title: Text(_getAppBarTitle()),
         backgroundColor: Colors.lightBlue,
@@ -470,10 +482,6 @@ class _ProcurementOfficerDashboardScreenState extends State<ProcurementOfficerDa
             icon: const Icon(Icons.refresh),
             onPressed: _refreshDashboard,
             tooltip: 'Refresh Data',
-          ),
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: _signOut,
           ),
         ],
       ),
@@ -495,21 +503,12 @@ class _ProcurementOfficerDashboardScreenState extends State<ProcurementOfficerDa
             Navigator.pushNamed(context, '/common-home');
             break;
           case 1:
-            // Navigate to Active Projects (same as Procurement Management Tools)
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const OngoingTendersScreen(),
-              ),
-            );
+            Navigator.pushNamed(context, '/budget-viewer');
             break;
           case 2:
-            // Navigate to Tender Management (same as Procurement Management Tools)
             Navigator.push(
               context,
-              MaterialPageRoute(
-                builder: (context) => const TenderManagementScreen(),
-              ),
+              MaterialPageRoute(builder: (context) => const PublicTenderViewerScreen()),
             );
             break;
           case 3:
@@ -523,8 +522,8 @@ class _ProcurementOfficerDashboardScreenState extends State<ProcurementOfficerDa
           label: 'Home',
         ),
         BottomNavigationBarItem(
-          icon: Icon(Icons.work),
-          label: 'Projects',
+          icon: Icon(Icons.account_balance),
+          label: 'Budget',
         ),
         BottomNavigationBarItem(
           icon: Icon(Icons.shopping_cart),
@@ -962,6 +961,171 @@ class _ProcurementOfficerDashboardScreenState extends State<ProcurementOfficerDa
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildNavigationDrawer() {
+    return Drawer(
+      backgroundColor: Colors.white,
+      child: Column(
+        children: [
+          // Drawer Header
+          Container(
+            width: double.infinity,
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Colors.lightBlue, Color(0xFF1976D2)],
+              ),
+            ),
+            child: SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    CircleAvatar(
+                      radius: 30,
+                      backgroundColor: Colors.white.withOpacity(0.2),
+                      child: Icon(
+                        userRole?.icon ?? Icons.shopping_cart,
+                        color: Colors.white,
+                        size: 30,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      '${userData?['firstName'] ?? 'User'} ${userData?['lastName'] ?? ''}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      userRole?.name ?? 'Procurement Officer',
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          
+          // Navigation Items
+          Expanded(
+            child: ListView(
+              padding: EdgeInsets.zero,
+              children: [
+                _buildDrawerItem(
+                  icon: Icons.dashboard,
+                  title: 'Dashboard',
+                  onTap: () => Navigator.pop(context),
+                ),
+                _buildDrawerItem(
+                  icon: Icons.shopping_cart,
+                  title: 'Tender Management',
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const TenderManagementScreen()),
+                    );
+                  },
+                ),
+                _buildDrawerItem(
+                  icon: Icons.visibility,
+                  title: 'Public Tenders',
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const PublicTenderViewerScreen()),
+                    );
+                  },
+                ),
+                _buildDrawerItem(
+                  icon: Icons.assignment,
+                  title: 'Ongoing Tenders',
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const OngoingTendersScreen()),
+                    );
+                  },
+                ),
+                _buildDrawerItem(
+                  icon: Icons.track_changes,
+                  title: 'My Concerns',
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const UserConcernTrackingScreen()),
+                    );
+                  },
+                ),
+                _buildDrawerItem(
+                  icon: Icons.notifications,
+                  title: 'Notifications',
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const NotificationsScreen()),
+                    );
+                  },
+                ),
+                _buildDrawerItem(
+                  icon: Icons.account_balance,
+                  title: 'Budget Overview',
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const BudgetItemsOverviewScreen()),
+                    );
+                  },
+                ),
+                const Divider(),
+                _buildDrawerItem(
+                  icon: Icons.logout,
+                  title: 'Sign Out',
+                  onTap: () {
+                    Navigator.pop(context);
+                    _signOut();
+                  },
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDrawerItem({
+    required IconData icon,
+    required String title,
+    required VoidCallback onTap,
+  }) {
+    return ListTile(
+      leading: Icon(icon, color: Colors.grey[700]),
+      title: Text(
+        title,
+        style: const TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+      onTap: onTap,
     );
   }
 }
