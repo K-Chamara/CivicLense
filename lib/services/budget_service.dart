@@ -767,11 +767,10 @@ class BudgetService {
         final subcategoryName = subcategoryDoc.data()?['name'] ?? 'Unknown Subcategory';
 
         // Create notification for new budget allocation
-        await _notificationService.notifyNewBudgetAllocation(
-          categoryName: categoryName,
-          subcategoryName: subcategoryName,
-          itemName: item.name,
-          amount: item.allocatedAmount,
+        await NotificationService.notifyNewBudgetAllocation(
+          userId: 'admin',
+          title: 'New Budget Allocation',
+          message: '$categoryName - $subcategoryName: ${item.name} (${item.allocatedAmount})',
         );
       } catch (e) {
         print('Error getting category/subcategory names for notification: $e');

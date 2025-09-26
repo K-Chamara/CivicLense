@@ -93,7 +93,11 @@ class _PublicConcernsScreenState extends State<PublicConcernsScreen>
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => ConcernDetailScreen(concern: concern),
+              builder: (context) => ConcernDetailScreen(
+                concern: concern,
+                officerId: 'public_user',
+                officerName: 'Public User',
+              ),
             ),
           );
         },
