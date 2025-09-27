@@ -3,7 +3,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:async';
 import 'login_screen.dart';
-import 'document_upload_screen.dart';
 import '../widgets/custom_button.dart';
 
 class EmailVerificationScreen extends StatefulWidget {
@@ -83,25 +82,13 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
           ),
         );
         
-        // Navigate based on user role after email verification
-        if (widget.userRole != null && widget.userRole != 'citizen' && widget.userId != null) {
-          // Non-citizen users go to document upload
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(
-              builder: (context) => DocumentUploadScreen(
-                userRole: widget.userRole!,
-                userId: widget.userId!,
-              ),
-            ),
-          );
-        } else {
-          // Citizen users go to login
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(
-              builder: (context) => const LoginScreen(),
-            ),
-          );
-        }
+        // Navigate to login screen after email verification
+        // Documents are already uploaded for non-citizen users
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (context) => const LoginScreen(),
+          ),
+        );
       }
     }
   }

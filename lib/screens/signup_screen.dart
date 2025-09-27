@@ -65,16 +65,29 @@ class _SignupScreenState extends State<SignupScreen> {
       );
 
       if (mounted) {
-        // ALL users must verify their email first, regardless of role
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(
-            builder: (context) => EmailVerificationScreen(
-              email: _emailController.text.trim(),
-              userRole: _selectedRole!.id, // Pass the role for after verification
-              userId: userCredential.user!.uid,
+        // Check if user needs document upload
+        if (_selectedRole!.id != 'citizen' && _selectedRole!.id != 'taxpayer') {
+          // Non-citizen users go to document upload first
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder: (context) => DocumentUploadScreen(
+                userRole: _selectedRole!.id,
+                userId: userCredential.user!.uid,
+              ),
             ),
-          ),
-        );
+          );
+        } else {
+          // Citizen/taxpayer users go to email verification first
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder: (context) => EmailVerificationScreen(
+                email: _emailController.text.trim(),
+                userRole: _selectedRole!.id,
+                userId: userCredential.user!.uid,
+              ),
+            ),
+          );
+        }
       }
     } on FirebaseAuthException catch (e) {
       String message = 'An error occurred during registration.';
