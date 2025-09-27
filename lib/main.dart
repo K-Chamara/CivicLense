@@ -16,6 +16,7 @@ import 'screens/citizen_tender_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/common_home_screen.dart';
 import 'screens/document_upload_screen.dart';
+import 'screens/email_verification_screen.dart';
 import 'services/user_service.dart';
 import 'utils/create_admin.dart';
 import 'screens/admin_setup_screen.dart';
@@ -101,7 +102,7 @@ class AuthWrapper extends StatelessWidget {
       final userData = await userService.getCurrentUserData();
       
       if (userData == null) {
-        return {'role': 'citizen', 'needsUpload': false, 'isApproved': true, 'canLogin': false};
+        return {'role': 'citizen', 'needsUpload': false, 'isApproved': true, 'canLogin': false, 'emailVerified': false, 'hasDocuments': false};
       }
 
       final role = userData['role'] ?? 'citizen';
@@ -109,18 +110,22 @@ class AuthWrapper extends StatelessWidget {
       final needsUpload = await userService.needsDocumentUpload(userId);
       final canLogin = await userService.canUserLogin(userId);
       final isApproved = status == 'approved';
+      final emailVerified = userData['emailVerified'] ?? false;
+      final hasDocuments = userData['documents'] != null && (userData['documents'] as List).isNotEmpty;
 
-      print('User status check: role=$role, status=$status, needsUpload=$needsUpload, isApproved=$isApproved, canLogin=$canLogin');
+      print('User status check: role=$role, status=$status, needsUpload=$needsUpload, isApproved=$isApproved, canLogin=$canLogin, emailVerified=$emailVerified, hasDocuments=$hasDocuments');
 
       return {
         'role': role,
         'needsUpload': needsUpload,
         'isApproved': isApproved,
         'canLogin': canLogin,
+        'emailVerified': emailVerified,
+        'hasDocuments': hasDocuments,
       };
     } catch (e) {
       print('Error checking user status: $e');
-      return {'role': 'citizen', 'needsUpload': false, 'isApproved': true, 'canLogin': false};
+      return {'role': 'citizen', 'needsUpload': false, 'isApproved': true, 'canLogin': false, 'emailVerified': false, 'hasDocuments': false};
     }
   }
 
@@ -170,24 +175,39 @@ class AuthWrapper extends StatelessWidget {
                 userType = userRole['userType'] ?? 'public';
               }
 
-              // If user cannot login (email not verified), sign them out and redirect to login
-              if (!canLogin) {
-                FirebaseAuth.instance.signOut();
-                return const LoginScreen();
-              }
-
-              // If user needs document upload, redirect to upload page
-              // Only for non-citizen, non-admin users who are pending or haven't uploaded documents
+              // Check if user needs document upload or email verification
               print('🔍 AuthWrapper: Checking document upload requirement...');
               print('🔍 needsUpload: $needsUpload, roleId: $roleId');
               print('🔍 Condition check: needsUpload=$needsUpload, roleId=$roleId, userType=$userType');
               
+              // Get additional user data from the status check result
+              final emailVerified = userData['emailVerified'] ?? false;
+              final hasDocuments = userData['hasDocuments'] ?? false;
+              
+              // If user needs document upload, redirect to upload page
               if (needsUpload && roleId != 'citizen' && roleId != 'admin' && userType != 'government') {
                 print('📄 AuthWrapper: Redirecting to document upload screen');
                 return DocumentUploadScreen(
                   userRole: roleId,
                   userId: snapshot.data!.uid,
                 );
+              }
+              
+              // If user has uploaded documents but hasn't verified email, redirect to email verification
+              if (hasDocuments && !emailVerified && roleId != 'citizen' && roleId != 'admin' && userType != 'government') {
+                print('📧 AuthWrapper: Redirecting to email verification screen');
+                return EmailVerificationScreen(
+                  email: snapshot.data!.email ?? '',
+                  userRole: roleId,
+                  userId: snapshot.data!.uid,
+                );
+              }
+
+              // If user cannot login (email not verified), sign them out and redirect to login
+              // This check comes AFTER document upload check
+              if (!canLogin) {
+                FirebaseAuth.instance.signOut();
+                return const LoginScreen();
               }
               
               print('🏠 AuthWrapper: Proceeding to CommonHomeScreen');
