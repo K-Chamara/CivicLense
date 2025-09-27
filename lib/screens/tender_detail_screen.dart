@@ -12,60 +12,6 @@ class TenderDetailScreen extends StatefulWidget {
 }
 
 class _TenderDetailScreenState extends State<TenderDetailScreen> {
-  List<Map<String, dynamic>> _bidders = [];
-  bool _isLoadingBidders = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadBidders();
-  }
-
-  Future<void> _loadBidders() async {
-    try {
-      setState(() {
-        _isLoadingBidders = true;
-      });
-
-      final querySnapshot = await FirebaseFirestore.instance
-          .collection('tenders')
-          .doc(widget.tender['id'])
-          .collection('bidders')
-          .orderBy('bidAmount', descending: false) // Lowest bid first
-          .get();
-
-      setState(() {
-        _bidders = querySnapshot.docs.map((doc) {
-          final data = doc.data();
-          return {
-            'id': doc.id,
-            'companyName': data['companyName'] ?? '',
-            'bidAmount': data['bidAmount'] ?? 0.0,
-            'submittedAt': data['submittedAt'],
-            'contactEmail': data['contactEmail'] ?? '',
-            'contactPhone': data['contactPhone'] ?? '',
-            'proposal': data['proposal'] ?? '',
-            'isWinning': data['isWinning'] ?? false,
-          };
-        }).toList();
-        
-        _isLoadingBidders = false;
-      });
-    } catch (e) {
-      setState(() {
-        _isLoadingBidders = false;
-      });
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error loading bidders: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -340,37 +286,93 @@ class _TenderDetailScreenState extends State<TenderDetailScreen> {
                 ),
               ),
               const Spacer(),
-              if (_bidders.isNotEmpty)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.blue.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    '${_bidders.length} bid${_bidders.length == 1 ? '' : 's'}',
-                    style: TextStyle(
-                      color: Colors.blue[700],
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
+              StreamBuilder<QuerySnapshot>(
+                stream: FirebaseFirestore.instance
+                    .collection('bids')
+                    .where('tenderId', isEqualTo: widget.tender['id'])
+                    .snapshots(),
+                builder: (context, snapshot) {
+                  if (snapshot.hasData) {
+                    final bidCount = snapshot.data!.docs.length;
+                    return Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        '$bidCount bid${bidCount == 1 ? '' : 's'}',
+                        style: TextStyle(
+                          color: Colors.blue[700],
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    );
+                  }
+                  return const SizedBox.shrink();
+                },
+              ),
             ],
           ),
           const SizedBox(height: 16),
           
-          if (_isLoadingBidders)
-            const Center(
-              child: Padding(
-                padding: EdgeInsets.all(20),
-                child: CircularProgressIndicator(),
-              ),
-            )
-          else if (_bidders.isEmpty)
-            _buildNoBidsState()
-          else
-            _buildBiddersList(),
+          StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection('bids')
+                .where('tenderId', isEqualTo: widget.tender['id'])
+                .snapshots(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(20),
+                    child: CircularProgressIndicator(),
+                  ),
+                );
+              }
+              
+              if (snapshot.hasError) {
+                return Center(
+                  child: Column(
+                    children: [
+                      Icon(Icons.error, color: Colors.red, size: 48),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Error loading bids: ${snapshot.error}',
+                        style: const TextStyle(color: Colors.red),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                );
+              }
+              
+              final bidders = snapshot.data?.docs.map((doc) {
+                final data = doc.data() as Map<String, dynamic>;
+                return {
+                  'id': doc.id,
+                  'companyName': data['bidderName'] ?? data['companyName'] ?? 'Unknown Company',
+                  'bidAmount': data['bidAmount'] ?? 0.0,
+                  'submittedAt': data['submittedAt'],
+                  'contactEmail': data['bidderEmail'] ?? data['contactEmail'] ?? '',
+                  'contactPhone': data['contactPhone'] ?? '',
+                  'proposal': data['proposal'] ?? '',
+                  'isWinning': data['isWinning'] ?? false,
+                  'status': data['status'] ?? 'pending',
+                };
+              }).toList() ?? [];
+              
+              // Sort by bid amount (lowest first)
+              bidders.sort((a, b) => (a['bidAmount'] as double).compareTo(b['bidAmount'] as double));
+              
+              if (bidders.isEmpty) {
+                return _buildNoBidsState();
+              } else {
+                return _buildBiddersList(bidders);
+              }
+            },
+          ),
         ],
       ),
     );
@@ -406,11 +408,11 @@ class _TenderDetailScreenState extends State<TenderDetailScreen> {
     );
   }
 
-  Widget _buildBiddersList() {
+  Widget _buildBiddersList(List<Map<String, dynamic>> bidders) {
     return Column(
       children: [
         // Top 3 Bidders Section
-        if (_bidders.length >= 3) ...[
+        if (bidders.length >= 3) ...[
           const Text(
             'Top 3 Bidders',
             style: TextStyle(
@@ -421,10 +423,10 @@ class _TenderDetailScreenState extends State<TenderDetailScreen> {
           ),
           const SizedBox(height: 12),
           ...List.generate(3, (index) {
-            final bidder = _bidders[index];
+            final bidder = bidders[index];
             return _buildBidderCard(bidder, index + 1, isTopThree: true);
           }),
-          if (_bidders.length > 3) ...[
+          if (bidders.length > 3) ...[
             const SizedBox(height: 16),
             const Divider(),
             const SizedBox(height: 16),
@@ -440,10 +442,10 @@ class _TenderDetailScreenState extends State<TenderDetailScreen> {
         ],
         
         // All Bidders
-        ...List.generate(_bidders.length, (index) {
-          final bidder = _bidders[index];
+        ...List.generate(bidders.length, (index) {
+          final bidder = bidders[index];
           final rank = index + 1;
-          return _buildBidderCard(bidder, rank, isTopThree: _bidders.length >= 3 && index < 3);
+          return _buildBidderCard(bidder, rank, isTopThree: bidders.length >= 3 && index < 3);
         }),
       ],
     );

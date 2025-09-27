@@ -97,38 +97,49 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
   }
 
   Widget _buildStatisticsCards() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      child: Row(
-        children: [
-          Expanded(
-            child: _buildStatCard(
-              'Pending',
-              Icons.pending_actions,
-              Colors.orange,
-              _pendingCount,
-            ),
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('users')
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.hasData) {
+          _updateCounts(snapshot.data!.docs);
+        }
+        
+        return Container(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Expanded(
+                child: _buildStatCard(
+                  'Pending',
+                  Icons.pending_actions,
+                  Colors.orange,
+                  _pendingCount,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildStatCard(
+                  'Approved',
+                  Icons.check_circle,
+                  Colors.green,
+                  _approvedCount,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildStatCard(
+                  'Rejected',
+                  Icons.cancel,
+                  Colors.red,
+                  _rejectedCount,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: _buildStatCard(
-              'Approved',
-              Icons.check_circle,
-              Colors.green,
-              _getApprovedCount(),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: _buildStatCard(
-              'Rejected',
-              Icons.cancel,
-              Colors.red,
-              _getRejectedCount(),
-            ),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -595,18 +606,35 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     }
   }
 
-  int _getPendingCount() {
-    // This would ideally be a real-time count, but for now return 0
-    // You could implement this with a separate stream or by counting the current list
-    return 0;
-  }
-
-  int _getApprovedCount() {
-    return 0;
-  }
-
-  int _getRejectedCount() {
-    return 0;
+  void _updateCounts(List<QueryDocumentSnapshot> docs) {
+    int pending = 0;
+    int approved = 0;
+    int rejected = 0;
+    
+    for (final doc in docs) {
+      final data = doc.data() as Map<String, dynamic>;
+      final status = data['status'] ?? 'pending';
+      
+      switch (status) {
+        case 'pending':
+          pending++;
+          break;
+        case 'approved':
+          approved++;
+          break;
+        case 'rejected':
+          rejected++;
+          break;
+      }
+    }
+    
+    if (mounted) {
+      setState(() {
+        _pendingCount = pending;
+        _approvedCount = approved;
+        _rejectedCount = rejected;
+      });
+    }
   }
 
   String _formatDate(DateTime date) {
