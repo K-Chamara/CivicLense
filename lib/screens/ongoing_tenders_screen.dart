@@ -19,6 +19,7 @@ class _OngoingTendersScreenState extends State<OngoingTendersScreen> {
   List<Map<String, dynamic>> _filteredProjects = [];
   bool _isLoading = true;
   final BudgetService _budgetService = BudgetService();
+  Set<String> _trackedProjects = {}; // Track which projects are being tracked by the user
 
   List<String> _categories = ['All'];
 
@@ -36,11 +37,34 @@ class _OngoingTendersScreenState extends State<OngoingTendersScreen> {
     super.initState();
     _loadProjects();
     _loadCategories();
+    _loadTrackedProjects();
   }
 
   @override
   void dispose() {
     super.dispose();
+  }
+
+  Future<void> _loadTrackedProjects() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+
+      final trackedProjectsSnapshot = await FirebaseFirestore.instance
+          .collection('tracked_projects')
+          .where('userId', isEqualTo: user.uid)
+          .get();
+
+      setState(() {
+        _trackedProjects = trackedProjectsSnapshot.docs
+            .map((doc) => doc.data()['projectId'] as String)
+            .toSet();
+      });
+
+      print('📌 Loaded ${_trackedProjects.length} tracked projects');
+    } catch (e) {
+      print('Error loading tracked projects: $e');
+    }
   }
 
   Future<void> _loadProjects() async {
@@ -189,6 +213,7 @@ class _OngoingTendersScreenState extends State<OngoingTendersScreen> {
       
       // Reload projects to show the new test project
       await _loadProjects();
+      await _loadTrackedProjects();
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -422,7 +447,10 @@ class _OngoingTendersScreenState extends State<OngoingTendersScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
-            onPressed: _loadProjects,
+            onPressed: () async {
+              await _loadProjects();
+              await _loadTrackedProjects();
+            },
             tooltip: 'Refresh',
           ),
           IconButton(
@@ -518,12 +546,54 @@ class _OngoingTendersScreenState extends State<OngoingTendersScreen> {
                           children: [
                             ListTile(
                           contentPadding: const EdgeInsets.all(16),
-                          title: Text(
-                            project['title'],
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                            ),
+                          title: Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  project['title'],
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                              ),
+                              // Tracking tag
+                              if (_trackedProjects.contains(project['id']))
+                                Container(
+                                  margin: const EdgeInsets.only(left: 8),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 4,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.green.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: Colors.green,
+                                      width: 1,
+                                    ),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        Icons.notifications_active,
+                                        size: 12,
+                                        color: Colors.green,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        'TRACKING',
+                                        style: TextStyle(
+                                          color: Colors.green,
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                            ],
                           ),
                           subtitle: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -692,26 +762,29 @@ class _OngoingTendersScreenState extends State<OngoingTendersScreen> {
                               }
                             },
                             itemBuilder: (BuildContext context) => [
-                              const PopupMenuItem<String>(
-                                value: 'status',
-                                child: Row(
-                                  children: [
-                                    Icon(Icons.flag, size: 16, color: Colors.blue),
-                                    SizedBox(width: 8),
-                                    Text('Project Status'),
-                                  ],
+                              // Only show edit options for procurement officers
+                              if (_isProcurementOfficer())
+                                const PopupMenuItem<String>(
+                                  value: 'status',
+                                  child: Row(
+                                    children: [
+                                      Icon(Icons.flag, size: 16, color: Colors.blue),
+                                      SizedBox(width: 8),
+                                      Text('Project Status'),
+                                    ],
+                                  ),
                                 ),
-                              ),
-                              const PopupMenuItem<String>(
-                                value: 'edit',
-                                child: Row(
-                                  children: [
-                                    Icon(Icons.edit, size: 16, color: Colors.orange),
-                                    SizedBox(width: 8),
-                                    Text('Edit Project'),
-                                  ],
+                              if (_isProcurementOfficer())
+                                const PopupMenuItem<String>(
+                                  value: 'edit',
+                                  child: Row(
+                                    children: [
+                                      Icon(Icons.edit, size: 16, color: Colors.orange),
+                                      SizedBox(width: 8),
+                                      Text('Edit Project'),
+                                    ],
+                                  ),
                                 ),
-                              ),
                               const PopupMenuItem<String>(
                                 value: 'details',
                                 child: Row(
@@ -849,20 +922,50 @@ class _OngoingTendersScreenState extends State<OngoingTendersScreen> {
   }
 
   void _showEditProjectPopup(Map<String, dynamic> project) {
+    // SECURITY CHECK: Only procurement officers can edit projects
+    if (!_isProcurementOfficer()) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Only procurement officers can edit projects'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return EditProjectDialog(
           project: project,
-          onProjectUpdated: () {
-            _loadProjects(); // Reload projects after edit
+          onProjectUpdated: () async {
+            await _loadProjects(); // Reload projects after edit
+            await _loadTrackedProjects();
           },
         );
       },
     );
   }
 
+  bool _isProcurementOfficer() {
+    // TODO: Implement proper role checking
+    // For now, return false to prevent all users from editing projects
+    // Only procurement officers should be able to edit projects
+    return false; // Citizens can only view and track projects
+  }
+
   Future<void> _updateProjectStatus(Map<String, dynamic> project, String status) async {
+    // SECURITY CHECK: Only procurement officers can update project status
+    if (!_isProcurementOfficer()) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Only procurement officers can update project status'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     try {
       bool updateSuccessful = false;
       String? errorMessage;
@@ -944,7 +1047,8 @@ class _OngoingTendersScreenState extends State<OngoingTendersScreen> {
         }
 
         // Reload projects to reflect the change
-        _loadProjects();
+        await _loadProjects();
+        await _loadTrackedProjects();
       } else {
         // Show error message
         if (mounted) {
@@ -1117,7 +1221,25 @@ class _EditProjectDialogState extends State<EditProjectDialog> {
     super.dispose();
   }
 
+  bool _isProcurementOfficer() {
+    // TODO: Implement proper role checking
+    // For now, return false to prevent all users from editing projects
+    // Only procurement officers should be able to edit projects
+    return false; // Citizens can only view and track projects
+  }
+
   Future<void> _updateProject() async {
+    // SECURITY CHECK: Only procurement officers can update projects
+    if (!_isProcurementOfficer()) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Only procurement officers can update projects'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     if (!_formKey.currentState!.validate()) return;
 
     setState(() {

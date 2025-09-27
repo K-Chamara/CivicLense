@@ -1,7 +1,13 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
+import '../services/concern_management_service.dart';
+import '../services/notification_service.dart';
 import '../models/user_role.dart';
+import '../models/concern_models.dart';
 import 'login_screen.dart';
+import 'concern_management_screen.dart';
+import 'user_concern_tracking_screen.dart';
+import 'public_tender_viewer_screen.dart';
 
 class AntiCorruptionOfficerDashboardScreen extends StatefulWidget {
   const AntiCorruptionOfficerDashboardScreen({super.key});
@@ -15,11 +21,19 @@ class _AntiCorruptionOfficerDashboardScreenState extends State<AntiCorruptionOff
   UserRole? userRole;
   Map<String, dynamic>? userData;
   bool isLoading = true;
+  Map<String, int> _stats = {
+    'activeCases': 0,
+    'resolved': 0,
+    'underReview': 0,
+    'priority': 0,
+  };
 
   @override
   void initState() {
     super.initState();
     _loadUserData();
+    _loadStats();
+    _initializeNotifications();
   }
 
   Future<void> _loadUserData() async {
@@ -33,6 +47,26 @@ class _AntiCorruptionOfficerDashboardScreenState extends State<AntiCorruptionOff
         userData = data;
         isLoading = false;
       });
+    }
+  }
+
+  Future<void> _loadStats() async {
+    try {
+      final stats = await ConcernManagementService.getConcernStats();
+      setState(() {
+        _stats = stats;
+      });
+    } catch (e) {
+      print('Error loading stats: $e');
+    }
+  }
+
+  Future<void> _initializeNotifications() async {
+    try {
+      await NotificationService.initializeNotifications();
+      NotificationService.startConcernNotificationListener();
+    } catch (e) {
+      print('Error initializing notifications: $e');
     }
   }
 
@@ -69,17 +103,12 @@ class _AntiCorruptionOfficerDashboardScreenState extends State<AntiCorruptionOff
 
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
+      drawer: _buildNavigationDrawer(),
       appBar: AppBar(
         title: const Text('Anti-corruption Officer Dashboard'),
         backgroundColor: Colors.purple,
         foregroundColor: Colors.white,
         elevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: _signOut,
-          ),
-        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
@@ -123,7 +152,10 @@ class _AntiCorruptionOfficerDashboardScreenState extends State<AntiCorruptionOff
             Navigator.pushNamed(context, '/budget-viewer');
             break;
           case 2:
-            Navigator.pushNamed(context, '/citizen-tender');
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const PublicTenderViewerScreen()),
+            );
             break;
           case 3:
             // Already on dashboard
@@ -224,25 +256,25 @@ class _AntiCorruptionOfficerDashboardScreenState extends State<AntiCorruptionOff
       children: [
         _buildStatCard(
           'Active Cases',
-          '8',
+          '${_stats['activeCases']}',
           Icons.assignment,
           Colors.red,
         ),
         _buildStatCard(
           'Resolved',
-          '15',
+          '${_stats['resolved']}',
           Icons.check_circle,
           Colors.green,
         ),
         _buildStatCard(
           'Under Review',
-          '12',
+          '${_stats['underReview']}',
           Icons.pending,
           Colors.orange,
         ),
         _buildStatCard(
           'Priority',
-          '3',
+          '${_stats['priority']}',
           Icons.priority_high,
           Colors.purple,
         ),
@@ -313,7 +345,7 @@ class _AntiCorruptionOfficerDashboardScreenState extends State<AntiCorruptionOff
           'Review and manage public concerns and complaints',
           Icons.report_problem,
           Colors.red,
-          () => _showFeatureComingSoon('Concern Management'),
+          () => _navigateToConcernManagement(),
         ),
         _buildFeatureCard(
           'Investigation Tools',
@@ -395,60 +427,78 @@ class _AntiCorruptionOfficerDashboardScreenState extends State<AntiCorruptionOff
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Recent Concerns',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-            color: Colors.black87,
-          ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              'Recent Concerns',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
+            ),
+            TextButton(
+              onPressed: _navigateToConcernManagement,
+              child: const Text('View All'),
+            ),
+          ],
         ),
         const SizedBox(height: 16),
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.grey.withOpacity(0.1),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
+        StreamBuilder<List<Concern>>(
+          stream: ConcernManagementService.getRecentConcerns(limit: 4),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+
+            if (snapshot.hasError) {
+              return Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Text('Error loading concerns'),
+              );
+            }
+
+            final concerns = snapshot.data ?? [];
+            if (concerns.isEmpty) {
+              return Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Text('No recent concerns'),
+              );
+            }
+
+            return Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.grey.withOpacity(0.1),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
               ),
-            ],
-          ),
-          child: Column(
-            children: [
-              _buildConcernItem(
-                'Misuse of public funds in road construction',
-                'High Priority',
-                '2 hours ago',
-                Icons.priority_high,
-                Colors.red,
+              child: Column(
+                children: concerns.map((concern) => _buildConcernItem(
+                  concern.title,
+                  concern.status.name.toUpperCase(),
+                  _formatDate(concern.createdAt),
+                  _getStatusIcon(concern.status),
+                  _getStatusColor(concern.status),
+                )).toList(),
               ),
-              _buildConcernItem(
-                'Irregular procurement process',
-                'Under Review',
-                '1 day ago',
-                Icons.pending,
-                Colors.orange,
-              ),
-              _buildConcernItem(
-                'Bribery allegation in permit office',
-                'Active',
-                '2 days ago',
-                Icons.assignment,
-                Colors.blue,
-              ),
-              _buildConcernItem(
-                'Conflict of interest in tender',
-                'Resolved',
-                '1 week ago',
-                Icons.check_circle,
-                Colors.green,
-              ),
-            ],
-          ),
+            );
+          },
         ),
       ],
     );
@@ -522,6 +572,198 @@ class _AntiCorruptionOfficerDashboardScreenState extends State<AntiCorruptionOff
         backgroundColor: Colors.purple,
         duration: const Duration(seconds: 2),
       ),
+    );
+  }
+
+  void _navigateToConcernManagement() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const ConcernManagementScreen(),
+      ),
+    );
+  }
+
+  String _formatDate(DateTime date) {
+    final now = DateTime.now();
+    final difference = now.difference(date);
+
+    if (difference.inDays > 0) {
+      return '${difference.inDays}d ago';
+    } else if (difference.inHours > 0) {
+      return '${difference.inHours}h ago';
+    } else if (difference.inMinutes > 0) {
+      return '${difference.inMinutes}m ago';
+    } else {
+      return 'Just now';
+    }
+  }
+
+  IconData _getStatusIcon(ConcernStatus status) {
+    switch (status) {
+      case ConcernStatus.pending:
+        return Icons.pending;
+      case ConcernStatus.underReview:
+        return Icons.search;
+      case ConcernStatus.inProgress:
+        return Icons.work;
+      case ConcernStatus.resolved:
+        return Icons.check_circle;
+      case ConcernStatus.dismissed:
+        return Icons.cancel;
+      case ConcernStatus.escalated:
+        return Icons.priority_high;
+    }
+  }
+
+  Color _getStatusColor(ConcernStatus status) {
+    switch (status) {
+      case ConcernStatus.pending:
+        return Colors.orange;
+      case ConcernStatus.underReview:
+        return Colors.blue;
+      case ConcernStatus.inProgress:
+        return Colors.purple;
+      case ConcernStatus.resolved:
+        return Colors.green;
+      case ConcernStatus.dismissed:
+        return Colors.grey;
+      case ConcernStatus.escalated:
+        return Colors.red;
+    }
+  }
+
+  Widget _buildNavigationDrawer() {
+    return Drawer(
+      backgroundColor: Colors.white,
+      child: Column(
+        children: [
+          // Drawer Header
+          Container(
+            width: double.infinity,
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Colors.purple, Color(0xFF7B1FA2)],
+              ),
+            ),
+            child: SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    CircleAvatar(
+                      radius: 30,
+                      backgroundColor: Colors.white.withOpacity(0.2),
+                      child: Icon(
+                        userRole?.icon ?? Icons.security,
+                        color: Colors.white,
+                        size: 30,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      '${userData?['firstName'] ?? 'User'} ${userData?['lastName'] ?? ''}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      userRole?.name ?? 'Anti-Corruption Officer',
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          
+          // Navigation Items
+          Expanded(
+            child: ListView(
+              padding: EdgeInsets.zero,
+              children: [
+                _buildDrawerItem(
+                  icon: Icons.dashboard,
+                  title: 'Dashboard',
+                  onTap: () => Navigator.pop(context),
+                ),
+                _buildDrawerItem(
+                  icon: Icons.report_problem,
+                  title: 'Concern Management',
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const ConcernManagementScreen()),
+                    );
+                  },
+                ),
+                _buildDrawerItem(
+                  icon: Icons.shopping_cart,
+                  title: 'Tenders',
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const PublicTenderViewerScreen()),
+                    );
+                  },
+                ),
+                _buildDrawerItem(
+                  icon: Icons.people_alt,
+                  title: 'Public Concerns',
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.pushNamed(context, '/public-concerns');
+                  },
+                ),
+                _buildDrawerItem(
+                  icon: Icons.analytics,
+                  title: 'Reports & Analytics',
+                  onTap: () => _showFeatureComingSoon('Reports & Analytics'),
+                ),
+                const Divider(),
+                _buildDrawerItem(
+                  icon: Icons.logout,
+                  title: 'Sign Out',
+                  onTap: () {
+                    Navigator.pop(context);
+                    _signOut();
+                  },
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDrawerItem({
+    required IconData icon,
+    required String title,
+    required VoidCallback onTap,
+  }) {
+    return ListTile(
+      leading: Icon(icon, color: Colors.grey[700]),
+      title: Text(
+        title,
+        style: const TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+      onTap: onTap,
     );
   }
 }

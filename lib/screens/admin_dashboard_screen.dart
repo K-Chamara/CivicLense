@@ -7,6 +7,7 @@ import 'login_screen.dart';
 import 'community_list_screen.dart';
 import 'concern_management_screen.dart';
 import 'news_feed_screen.dart';
+import 'public_tender_viewer_screen.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
   const AdminDashboardScreen({super.key});
@@ -190,7 +191,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
             Navigator.pushNamed(context, '/budget-viewer');
             break;
           case 2:
-            Navigator.pushNamed(context, '/citizen-tender');
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const PublicTenderViewerScreen()),
+            );
             break;
           case 3:
             // Already on dashboard
@@ -407,7 +411,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                   title: 'Tender Management',
                   onTap: () {
                     Navigator.pop(context);
-                    Navigator.pushNamed(context, '/citizen-tender');
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const PublicTenderViewerScreen()),
+                    );
                   },
                 ),
                 _buildDrawerItem(

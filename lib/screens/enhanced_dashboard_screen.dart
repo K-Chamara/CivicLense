@@ -7,6 +7,8 @@ import 'citizen_tender_screen.dart';
 import 'raise_concern_screen.dart';
 import 'concern_management_screen.dart';
 import 'public_concerns_screen.dart';
+import 'user_concern_tracking_screen.dart';
+import 'public_tender_viewer_screen.dart';
 import 'admin_dashboard_screen.dart';
 import 'finance_officer_dashboard_screen.dart';
 import 'procurement_officer_dashboard_screen.dart';
@@ -323,7 +325,7 @@ class _EnhancedDashboardScreenState extends State<EnhancedDashboardScreen>
                     Navigator.pop(context);
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (context) => const CitizenTenderScreen()),
+                      MaterialPageRoute(builder: (context) => const PublicTenderViewerScreen()),
                     );
                   },
                 ),
@@ -359,6 +361,16 @@ class _EnhancedDashboardScreenState extends State<EnhancedDashboardScreen>
                   ),
                 ),
                 _buildDrawerItem(
+                  icon: Icons.track_changes,
+                  title: 'My Concerns',
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const UserConcernTrackingScreen(),
+                    ),
+                  ),
+                ),
+                _buildDrawerItem(
                   icon: Icons.people_alt,
                   title: 'View Public Concerns',
                   onTap: () => Navigator.push(
@@ -374,6 +386,14 @@ class _EnhancedDashboardScreenState extends State<EnhancedDashboardScreen>
                   onTap: () => _showFeatureComingSoon('Settings'),
                 ),
                 const Divider(),
+                _buildDrawerItem(
+                  icon: Icons.logout,
+                  title: 'Sign Out',
+                  onTap: () {
+                    Navigator.pop(context);
+                    _signOut();
+                  },
+                ),
                 _buildDrawerItem(
                   icon: Icons.help,
                   title: 'Help & Support',
@@ -1634,7 +1654,10 @@ class _EnhancedDashboardScreenState extends State<EnhancedDashboardScreen>
             Navigator.pushNamed(context, '/budget-viewer');
             break;
           case 2:
-            Navigator.pushNamed(context, '/citizen-tender');
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const PublicTenderViewerScreen()),
+            );
             break;
           case 3:
             // Navigate to role-specific dashboard (same as hamburger menu)

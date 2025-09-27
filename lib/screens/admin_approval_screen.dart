@@ -53,7 +53,7 @@ class _AdminApprovalScreenState extends State<AdminApprovalScreen>
       });
 
       // Send push notification
-      await _notificationService.sendApprovalNotification(userEmail, userRole);
+      await NotificationService.sendApprovalNotification(userEmail, userRole);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -93,7 +93,7 @@ class _AdminApprovalScreenState extends State<AdminApprovalScreen>
       });
 
       // Send rejection notification
-      await _notificationService.sendRejectionNotification(userEmail);
+      await NotificationService.sendRejectionNotification(userEmail);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

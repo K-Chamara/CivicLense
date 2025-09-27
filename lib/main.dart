@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'screens/splash_screen.dart';
-import 'screens/enhanced_onboarding_screen.dart';
 import 'screens/news_feed_screen.dart';
 import 'screens/article_detail_screen.dart';
 import 'screens/media_hub_screen.dart';

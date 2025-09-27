@@ -2,28 +2,24 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/concern_models.dart';
 import '../services/concern_management_service.dart';
-import '../services/notification_service.dart';
-import 'concern_detail_screen.dart';
-import 'public_tender_viewer_screen.dart';
 
-class ConcernManagementScreen extends StatefulWidget {
-  const ConcernManagementScreen({super.key});
+class UserConcernTrackingScreen extends StatefulWidget {
+  const UserConcernTrackingScreen({super.key});
 
   @override
-  State<ConcernManagementScreen> createState() => _ConcernManagementScreenState();
+  State<UserConcernTrackingScreen> createState() => _UserConcernTrackingScreenState();
 }
 
-class _ConcernManagementScreenState extends State<ConcernManagementScreen>
+class _UserConcernTrackingScreenState extends State<UserConcernTrackingScreen>
     with TickerProviderStateMixin {
   late TabController _tabController;
   final FirebaseAuth _auth = FirebaseAuth.instance;
   String? _currentUserId;
-  String? _currentUserName;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
     _getCurrentUser();
   }
 
@@ -38,18 +34,23 @@ class _ConcernManagementScreenState extends State<ConcernManagementScreen>
     if (user != null) {
       setState(() {
         _currentUserId = user.uid;
-        _currentUserName = user.displayName ?? 'Officer';
       });
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_currentUserId == null) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
       appBar: AppBar(
-        title: const Text('Concern Management'),
-        backgroundColor: Colors.purple,
+        title: const Text('My Concerns'),
+        backgroundColor: Colors.blue,
         foregroundColor: Colors.white,
         elevation: 0,
         bottom: TabBar(
@@ -59,26 +60,40 @@ class _ConcernManagementScreenState extends State<ConcernManagementScreen>
           unselectedLabelColor: Colors.white70,
           tabs: const [
             Tab(text: 'All', icon: Icon(Icons.list)),
-            Tab(text: 'Pending', icon: Icon(Icons.pending)),
-            Tab(text: 'Under Review', icon: Icon(Icons.search)),
-            Tab(text: 'Priority', icon: Icon(Icons.priority_high)),
+            Tab(text: 'Active', icon: Icon(Icons.pending)),
+            Tab(text: 'Resolved', icon: Icon(Icons.check_circle)),
           ],
         ),
       ),
       body: TabBarView(
         controller: _tabController,
         children: [
-          _buildConcernsList(ConcernManagementService.getConcernsForOfficer()),
-          _buildConcernsList(ConcernManagementService.getConcernsByStatus(ConcernStatus.pending)),
-          _buildConcernsList(ConcernManagementService.getConcernsByStatus(ConcernStatus.underReview)),
-          _buildConcernsList(ConcernManagementService.getPriorityConcerns()),
+          _buildUserConcernsList(),
+          _buildUserConcernsList(status: 'active'),
+          _buildUserConcernsList(status: 'resolved'),
         ],
       ),
-      bottomNavigationBar: _buildBottomNavigationBar(),
     );
   }
 
-  Widget _buildConcernsList(Stream<List<Concern>> concernsStream) {
+  Widget _buildUserConcernsList({String? status}) {
+    Stream<List<Concern>> concernsStream;
+    
+    if (status == 'active') {
+      concernsStream = _getUserConcernsByStatus([
+        ConcernStatus.pending,
+        ConcernStatus.underReview,
+        ConcernStatus.inProgress,
+      ]);
+    } else if (status == 'resolved') {
+      concernsStream = _getUserConcernsByStatus([
+        ConcernStatus.resolved,
+        ConcernStatus.dismissed,
+      ]);
+    } else {
+      concernsStream = _getUserConcerns();
+    }
+
     return StreamBuilder<List<Concern>>(
       stream: concernsStream,
       builder: (context, snapshot) {
@@ -107,15 +122,21 @@ class _ConcernManagementScreenState extends State<ConcernManagementScreen>
         final concerns = snapshot.data ?? [];
 
         if (concerns.isEmpty) {
-          return const Center(
+          return Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.inbox, size: 64, color: Colors.grey),
-                SizedBox(height: 16),
+                Icon(
+                  status == 'resolved' ? Icons.check_circle : Icons.inbox,
+                  size: 64,
+                  color: Colors.grey,
+                ),
+                const SizedBox(height: 16),
                 Text(
-                  'No concerns found',
-                  style: TextStyle(fontSize: 18, color: Colors.grey),
+                  status == 'resolved' 
+                      ? 'No resolved concerns yet'
+                      : 'No concerns found',
+                  style: const TextStyle(fontSize: 18, color: Colors.grey),
                 ),
               ],
             ),
@@ -132,6 +153,19 @@ class _ConcernManagementScreenState extends State<ConcernManagementScreen>
         );
       },
     );
+  }
+
+  Stream<List<Concern>> _getUserConcerns() {
+    return ConcernManagementService.getConcernsByFilter(
+      ConcernFilter(assignedOfficerId: _currentUserId),
+    );
+  }
+
+  Stream<List<Concern>> _getUserConcernsByStatus(List<ConcernStatus> statuses) {
+    // This would need to be implemented in the service
+    // For now, we'll filter client-side
+    return _getUserConcerns().map((concerns) => 
+        concerns.where((concern) => statuses.contains(concern.status)).toList());
   }
 
   Widget _buildConcernCard(Concern concern) {
@@ -177,12 +211,6 @@ class _ConcernManagementScreenState extends State<ConcernManagementScreen>
               Row(
                 children: [
                   _buildInfoChip(
-                    Icons.person,
-                    concern.authorName,
-                    Colors.blue,
-                  ),
-                  const SizedBox(width: 8),
-                  _buildInfoChip(
                     Icons.category,
                     concern.category.name.toUpperCase(),
                     Colors.green,
@@ -194,6 +222,12 @@ class _ConcernManagementScreenState extends State<ConcernManagementScreen>
                       '${concern.supportCount} supports',
                       Colors.orange,
                     ),
+                  const SizedBox(width: 8),
+                  _buildInfoChip(
+                    Icons.comment,
+                    '${concern.commentCount} comments',
+                    Colors.blue,
+                  ),
                 ],
               ),
               const SizedBox(height: 8),
@@ -213,18 +247,18 @@ class _ConcernManagementScreenState extends State<ConcernManagementScreen>
                     ),
                   ),
                   const Spacer(),
-                  if (concern.supportCount > 100)
+                  if (concern.assignedOfficerName != null)
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: Colors.red.withOpacity(0.1),
+                        color: Colors.purple.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.red),
+                        border: Border.all(color: Colors.purple),
                       ),
-                      child: const Text(
-                        'HIGH PRIORITY',
-                        style: TextStyle(
-                          color: Colors.red,
+                      child: Text(
+                        'Assigned to ${concern.assignedOfficerName}',
+                        style: const TextStyle(
+                          color: Colors.purple,
                           fontSize: 10,
                           fontWeight: FontWeight.bold,
                         ),
@@ -343,62 +377,38 @@ class _ConcernManagementScreenState extends State<ConcernManagementScreen>
   }
 
   void _navigateToConcernDetail(Concern concern) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => ConcernDetailScreen(
-          concern: concern,
-          officerId: _currentUserId!,
-          officerName: _currentUserName!,
+    // Navigate to concern detail screen for users
+    // This would show the concern details, updates, and comments
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(concern.title),
+        content: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('Status: ${concern.status.name.toUpperCase()}'),
+              const SizedBox(height: 8),
+              Text('Description: ${concern.description}'),
+              const SizedBox(height: 8),
+              Text('Support Count: ${concern.supportCount}'),
+              const SizedBox(height: 8),
+              Text('Comments: ${concern.commentCount}'),
+              if (concern.assignedOfficerName != null) ...[
+                const SizedBox(height: 8),
+                Text('Assigned Officer: ${concern.assignedOfficerName}'),
+              ],
+            ],
+          ),
         ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+        ],
       ),
-    );
-  }
-
-  Widget _buildBottomNavigationBar() {
-    return BottomNavigationBar(
-      type: BottomNavigationBarType.fixed,
-      backgroundColor: Colors.white,
-      selectedItemColor: Colors.purple,
-      unselectedItemColor: Colors.grey,
-      currentIndex: 3, // Dashboard is selected (index 3)
-      onTap: (index) {
-        switch (index) {
-          case 0:
-            Navigator.pushNamed(context, '/common-home');
-            break;
-          case 1:
-            Navigator.pushNamed(context, '/budget-viewer');
-            break;
-          case 2:
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const PublicTenderViewerScreen()),
-            );
-            break;
-          case 3:
-            Navigator.pushNamed(context, '/dashboard');
-            break;
-        }
-      },
-      items: const [
-        BottomNavigationBarItem(
-          icon: Icon(Icons.home),
-          label: 'Home',
-        ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.account_balance),
-          label: 'Budget',
-        ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.shopping_cart),
-          label: 'Tenders',
-        ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.dashboard),
-          label: 'Dashboard',
-        ),
-      ],
     );
   }
 }

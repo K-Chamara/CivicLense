@@ -1,33 +1,32 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import '../models/concern_models.dart';
-import '../services/concern_service.dart';
+import '../services/concern_management_service.dart';
+import '../services/notification_service.dart';
+import 'user_concern_tracking_screen.dart';
+import 'public_tender_viewer_screen.dart';
 
 class ConcernDetailScreen extends StatefulWidget {
   final Concern concern;
+  final String officerId;
+  final String officerName;
 
-  const ConcernDetailScreen({super.key, required this.concern});
+  const ConcernDetailScreen({
+    super.key,
+    required this.concern,
+    required this.officerId,
+    required this.officerName,
+  });
 
   @override
   State<ConcernDetailScreen> createState() => _ConcernDetailScreenState();
 }
 
-class _ConcernDetailScreenState extends State<ConcernDetailScreen>
-    with TickerProviderStateMixin {
-  final _concernService = ConcernService();
-  late TabController _tabController;
-  final _commentController = TextEditingController();
-  bool _isLoading = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _tabController = TabController(length: 3, vsync: this);
-  }
+class _ConcernDetailScreenState extends State<ConcernDetailScreen> {
+  final TextEditingController _commentController = TextEditingController();
+  bool _isUpdating = false;
 
   @override
   void dispose() {
-    _tabController.dispose();
     _commentController.dispose();
     super.dispose();
   }
@@ -35,361 +34,188 @@ class _ConcernDetailScreenState extends State<ConcernDetailScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFF5F5F5),
       appBar: AppBar(
         title: const Text('Concern Details'),
-        backgroundColor: Colors.blue,
+        backgroundColor: Colors.purple,
         foregroundColor: Colors.white,
         elevation: 0,
         actions: [
           PopupMenuButton<String>(
-            onSelected: _handleMenuAction,
+            onSelected: (value) => _showStatusUpdateDialog(value),
             itemBuilder: (context) => [
               const PopupMenuItem(
-                value: 'assign',
-                child: ListTile(
-                  leading: Icon(Icons.assignment_ind),
-                  title: Text('Assign to Officer'),
-                  contentPadding: EdgeInsets.zero,
+                value: 'underReview',
+                child: Row(
+                  children: [
+                    Icon(Icons.search, color: Colors.blue),
+                    SizedBox(width: 8),
+                    Text('Mark as Under Review'),
+                  ],
                 ),
               ),
               const PopupMenuItem(
-                value: 'priority',
-                child: ListTile(
-                  leading: Icon(Icons.priority_high),
-                  title: Text('Change Priority'),
-                  contentPadding: EdgeInsets.zero,
+                value: 'inProgress',
+                child: Row(
+                  children: [
+                    Icon(Icons.work, color: Colors.purple),
+                    SizedBox(width: 8),
+                    Text('Mark as In Progress'),
+                  ],
                 ),
               ),
               const PopupMenuItem(
-                value: 'status',
-                child: ListTile(
-                  leading: Icon(Icons.update),
-                  title: Text('Update Status'),
-                  contentPadding: EdgeInsets.zero,
+                value: 'resolved',
+                child: Row(
+                  children: [
+                    Icon(Icons.check_circle, color: Colors.green),
+                    SizedBox(width: 8),
+                    Text('Mark as Resolved'),
+                  ],
                 ),
               ),
               const PopupMenuItem(
-                value: 'escalate',
-                child: ListTile(
-                  leading: Icon(Icons.trending_up),
-                  title: Text('Escalate'),
-                  contentPadding: EdgeInsets.zero,
+                value: 'dismissed',
+                child: Row(
+                  children: [
+                    Icon(Icons.cancel, color: Colors.grey),
+                    SizedBox(width: 8),
+                    Text('Dismiss'),
+                  ],
                 ),
               ),
             ],
+            child: const Padding(
+              padding: EdgeInsets.all(16),
+              child: Icon(Icons.more_vert),
+            ),
           ),
         ],
-        bottom: TabBar(
-          controller: _tabController,
-          indicatorColor: Colors.white,
-          labelColor: Colors.white,
-          unselectedLabelColor: Colors.white70,
-          tabs: const [
-            Tab(text: 'Details', icon: Icon(Icons.info)),
-            Tab(text: 'Comments', icon: Icon(Icons.comment)),
-            Tab(text: 'Updates', icon: Icon(Icons.history)),
-          ],
-        ),
       ),
-      body: TabBarView(
-        controller: _tabController,
+      body: _isUpdating
+          ? const Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(height: 16),
+                  Text('Updating concern...'),
+                ],
+              ),
+            )
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildConcernHeader(),
+                  const SizedBox(height: 16),
+                  _buildConcernInfo(),
+                  const SizedBox(height: 16),
+                  _buildStatusSection(),
+                  const SizedBox(height: 16),
+                  _buildCommentsSection(),
+                  const SizedBox(height: 16),
+                  _buildUpdatesSection(),
+                ],
+              ),
+            ),
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          _buildDetailsTab(),
-          _buildCommentsTab(),
-          _buildUpdatesTab(),
+          _buildBottomActionBar(),
+          _buildBottomNavigationBar(),
         ],
       ),
     );
   }
 
-  Widget _buildDetailsTab() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header Card
-          Card(
-            elevation: 2,
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      _buildPriorityChip(widget.concern.priority),
-                      const SizedBox(width: 8),
-                      _buildStatusChip(widget.concern.status),
-                      const Spacer(),
-                      _buildCategoryChip(widget.concern.category),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
+  Widget _buildConcernHeader() {
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
                     widget.concern.title,
                     style: const TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    widget.concern.description,
-                    style: const TextStyle(fontSize: 16),
-                  ),
-                ],
-              ),
+                ),
+                _buildStatusChip(widget.concern.status),
+              ],
             ),
-          ),
-          const SizedBox(height: 16),
-
-          // Metadata Card
-          Card(
-            elevation: 2,
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Concern Information',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  _buildInfoRow('Type', _getTypeDisplayName(widget.concern.type)),
-                  _buildInfoRow('Author', widget.concern.isAnonymous ? 'Anonymous' : widget.concern.authorName),
-                  _buildInfoRow('Created', _formatDate(widget.concern.createdAt)),
-                  if (widget.concern.updatedAt != null)
-                    _buildInfoRow('Last Updated', _formatDate(widget.concern.updatedAt!)),
-                  if (widget.concern.assignedOfficerName != null)
-                    _buildInfoRow('Assigned To', widget.concern.assignedOfficerName!),
-                  if (widget.concern.tags.isNotEmpty) ...[
-                    const SizedBox(height: 8),
-                    const Text(
-                      'Tags:',
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 4),
-                    Wrap(
-                      spacing: 4,
-                      runSpacing: 4,
-                      children: widget.concern.tags.map((tag) => Chip(
-                        label: Text(tag),
-                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        visualDensity: VisualDensity.compact,
-                      )).toList(),
-                    ),
-                  ],
-                ],
-              ),
+            const SizedBox(height: 12),
+            Text(
+              widget.concern.description,
+              style: const TextStyle(fontSize: 16, height: 1.5),
             ),
-          ),
-          const SizedBox(height: 16),
-
-          // Engagement Card
-          Card(
-            elevation: 2,
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Public Engagement',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                _buildInfoChip(
+                  Icons.person,
+                  widget.concern.authorName,
+                  Colors.blue,
+                ),
+                const SizedBox(width: 8),
+                _buildInfoChip(
+                  Icons.category,
+                  widget.concern.category.name.toUpperCase(),
+                  Colors.green,
+                ),
+                const SizedBox(width: 8),
+                if (widget.concern.supportCount > 0)
+                  _buildInfoChip(
+                    Icons.thumb_up,
+                    '${widget.concern.supportCount} supports',
+                    Colors.orange,
                   ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildEngagementItem(
-                          Icons.thumb_up,
-                          'Upvotes',
-                          widget.concern.upvotes.toString(),
-                          Colors.green,
-                        ),
-                      ),
-                      Expanded(
-                        child: _buildEngagementItem(
-                          Icons.thumb_down,
-                          'Downvotes',
-                          widget.concern.downvotes.toString(),
-                          Colors.red,
-                        ),
-                      ),
-                      Expanded(
-                        child: _buildEngagementItem(
-                          Icons.comment,
-                          'Comments',
-                          widget.concern.commentCount.toString(),
-                          Colors.blue,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
+              ],
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildCommentsTab() {
-    return Column(
-      children: [
-        // Add Comment Section
-        Container(
-          padding: const EdgeInsets.all(16),
-          color: Colors.grey.shade50,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Add Comment',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
+  Widget _buildConcernInfo() {
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Concern Information',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
               ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: _commentController,
-                decoration: const InputDecoration(
-                  hintText: 'Add your comment...',
-                  border: OutlineInputBorder(),
-                ),
-                maxLines: 3,
-              ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Checkbox(
-                    value: false,
-                    onChanged: (value) {
-                      // Handle official comment checkbox
-                    },
-                  ),
-                  const Text('Official Response'),
-                  const Spacer(),
-                  ElevatedButton(
-                    onPressed: _isLoading ? null : _addComment,
-                    child: _isLoading
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Text('Post Comment'),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-
-        // Comments List
-        Expanded(
-          child: StreamBuilder<List<ConcernComment>>(
-            stream: _concernService.getConcernComments(widget.concern.id),
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
-              }
-
-              if (snapshot.hasError) {
-                return Center(
-                  child: Text('Error: ${snapshot.error}'),
-                );
-              }
-
-              final comments = snapshot.data ?? [];
-
-              if (comments.isEmpty) {
-                return const Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.comment_outlined, size: 64, color: Colors.grey),
-                      SizedBox(height: 16),
-                      Text(
-                        'No comments yet',
-                        style: TextStyle(fontSize: 18, color: Colors.grey),
-                      ),
-                      SizedBox(height: 8),
-                      Text(
-                        'Be the first to comment',
-                        style: TextStyle(color: Colors.grey),
-                      ),
-                    ],
-                  ),
-                );
-              }
-
-              return ListView.builder(
-                padding: const EdgeInsets.all(16),
-                itemCount: comments.length,
-                itemBuilder: (context, index) {
-                  final comment = comments[index];
-                  return _buildCommentCard(comment);
-                },
-              );
-            },
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildUpdatesTab() {
-    return StreamBuilder<List<ConcernUpdate>>(
-      stream: _concernService.getConcernUpdates(widget.concern.id),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-
-        if (snapshot.hasError) {
-          return Center(
-            child: Text('Error: ${snapshot.error}'),
-          );
-        }
-
-        final updates = snapshot.data ?? [];
-
-        if (updates.isEmpty) {
-          return const Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.history, size: 64, color: Colors.grey),
-                SizedBox(height: 16),
-                Text(
-                  'No updates yet',
-                  style: TextStyle(fontSize: 18, color: Colors.grey),
-                ),
-              ],
             ),
-          );
-        }
-
-        return ListView.builder(
-          padding: const EdgeInsets.all(16),
-          itemCount: updates.length,
-          itemBuilder: (context, index) {
-            final update = updates[index];
-            return _buildUpdateCard(update);
-          },
-        );
-      },
+            const SizedBox(height: 12),
+            _buildInfoRow('Type', widget.concern.type.name.toUpperCase()),
+            _buildInfoRow('Priority', widget.concern.priority.name.toUpperCase()),
+            _buildInfoRow('Created', _formatDate(widget.concern.createdAt)),
+            if (widget.concern.updatedAt != null)
+              _buildInfoRow('Last Updated', _formatDate(widget.concern.updatedAt!)),
+            if (widget.concern.assignedOfficerName != null)
+              _buildInfoRow('Assigned Officer', widget.concern.assignedOfficerName!),
+            if (widget.concern.tags.isNotEmpty)
+              _buildInfoRow('Tags', widget.concern.tags.join(', ')),
+          ],
+        ),
+      ),
     );
   }
 
@@ -403,309 +229,394 @@ class _ConcernDetailScreenState extends State<ConcernDetailScreen>
             width: 100,
             child: Text(
               '$label:',
-              style: const TextStyle(fontWeight: FontWeight.bold),
+              style: const TextStyle(
+                fontWeight: FontWeight.w500,
+                color: Colors.grey,
+              ),
             ),
           ),
           Expanded(
-            child: Text(value),
+            child: Text(
+              value,
+              style: const TextStyle(fontWeight: FontWeight.w500),
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildEngagementItem(IconData icon, String label, String value, Color color) {
-    return Column(
-      children: [
-        Icon(icon, color: color, size: 24),
-        const SizedBox(height: 4),
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: color,
-          ),
-        ),
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 12,
-            color: Colors.grey,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildCommentCard(ConcernComment comment) {
+  Widget _buildStatusSection() {
     return Card(
-      margin: const EdgeInsets.only(bottom: 12),
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            const Text(
+              'Current Status',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 12),
             Row(
               children: [
-                CircleAvatar(
-                  radius: 16,
-                  backgroundColor: comment.isOfficial ? Colors.blue : Colors.grey,
-                  child: Text(
-                    comment.authorName[0].toUpperCase(),
-                    style: const TextStyle(
+                _buildStatusChip(widget.concern.status),
+                const Spacer(),
+                Text(
+                  'Updated ${_formatDate(widget.concern.updatedAt ?? widget.concern.createdAt)}',
+                  style: const TextStyle(
+                    color: Colors.grey,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCommentsSection() {
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Comments & Updates',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 12),
+            StreamBuilder<List<ConcernComment>>(
+              stream: ConcernManagementService.getConcernComments(widget.concern.id),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                final comments = snapshot.data ?? [];
+                if (comments.isEmpty) {
+                  return const Text(
+                    'No comments yet',
+                    style: TextStyle(color: Colors.grey),
+                  );
+                }
+
+                return ListView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: comments.length,
+                  itemBuilder: (context, index) {
+                    final comment = comments[index];
+                    return _buildCommentItem(comment);
+                  },
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCommentItem(ConcernComment comment) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: comment.isOfficial ? Colors.blue.withOpacity(0.1) : Colors.grey.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: comment.isOfficial ? Colors.blue : Colors.grey,
+          width: 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                comment.isOfficial ? Icons.security : Icons.person,
+                size: 16,
+                color: comment.isOfficial ? Colors.blue : Colors.grey,
+              ),
+              const SizedBox(width: 4),
+              Text(
+                comment.authorName,
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: comment.isOfficial ? Colors.blue : Colors.grey[700],
+                ),
+              ),
+              if (comment.isOfficial) ...[
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.blue,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: const Text(
+                    'OFFICIAL',
+                    style: TextStyle(
                       color: Colors.white,
+                      fontSize: 10,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                 ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Text(
-                            comment.authorName,
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          if (comment.isOfficial) ...[
-                            const SizedBox(width: 8),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: Colors.blue,
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: const Text(
-                                'OFFICIAL',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                      Text(
-                        _formatDate(comment.createdAt),
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
               ],
-            ),
-            const SizedBox(height: 12),
-            Text(comment.content),
-          ],
-        ),
+              const Spacer(),
+              Text(
+                _formatDate(comment.createdAt),
+                style: const TextStyle(
+                  color: Colors.grey,
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            comment.content,
+            style: const TextStyle(fontSize: 14),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildUpdateCard(ConcernUpdate update) {
+  Widget _buildUpdatesSection() {
     return Card(
-      margin: const EdgeInsets.only(bottom: 12),
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                Icon(
-                  _getUpdateIcon(update.action),
-                  color: _getUpdateColor(update.action),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        _getUpdateTitle(update.action),
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      Text(
-                        'by ${update.officerName}',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Text(
-                  _formatDate(update.createdAt),
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(update.description),
-            if (update.changes.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade100,
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: update.changes.entries.map((entry) {
-                    return Text(
-                      '${entry.key}: ${entry.value}',
-                      style: const TextStyle(fontSize: 12),
-                    );
-                  }).toList(),
-                ),
+            const Text(
+              'Activity Timeline',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
               ),
-            ],
+            ),
+            const SizedBox(height: 12),
+            StreamBuilder<List<ConcernUpdate>>(
+              stream: ConcernManagementService.getConcernUpdates(widget.concern.id),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                final updates = snapshot.data ?? [];
+                if (updates.isEmpty) {
+                  return const Text(
+                    'No updates yet',
+                    style: TextStyle(color: Colors.grey),
+                  );
+                }
+
+                return ListView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: updates.length,
+                  itemBuilder: (context, index) {
+                    final update = updates[index];
+                    return _buildUpdateItem(update);
+                  },
+                );
+              },
+            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildPriorityChip(ConcernPriority priority) {
-    Color color;
-    switch (priority) {
-      case ConcernPriority.low:
-        color = Colors.green;
-        break;
-      case ConcernPriority.medium:
-        color = Colors.orange;
-        break;
-      case ConcernPriority.high:
-        color = Colors.red;
-        break;
-      case ConcernPriority.critical:
-        color = Colors.purple;
-        break;
-    }
-
+  Widget _buildUpdateItem(ConcernUpdate update) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.3)),
+        color: Colors.purple.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.purple, width: 1),
       ),
-      child: Text(
-        priority.name.toUpperCase(),
-        style: TextStyle(
-          fontSize: 10,
-          fontWeight: FontWeight.bold,
-          color: color,
-        ),
+      child: Row(
+        children: [
+          const Icon(Icons.update, color: Colors.purple, size: 16),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  update.description,
+                  style: const TextStyle(fontWeight: FontWeight.w500),
+                ),
+                Text(
+                  'by ${update.officerName} • ${_formatDate(update.createdAt)}',
+                  style: const TextStyle(
+                    color: Colors.grey,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBottomActionBar() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey,
+            blurRadius: 4,
+            offset: Offset(0, -2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: TextField(
+              controller: _commentController,
+              decoration: const InputDecoration(
+                hintText: 'Add a comment...',
+                border: OutlineInputBorder(),
+                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              ),
+              maxLines: null,
+            ),
+          ),
+          const SizedBox(width: 12),
+          ElevatedButton.icon(
+            onPressed: _isUpdating ? null : _addComment,
+            icon: _isUpdating
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.send),
+            label: const Text('Send'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.purple,
+              foregroundColor: Colors.white,
+            ),
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildStatusChip(ConcernStatus status) {
     Color color;
+    String text;
+    IconData icon;
+
     switch (status) {
       case ConcernStatus.pending:
         color = Colors.orange;
+        text = 'Pending';
+        icon = Icons.pending;
         break;
       case ConcernStatus.underReview:
         color = Colors.blue;
+        text = 'Under Review';
+        icon = Icons.search;
         break;
       case ConcernStatus.inProgress:
         color = Colors.purple;
+        text = 'In Progress';
+        icon = Icons.work;
         break;
       case ConcernStatus.resolved:
         color = Colors.green;
+        text = 'Resolved';
+        icon = Icons.check_circle;
         break;
       case ConcernStatus.dismissed:
         color = Colors.grey;
+        text = 'Dismissed';
+        icon = Icons.cancel;
         break;
       case ConcernStatus.escalated:
         color = Colors.red;
+        text = 'Escalated';
+        icon = Icons.priority_high;
         break;
     }
 
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: color),
+          const SizedBox(width: 6),
+          Text(
+            text,
+            style: TextStyle(
+              color: color,
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInfoChip(IconData icon, String text, Color color) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
         color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.3)),
+        borderRadius: BorderRadius.circular(8),
       ),
-      child: Text(
-        status.name.toUpperCase(),
-        style: TextStyle(
-          fontSize: 10,
-          fontWeight: FontWeight.bold,
-          color: color,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildCategoryChip(ConcernCategory category) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: Colors.blue.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.blue.withOpacity(0.3)),
-      ),
-      child: Text(
-        _getCategoryDisplayName(category),
-        style: const TextStyle(
-          fontSize: 10,
-          fontWeight: FontWeight.bold,
-          color: Colors.blue,
-        ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: color),
+          const SizedBox(width: 4),
+          Text(
+            text,
+            style: TextStyle(
+              color: color,
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
       ),
     );
-  }
-
-  String _getCategoryDisplayName(ConcernCategory category) {
-    switch (category) {
-      case ConcernCategory.budget:
-        return 'BUDGET';
-      case ConcernCategory.tender:
-        return 'TENDER';
-      case ConcernCategory.community:
-        return 'COMMUNITY';
-      case ConcernCategory.system:
-        return 'SYSTEM';
-      case ConcernCategory.corruption:
-        return 'CORRUPTION';
-      case ConcernCategory.transparency:
-        return 'TRANSPARENCY';
-      case ConcernCategory.other:
-        return 'OTHER';
-    }
-  }
-
-  String _getTypeDisplayName(ConcernType type) {
-    switch (type) {
-      case ConcernType.complaint:
-        return 'Complaint';
-      case ConcernType.suggestion:
-        return 'Suggestion';
-      case ConcernType.report:
-        return 'Report';
-      case ConcernType.question:
-        return 'Question';
-      case ConcernType.feedback:
-        return 'Feedback';
-    }
   }
 
   String _formatDate(DateTime date) {
@@ -713,192 +624,196 @@ class _ConcernDetailScreenState extends State<ConcernDetailScreen>
     final difference = now.difference(date);
 
     if (difference.inDays > 0) {
-      return '${difference.inDays} days ago';
+      return '${difference.inDays}d ago';
     } else if (difference.inHours > 0) {
-      return '${difference.inHours} hours ago';
+      return '${difference.inHours}h ago';
     } else if (difference.inMinutes > 0) {
-      return '${difference.inMinutes} minutes ago';
+      return '${difference.inMinutes}m ago';
     } else {
       return 'Just now';
     }
   }
 
-  IconData _getUpdateIcon(String action) {
-    switch (action) {
-      case 'created':
-        return Icons.add_circle;
-      case 'status_update':
-        return Icons.update;
-      case 'assigned':
-        return Icons.assignment_ind;
-      case 'escalated':
-        return Icons.trending_up;
-      default:
-        return Icons.info;
-    }
+  void _showStatusUpdateDialog(String action) {
+    final statusMap = {
+      'underReview': ConcernStatus.underReview,
+      'inProgress': ConcernStatus.inProgress,
+      'resolved': ConcernStatus.resolved,
+      'dismissed': ConcernStatus.dismissed,
+    };
+
+    final newStatus = statusMap[action];
+    if (newStatus == null) return;
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Update Status to ${newStatus.name.toUpperCase()}'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Add a comment about this status change:'),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _commentController,
+              decoration: const InputDecoration(
+                hintText: 'Enter comment...',
+                border: OutlineInputBorder(),
+              ),
+              maxLines: 3,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _updateStatus(newStatus, _commentController.text);
+            },
+            child: const Text('Update'),
+          ),
+        ],
+      ),
+    );
   }
 
-  Color _getUpdateColor(String action) {
-    switch (action) {
-      case 'created':
-        return Colors.green;
-      case 'status_update':
-        return Colors.blue;
-      case 'assigned':
-        return Colors.orange;
-      case 'escalated':
-        return Colors.red;
-      default:
-        return Colors.grey;
-    }
-  }
+  Future<void> _updateStatus(ConcernStatus newStatus, String comment) async {
+    setState(() => _isUpdating = true);
 
-  String _getUpdateTitle(String action) {
-    switch (action) {
-      case 'created':
-        return 'Concern Created';
-      case 'status_update':
-        return 'Status Updated';
-      case 'assigned':
-        return 'Concern Assigned';
-      case 'escalated':
-        return 'Concern Escalated';
-      default:
-        return 'Update';
+    try {
+      await ConcernManagementService.updateConcernStatus(
+        concernId: widget.concern.id,
+        newStatus: newStatus,
+        officerId: widget.officerId,
+        officerName: widget.officerName,
+        comment: comment.isNotEmpty ? comment : null,
+      );
+
+      // Send notification to user
+      await NotificationService.notifyStatusChange(
+        concernId: widget.concern.id,
+        userId: widget.concern.authorId,
+        oldStatus: widget.concern.status,
+        newStatus: newStatus,
+        comment: comment.isNotEmpty ? comment : null,
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Status updated to ${newStatus.name}'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error updating status: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      setState(() => _isUpdating = false);
     }
   }
 
   Future<void> _addComment() async {
-    if (_commentController.text.trim().isEmpty) return;
+    final comment = _commentController.text.trim();
+    if (comment.isEmpty) return;
 
-    setState(() {
-      _isLoading = true;
-    });
+    setState(() => _isUpdating = true);
 
     try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) return;
-
-      await _concernService.addComment(
+      await ConcernManagementService.addOfficerComment(
         widget.concern.id,
-        _commentController.text.trim(),
-        user.uid,
-        user.displayName ?? user.email?.split('@').first ?? 'User',
+        comment,
+        widget.officerId,
+        widget.officerName,
+      );
+
+      // Send notification to user
+      await NotificationService.notifyOfficerComment(
+        concernId: widget.concern.id,
+        userId: widget.concern.authorId,
+        comment: comment,
+        officerName: widget.officerName,
       );
 
       _commentController.clear();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Comment added successfully'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error adding comment: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error adding comment: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      setState(() => _isUpdating = false);
     }
   }
 
-  void _handleMenuAction(String action) {
-    switch (action) {
-      case 'assign':
-        _showAssignDialog();
-        break;
-      case 'priority':
-        _showPriorityDialog();
-        break;
-      case 'status':
-        _showStatusDialog();
-        break;
-      case 'escalate':
-        _escalateConcern();
-        break;
-    }
-  }
-
-  void _showAssignDialog() {
-    // Implement assignment dialog
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Assign Concern'),
-        content: const Text('Assignment functionality will be implemented here.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Assign'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showPriorityDialog() {
-    // Implement priority change dialog
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Change Priority'),
-        content: const Text('Priority change functionality will be implemented here.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Update'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showStatusDialog() {
-    // Implement status update dialog
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Update Status'),
-        content: const Text('Status update functionality will be implemented here.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Update'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _escalateConcern() {
-    // Implement escalation functionality
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Escalate Concern'),
-        content: const Text('This concern will be escalated to higher authorities.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Escalate'),
-          ),
-        ],
-      ),
+  Widget _buildBottomNavigationBar() {
+    return BottomNavigationBar(
+      type: BottomNavigationBarType.fixed,
+      backgroundColor: Colors.white,
+      selectedItemColor: Colors.purple,
+      unselectedItemColor: Colors.grey,
+      currentIndex: 3, // Dashboard is selected (index 3)
+      onTap: (index) {
+        switch (index) {
+          case 0:
+            Navigator.pushNamed(context, '/common-home');
+            break;
+          case 1:
+            Navigator.pushNamed(context, '/budget-viewer');
+            break;
+          case 2:
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const PublicTenderViewerScreen()),
+            );
+            break;
+          case 3:
+            Navigator.pushNamed(context, '/dashboard');
+            break;
+        }
+      },
+      items: const [
+        BottomNavigationBarItem(
+          icon: Icon(Icons.home),
+          label: 'Home',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.account_balance),
+          label: 'Budget',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.shopping_cart),
+          label: 'Tenders',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.dashboard),
+          label: 'Dashboard',
+        ),
+      ],
     );
   }
 }

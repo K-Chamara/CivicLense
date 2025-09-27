@@ -9,8 +9,11 @@ import '../models/user_role.dart';
 import 'login_screen.dart';
 import 'budget_viewer_screen.dart';
 import 'citizen_tender_screen.dart';
+import 'public_tender_viewer_screen.dart';
+import 'ongoing_tenders_screen.dart';
 import 'raise_concern_screen.dart';
 import 'public_concerns_screen.dart';
+import 'user_concern_tracking_screen.dart';
 import 'enhanced_dashboard_screen.dart';
 import 'admin_dashboard_screen.dart';
 import 'finance_officer_dashboard_screen.dart';
@@ -18,6 +21,7 @@ import 'procurement_officer_dashboard_screen.dart';
 import 'anticorruption_officer_dashboard_screen.dart';
 import 'public_user_dashboard_screen.dart';
 import 'admin_approval_screen.dart';
+import 'transparency_dashboard_screen.dart';
 
 class CommonHomeScreen extends StatefulWidget {
   const CommonHomeScreen({super.key});
@@ -504,6 +508,7 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
       child: Row(
         children: [
           Expanded(
+            flex: 1,
             child: _buildStatCard(
               'Allocations',
               allocationsCount.toString(),
@@ -512,8 +517,9 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
               'Budget items',
             ),
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: 12),
           Expanded(
+            flex: 1,
             child: _buildStatCard(
               'Active Tenders',
               activeTendersCount.toString(),
@@ -522,8 +528,9 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
               'In progress',
             ),
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: 12),
           Expanded(
+            flex: 1,
             child: _buildStatCard(
               'Projects',
               projectsCount.toString(),
@@ -539,17 +546,16 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
 
   Widget _buildStatCard(String title, String value, IconData icon, Color color, String subtitle) {
     return Container(
-      height: 160, // Fixed height for all cards
-      width: double.infinity, // Ensure full width
-      padding: const EdgeInsets.all(12),
+      height: 140,
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+            color: Colors.grey.withOpacity(0.08),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
@@ -569,54 +575,51 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
                 ),
                 child: Icon(icon, color: color, size: 18),
               ),
-              Icon(Icons.trending_up, color: Colors.green, size: 14),
+              Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: Colors.green.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Icon(Icons.trending_up, color: Colors.green, size: 12),
+              ),
             ],
           ),
-          // Content area with fixed heights
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                // Value with fixed height
-                Container(
-                  height: 30,
-                  child: Text(
-                    value,
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: color,
-                    ),
-                  ),
+          // Content area
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Value
+              Text(
+                value,
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: color,
                 ),
-                // Title with fixed height
-                Container(
-                  height: 20,
-                  child: Text(
-                    title,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
+              ),
+              const SizedBox(height: 4),
+              // Title
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: Colors.grey,
+                  fontWeight: FontWeight.w600,
                 ),
-                // Subtitle with fixed height
-                Container(
-                  height: 32,
-                  child: Text(
-                    subtitle,
-                    style: TextStyle(
-                      fontSize: 10,
-                      color: Colors.grey.shade600,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
+              ),
+              const SizedBox(height: 2),
+              // Subtitle
+              Text(
+                subtitle,
+                style: TextStyle(
+                  fontSize: 10,
+                  color: Colors.grey.shade600,
                 ),
-              ],
-            ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
           ),
         ],
       ),
@@ -675,11 +678,28 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
                   Colors.orange,
                   () => Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (context) => const CitizenTenderScreen()),
+                    MaterialPageRoute(builder: (context) => const PublicTenderViewerScreen()),
                   ),
                 ),
               ),
               const SizedBox(width: 16),
+              Expanded(
+                child: _buildNavigationCard(
+                  'Track Projects',
+                  'View and track awarded projects',
+                  Icons.work,
+                  Colors.purple,
+                  () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const OngoingTendersScreen()),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
               Expanded(
                 child: _buildNavigationCard(
                   'Raise Concern',
@@ -689,6 +709,19 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
                   () => Navigator.push(
                     context,
                     MaterialPageRoute(builder: (context) => const RaiseConcernScreen()),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: _buildNavigationCard(
+                  'Public Concerns',
+                  'View community concerns and issues',
+                  Icons.people_alt,
+                  Colors.teal,
+                  () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const PublicConcernsScreen()),
                   ),
                 ),
               ),
@@ -954,6 +987,10 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
           context,
           MaterialPageRoute(builder: (context) => const BudgetViewerScreen()),
         )),
+        _buildActionCard('Transparency Dashboard', Icons.visibility, Colors.blue, () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const TransparencyDashboardScreen()),
+        )),
         _buildActionCard('View Public Concerns', Icons.people_alt, Colors.purple, () => Navigator.push(
           context,
           MaterialPageRoute(builder: (context) => const PublicConcernsScreen()),
@@ -977,6 +1014,10 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
         _buildActionCard('Track Public Spending', Icons.account_balance, Colors.blue, () => Navigator.push(
           context,
           MaterialPageRoute(builder: (context) => const BudgetViewerScreen()),
+        )),
+        _buildActionCard('Transparency Dashboard', Icons.visibility, Colors.purple, () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const TransparencyDashboardScreen()),
         )),
         _buildActionCard('View Reports', Icons.analytics, Colors.green, () => _showFeatureComingSoon('View Reports')),
       ],
@@ -1293,6 +1334,16 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
                   ),
                 ),
                 _buildDrawerItem(
+                  icon: Icons.track_changes,
+                  title: 'My Concerns',
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const UserConcernTrackingScreen(),
+                    ),
+                  ),
+                ),
+                _buildDrawerItem(
                   icon: Icons.people_alt,
                   title: 'View Public Concerns',
                   onTap: () => Navigator.push(
@@ -1476,11 +1527,11 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
         });
         return _buildHomePage();
       case 2:
-        // Navigate to Citizen Tender Screen
+        // Navigate to Public Tender Viewer Screen
         WidgetsBinding.instance.addPostFrameCallback((_) {
           Navigator.push(
             context,
-            MaterialPageRoute(builder: (context) => const CitizenTenderScreen()),
+            MaterialPageRoute(builder: (context) => const PublicTenderViewerScreen()),
           );
           // Reset to home page after navigation
           setState(() {

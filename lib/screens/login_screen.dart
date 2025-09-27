@@ -105,17 +105,72 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (mounted) {
         if (isGovernmentUser && userRole != null) {
-          // For government users, redirect to email OTP verification without signing in yet
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(
-              builder: (context) => GovernmentOtpVerificationScreen(
-                email: email,
-                userRole: userRole!,
-                isLogin: true,
-                password: password,
+          // For government users, verify password first before sending OTP
+          try {
+            await AuthService().signInWithEmailAndPassword(email, password);
+            // Password is correct, now redirect to OTP verification
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(
+                builder: (context) => GovernmentOtpVerificationScreen(
+                  email: email,
+                  userRole: userRole!,
+                  isLogin: true,
+                  password: password,
+                ),
               ),
-            ),
-          );
+            );
+          } catch (e) {
+            // Password verification failed, show error
+            if (e is FirebaseAuthException) {
+              String message = 'An error occurred during login.';
+              switch (e.code) {
+                case 'user-not-found':
+                  message = 'No user found with this email address.';
+                  break;
+                case 'wrong-password':
+                  message = 'Incorrect password.';
+                  break;
+                case 'invalid-email':
+                  message = 'Please enter a valid email address.';
+                  break;
+                case 'user-disabled':
+                  message = 'This account has been disabled.';
+                  break;
+                case 'too-many-requests':
+                  message = 'Too many failed attempts. Please try again later.';
+                  break;
+                case 'email-not-verified':
+                  message = 'Please verify your email before signing in. Check your inbox for the verification link.';
+                  break;
+                case 'operation-not-allowed':
+                  message = 'Email/Password authentication is not enabled. Please enable it in Firebase Console.';
+                  break;
+                case 'network-request-failed':
+                  message = 'Network error. Please check your internet connection.';
+                  break;
+                default:
+                  message = 'Firebase Error: ${e.code} - ${e.message}';
+              }
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(message),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
+            } else {
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('An unexpected error occurred.'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
+            }
+            return; // Exit the function to prevent further processing
+          }
         } else {
           // For regular users, sign in and let AuthWrapper handle routing
           await AuthService().signInWithEmailAndPassword(email, password);
@@ -126,52 +181,6 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
           );
         }
-      }
-    } on FirebaseAuthException catch (e) {
-      String message = 'An error occurred during login.';
-
-      switch (e.code) {
-        case 'user-not-found':
-          message = 'No user found with this email address.';
-          break;
-        case 'wrong-password':
-          message = 'Incorrect password.';
-          break;
-        case 'invalid-email':
-          message = 'Please enter a valid email address.';
-          break;
-        case 'user-disabled':
-          message = 'This account has been disabled.';
-          break;
-        case 'too-many-requests':
-          message = 'Too many failed attempts. Please try again later.';
-          break;
-        case 'email-not-verified':
-          message =
-          'Please verify your email before signing in. Check your inbox for the verification link.';
-          // Show dialog to resend verification email
-          if (mounted) {
-            _showResendVerificationDialog();
-          }
-          break;
-        case 'operation-not-allowed':
-          message =
-          'Email/Password authentication is not enabled. Please enable it in Firebase Console.';
-          break;
-        case 'network-request-failed':
-          message = 'Network error. Please check your internet connection.';
-          break;
-        default:
-          message = 'Firebase Error: ${e.code} - ${e.message}';
-      }
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(message),
-            backgroundColor: Colors.red,
-          ),
-        );
       }
     } catch (e) {
       if (mounted) {
