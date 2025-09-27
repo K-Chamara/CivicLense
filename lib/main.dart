@@ -23,12 +23,16 @@ import 'screens/admin_setup_screen.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  // Initialize Firebase
-  await Firebase.initializeApp();
-  
-  print('🚀 Civic Lense App Starting...');
-  print('📁 File uploads: Using Cloudinary (free)');
-  print('🔥 Firebase: Using production services');
+  try {
+    // Initialize Firebase with error handling
+    await Firebase.initializeApp();
+    print('🚀 Civic Lense App Starting...');
+    print('📁 File uploads: Using Cloudinary (free)');
+    print('🔥 Firebase: Successfully initialized');
+  } catch (e) {
+    print('❌ Firebase initialization failed: $e');
+    print('🔄 App will continue with limited functionality');
+  }
   
   runApp(const MyApp());
 }
