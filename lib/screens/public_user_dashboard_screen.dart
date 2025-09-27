@@ -3,6 +3,7 @@ import '../services/auth_service.dart';
 import '../models/user_role.dart';
 import 'enhanced_dashboard_screen.dart';
 import 'login_screen.dart';
+import 'raise_concern_screen.dart';
 
 class PublicUserDashboardScreen extends StatefulWidget {
   const PublicUserDashboardScreen({super.key});
@@ -175,7 +176,12 @@ class _PublicUserDashboardScreenState extends State<PublicUserDashboardScreen> {
           'Report issues and track their resolution',
           Icons.report_problem,
           Colors.orange,
-          () => _showFeatureComingSoon('Raise Concerns'),
+          () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const RaiseConcernScreen(),
+            ),
+          ),
         ),
         _buildFeatureCard(
           'View Reports',
@@ -400,7 +406,12 @@ class _PublicUserDashboardScreenState extends State<PublicUserDashboardScreen> {
           'Report issues and track their resolution',
           Icons.report_problem,
           Colors.orange,
-          () => _showFeatureComingSoon('Raise Concerns'),
+          () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const RaiseConcernScreen(),
+            ),
+          ),
         ),
       ],
     );
@@ -438,7 +449,12 @@ class _PublicUserDashboardScreenState extends State<PublicUserDashboardScreen> {
           'Report issues and track their resolution',
           Icons.report_problem,
           Colors.orange,
-          () => _showFeatureComingSoon('Raise Concerns'),
+          () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const RaiseConcernScreen(),
+            ),
+          ),
         ),
         _buildFeatureCard(
           'Government Directory',

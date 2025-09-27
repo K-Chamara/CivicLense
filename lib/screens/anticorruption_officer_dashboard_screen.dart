@@ -709,17 +709,6 @@ class _AntiCorruptionOfficerDashboardScreenState extends State<AntiCorruptionOff
                   },
                 ),
                 _buildDrawerItem(
-                  icon: Icons.track_changes,
-                  title: 'My Concerns',
-                  onTap: () {
-                    Navigator.pop(context);
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const UserConcernTrackingScreen()),
-                    );
-                  },
-                ),
-                _buildDrawerItem(
                   icon: Icons.shopping_cart,
                   title: 'Tenders',
                   onTap: () {

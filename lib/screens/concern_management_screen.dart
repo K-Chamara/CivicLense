@@ -4,6 +4,7 @@ import '../models/concern_models.dart';
 import '../services/concern_management_service.dart';
 import '../services/notification_service.dart';
 import 'concern_detail_screen.dart';
+import 'public_tender_viewer_screen.dart';
 
 class ConcernManagementScreen extends StatefulWidget {
   const ConcernManagementScreen({super.key});
@@ -73,6 +74,7 @@ class _ConcernManagementScreenState extends State<ConcernManagementScreen>
           _buildConcernsList(ConcernManagementService.getPriorityConcerns()),
         ],
       ),
+      bottomNavigationBar: _buildBottomNavigationBar(),
     );
   }
 
@@ -350,6 +352,53 @@ class _ConcernManagementScreenState extends State<ConcernManagementScreen>
           officerName: _currentUserName!,
         ),
       ),
+    );
+  }
+
+  Widget _buildBottomNavigationBar() {
+    return BottomNavigationBar(
+      type: BottomNavigationBarType.fixed,
+      backgroundColor: Colors.white,
+      selectedItemColor: Colors.purple,
+      unselectedItemColor: Colors.grey,
+      currentIndex: 3, // Dashboard is selected (index 3)
+      onTap: (index) {
+        switch (index) {
+          case 0:
+            Navigator.pushNamed(context, '/common-home');
+            break;
+          case 1:
+            Navigator.pushNamed(context, '/budget-viewer');
+            break;
+          case 2:
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const PublicTenderViewerScreen()),
+            );
+            break;
+          case 3:
+            Navigator.pushNamed(context, '/dashboard');
+            break;
+        }
+      },
+      items: const [
+        BottomNavigationBarItem(
+          icon: Icon(Icons.home),
+          label: 'Home',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.account_balance),
+          label: 'Budget',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.shopping_cart),
+          label: 'Tenders',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.dashboard),
+          label: 'Dashboard',
+        ),
+      ],
     );
   }
 }

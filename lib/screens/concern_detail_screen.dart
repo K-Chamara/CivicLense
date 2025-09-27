@@ -776,7 +776,7 @@ class _ConcernDetailScreenState extends State<ConcernDetailScreen> {
       backgroundColor: Colors.white,
       selectedItemColor: Colors.purple,
       unselectedItemColor: Colors.grey,
-      currentIndex: 3, // My Concerns is selected (index 3)
+      currentIndex: 3, // Dashboard is selected (index 3)
       onTap: (index) {
         switch (index) {
           case 0:
@@ -792,15 +792,6 @@ class _ConcernDetailScreenState extends State<ConcernDetailScreen> {
             );
             break;
           case 3:
-            // Navigate to My Concerns
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const UserConcernTrackingScreen(),
-              ),
-            );
-            break;
-          case 4:
             Navigator.pushNamed(context, '/dashboard');
             break;
         }
@@ -817,10 +808,6 @@ class _ConcernDetailScreenState extends State<ConcernDetailScreen> {
         BottomNavigationBarItem(
           icon: Icon(Icons.shopping_cart),
           label: 'Tenders',
-        ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.track_changes),
-          label: 'My Concerns',
         ),
         BottomNavigationBarItem(
           icon: Icon(Icons.dashboard),

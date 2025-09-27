@@ -10,8 +10,10 @@ import 'login_screen.dart';
 import 'budget_viewer_screen.dart';
 import 'citizen_tender_screen.dart';
 import 'public_tender_viewer_screen.dart';
+import 'ongoing_tenders_screen.dart';
 import 'raise_concern_screen.dart';
 import 'public_concerns_screen.dart';
+import 'user_concern_tracking_screen.dart';
 import 'enhanced_dashboard_screen.dart';
 import 'admin_dashboard_screen.dart';
 import 'finance_officer_dashboard_screen.dart';
@@ -683,6 +685,23 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
               const SizedBox(width: 16),
               Expanded(
                 child: _buildNavigationCard(
+                  'Track Projects',
+                  'View and track awarded projects',
+                  Icons.work,
+                  Colors.purple,
+                  () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const OngoingTendersScreen()),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: _buildNavigationCard(
                   'Raise Concern',
                   'Report issues and track resolution',
                   Icons.report_problem,
@@ -690,6 +709,19 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
                   () => Navigator.push(
                     context,
                     MaterialPageRoute(builder: (context) => const RaiseConcernScreen()),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: _buildNavigationCard(
+                  'Public Concerns',
+                  'View community concerns and issues',
+                  Icons.people_alt,
+                  Colors.teal,
+                  () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const PublicConcernsScreen()),
                   ),
                 ),
               ),
@@ -1298,6 +1330,16 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
                     context,
                     MaterialPageRoute(
                       builder: (context) => const RaiseConcernScreen(),
+                    ),
+                  ),
+                ),
+                _buildDrawerItem(
+                  icon: Icons.track_changes,
+                  title: 'My Concerns',
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const UserConcernTrackingScreen(),
                     ),
                   ),
                 ),
