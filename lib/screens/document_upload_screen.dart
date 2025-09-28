@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:path/path.dart' as path;
+import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:io';
 import '../services/cloudinary_service.dart';
+import 'email_verification_screen.dart';
 
 class DocumentUploadScreen extends StatefulWidget {
   final String userRole;
@@ -170,14 +172,23 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('✅ ${uploadedUrls.length} documents uploaded successfully! Your account is pending approval.'),
+            content: Text('✅ ${uploadedUrls.length} documents uploaded successfully! Now please verify your email.'),
             backgroundColor: Colors.green,
             duration: const Duration(seconds: 4),
           ),
         );
         
-        // Navigate to common home screen with pending status
-        Navigator.pushReplacementNamed(context, '/common-home');
+        // Navigate to email verification screen after document upload
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => EmailVerificationScreen(
+              email: FirebaseAuth.instance.currentUser?.email ?? '',
+              userRole: widget.userRole,
+              userId: widget.userId,
+            ),
+          ),
+        );
       }
     } catch (e) {
       print('❌ Upload error: $e');

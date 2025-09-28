@@ -8,6 +8,7 @@ import 'community_list_screen.dart';
 import 'concern_management_screen.dart';
 import 'news_feed_screen.dart';
 import 'public_tender_viewer_screen.dart';
+import 'user_management_screen.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
   const AdminDashboardScreen({super.key});
@@ -560,15 +561,15 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
             ),
             _buildManagementCard(
               'User Management',
-              'Manage system users and permissions',
+              'Review and approve user documents',
               Icons.people,
               Colors.green,
               () {
-                // Scroll to user management section
-                Scrollable.ensureVisible(
+                Navigator.push(
                   context,
-                  duration: const Duration(milliseconds: 500),
-                  curve: Curves.easeInOut,
+                  MaterialPageRoute(
+                    builder: (context) => const UserManagementScreen(),
+                  ),
                 );
               },
             ),
