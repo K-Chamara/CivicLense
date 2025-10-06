@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
@@ -6,6 +7,7 @@ import '../services/news_service.dart';
 import '../services/media_hub_service.dart';
 import '../services/community_service.dart';
 import '../models/report.dart';
+import 'edit_article_screen.dart';
 
 class ArticleDetailScreen extends StatefulWidget {
   const ArticleDetailScreen({super.key});
@@ -14,15 +16,42 @@ class ArticleDetailScreen extends StatefulWidget {
   State<ArticleDetailScreen> createState() => _ArticleDetailScreenState();
 }
 
-class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
+class _ArticleDetailScreenState extends State<ArticleDetailScreen> with TickerProviderStateMixin {
   final _news = NewsService();
   final _hub = MediaHubService();
   final _communityService = CommunityService();
   final _commentController = TextEditingController();
+  
+  late AnimationController _likeAnimationController;
+  late AnimationController _shareAnimationController;
+  late Animation<double> _likeAnimation;
+  late Animation<double> _shareAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _likeAnimationController = AnimationController(
+      duration: const Duration(milliseconds: 300),
+      vsync: this,
+    );
+    _shareAnimationController = AnimationController(
+      duration: const Duration(milliseconds: 200),
+      vsync: this,
+    );
+    
+    _likeAnimation = Tween<double>(begin: 1.0, end: 1.2).animate(
+      CurvedAnimation(parent: _likeAnimationController, curve: Curves.elasticOut),
+    );
+    _shareAnimation = Tween<double>(begin: 1.0, end: 0.95).animate(
+      CurvedAnimation(parent: _shareAnimationController, curve: Curves.easeInOut),
+    );
+  }
 
   @override
   void dispose() {
     _commentController.dispose();
+    _likeAnimationController.dispose();
+    _shareAnimationController.dispose();
     super.dispose();
   }
 
@@ -59,23 +88,49 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
   Widget build(BuildContext context) {
     final String articleId = ModalRoute.of(context)?.settings.arguments as String? ?? '';
     return Scaffold(
+      backgroundColor: Theme.of(context).colorScheme.surfaceContainerLowest,
       appBar: AppBar(
         title: const Text('Article'),
-        backgroundColor: Colors.blue,
-        foregroundColor: Colors.white,
+        backgroundColor: Theme.of(context).colorScheme.primary,
+        foregroundColor: Theme.of(context).colorScheme.onPrimary,
+        elevation: 0,
+        centerTitle: true,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.share),
-            onPressed: () async {
-              final a = await _news.getArticle(articleId);
-              if (a == null) return;
-              Share.share('${a.title}\n\n${a.summary}');
+          StreamBuilder<ReportArticle?>(
+            stream: _news.streamArticle(articleId),
+            builder: (context, snapshot) {
+              if (!snapshot.hasData) return const SizedBox.shrink();
+              final article = snapshot.data!;
+              final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+              final isAuthor = currentUserId != null && article.authorUid == currentUserId;
+              
+              if (!isAuthor) return const SizedBox.shrink();
+              
+              return IconButton(
+                icon: const Icon(Icons.edit),
+                onPressed: () => _showEditOptions(article),
+                tooltip: 'Edit Article',
+              );
             },
+          ),
+          ScaleTransition(
+            scale: _shareAnimation,
+            child: IconButton(
+              icon: const Icon(Icons.share_rounded),
+              onPressed: () async {
+                _shareAnimationController.forward().then((_) {
+                  _shareAnimationController.reverse();
+                });
+                final a = await _news.getArticle(articleId);
+                if (a == null) return;
+                Share.share('${a.title}\n\n${a.summary}');
+              },
+            ),
           ),
         ],
       ),
-      body: FutureBuilder<ReportArticle?>(
-        future: _news.getArticle(articleId),
+      body: StreamBuilder<ReportArticle?>(
+        stream: _news.streamArticle(articleId),
         builder: (context, snapshot) {
           if (!snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
@@ -89,72 +144,141 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
-                        children: [
-                          Expanded(child: Text(a.title, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold))),
-                          if (a.isBreakingNews) _chip('Breaking', Colors.red),
-                          const SizedBox(width: 6),
-                          if (a.isVerified) _chip('Verified', Colors.green),
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-                      Text('By ${a.authorName} • ${a.organization} • ${a.authorEmail}', style: const TextStyle(color: Colors.grey)),
-                      const SizedBox(height: 10),
-                      Wrap(spacing: 6, children: [
-                        if (a.category.isNotEmpty) _chip(a.category, Colors.blue),
-                        ...a.hashtags.map((h) => _chip('#$h', Colors.purple)).toList(),
-                      ]),
-                      const Divider(height: 24),
-                      Text(a.abstractText, style: const TextStyle(fontStyle: FontStyle.italic)),
-                      const SizedBox(height: 12),
-                      Text(a.summary),
-                      const SizedBox(height: 12),
-                      Text(a.content),
-                      const Divider(height: 24),
-                      if (a.references.isNotEmpty) Text('References\n${a.references}'),
-                      const SizedBox(height: 20),
-                      SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: Row(
+                      // Header section container (no shadow; bordered)
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.black12),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            ElevatedButton.icon(
-                              onPressed: () => _news.likeArticle(a.id),
-                              icon: const Icon(Icons.thumb_up_alt_outlined),
-                              label: Text('Like (${a.likeCount})'),
-                            ),
-                            const SizedBox(width: 8),
-                            OutlinedButton.icon(
-                              onPressed: () => _downloadPdf(a),
-                              icon: const Icon(Icons.download),
-                              label: const Text('Download PDF'),
-                            ),
-                            const SizedBox(width: 8),
-                            OutlinedButton.icon(
-                              onPressed: () async {
-                                await _hub.shareArticleToHub(
-                                  articleId: a.id,
-                                  title: a.title,
-                                  summary: a.summary,
-                                  authorName: a.authorName,
-                                );
-                                if (mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Shared to Media Hub')));
-                                }
-                              },
-                              icon: const Icon(Icons.send),
-                              label: const Text('Share to Media Hub'),
-                            ),
-                            const SizedBox(width: 8),
-                            OutlinedButton.icon(
-                              onPressed: () => _showShareToCommunityDialog(a),
-                              icon: const Icon(Icons.people),
-                              label: const Text('Share to Community'),
-                            ),
+                            Text(a.title, style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
+                            const SizedBox(height: 8),
+                            Text('By ${a.authorName} • ${a.organization} • ${a.authorEmail}', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.black54)),
+                            const SizedBox(height: 10),
+                            Wrap(spacing: 6, children: [
+                              if (a.isBreakingNews) _chip('Breaking', Colors.red),
+                              if (a.isVerified) _chip('Verified', Colors.green),
+                              if (a.category.isNotEmpty) _chip(a.category, Colors.blue),
+                              ...a.hashtags.map((h) => _chip('#$h', Colors.purple)).toList(),
+                            ]),
                           ],
                         ),
                       ),
-                      const SizedBox(height: 20),
-                      const Text('Comments', style: TextStyle(fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 12),
+                      // Content cards (no shadow; bordered)
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.black12),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(a.abstractText, style: const TextStyle(fontStyle: FontStyle.italic)),
+                            const SizedBox(height: 12),
+                            Text(a.summary, style: Theme.of(context).textTheme.bodyMedium),
+                            const SizedBox(height: 12),
+                            Text(a.content, style: Theme.of(context).textTheme.bodyLarge),
+                            if (a.references.isNotEmpty) ...[
+                              const SizedBox(height: 16),
+                              Text('References', style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
+                              const SizedBox(height: 4),
+                              Text(a.references, style: Theme.of(context).textTheme.bodySmall),
+                            ],
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      // Actions row using chips for consistency
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          StreamBuilder<bool>(
+                            stream: _news.streamUserLiked(a.id),
+                            builder: (context, likedSnap) {
+                              final liked = likedSnap.data == true;
+                              return ScaleTransition(
+                                scale: _likeAnimation,
+                                child: ActionChip(
+                                  avatar: Icon(
+                                    liked ? Icons.thumb_up_rounded : Icons.thumb_up_outlined, 
+                                    size: 18, 
+                                    color: liked ? Theme.of(context).colorScheme.primary : null
+                                  ),
+                                  label: Text(liked ? 'Liked ${a.likeCount}' : 'Like ${a.likeCount}'),
+                                  onPressed: () async {
+                                    _likeAnimationController.forward().then((_) {
+                                      _likeAnimationController.reverse();
+                                    });
+                                    try {
+                                      await _news.toggleLike(a.id);
+                                    } catch (e) {
+                                      if (context.mounted) {
+                                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+                                      }
+                                    }
+                                  },
+                                  backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(liked ? 0.15 : 0.08),
+                                  labelStyle: TextStyle(
+                                    color: Theme.of(context).colorScheme.primary,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                    side: BorderSide(
+                                      color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
+                                    ),
+                                  ),
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                ),
+                              );
+                            },
+                          ),
+                          ActionChip(
+                            avatar: const Icon(Icons.download, size: 18),
+                            label: const Text('PDF'),
+                            onPressed: () => _downloadPdf(a),
+                            backgroundColor: Colors.grey.withOpacity(0.06),
+                            shape: StadiumBorder(side: BorderSide(color: Colors.black12)),
+                          ),
+                          ActionChip(
+                            avatar: const Icon(Icons.send, size: 18),
+                            label: const Text('Media Hub'),
+                            onPressed: () async {
+                              await _hub.shareArticleToHub(
+                                articleId: a.id,
+                                title: a.title,
+                                summary: a.summary,
+                                authorName: a.authorName,
+                              );
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Shared to Media Hub')));
+                              }
+                            },
+                            backgroundColor: Colors.grey.withOpacity(0.06),
+                            shape: StadiumBorder(side: BorderSide(color: Colors.black12)),
+                          ),
+                          ActionChip(
+                            avatar: const Icon(Icons.people, size: 18),
+                            label: const Text('Community'),
+                            onPressed: () => _showShareToCommunityDialog(a),
+                            backgroundColor: Colors.grey.withOpacity(0.06),
+                            shape: StadiumBorder(side: BorderSide(color: Colors.black12)),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      // Comments section (styled)
+                      Text('Comments', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
                       const SizedBox(height: 8),
                       StreamBuilder<List<ArticleComment>>(
                         stream: _news.streamComments(a.id),
@@ -163,10 +287,80 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
                           final comments = snap.data!;
                           if (comments.isEmpty) return const Text('No comments yet.');
                           return Column(
-                            children: comments.map((c) => ListTile(
-                              contentPadding: EdgeInsets.zero,
-                              title: Text(c.userName, style: const TextStyle(fontWeight: FontWeight.bold)),
-                              subtitle: Text(c.text),
+                            children: comments.map((c) => Container(
+                              width: double.infinity,
+                              margin: const EdgeInsets.only(bottom: 8),
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: Colors.black12),
+                              ),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  CircleAvatar(
+                                    radius: 16,
+                                    backgroundColor: Colors.blue.withOpacity(0.1),
+                                    child: const Icon(Icons.person, color: Colors.blue, size: 18),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(c.userName, style: const TextStyle(fontWeight: FontWeight.bold)),
+                                        const SizedBox(height: 4),
+                                        Text(c.text),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  PopupMenuButton<String>(
+                                    onSelected: (value) async {
+                                      if (value == 'edit') {
+                                        final controller = TextEditingController(text: c.text);
+                                        final newText = await showDialog<String>(
+                                          context: context,
+                                          builder: (context) => AlertDialog(
+                                            title: const Text('Edit Comment'),
+                                            content: TextField(
+                                              controller: controller,
+                                              maxLines: 4,
+                                              decoration: const InputDecoration(border: OutlineInputBorder()),
+                                            ),
+                                            actions: [
+                                              TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+                                              ElevatedButton(onPressed: () => Navigator.pop(context, controller.text.trim()), child: const Text('Save')),
+                                            ],
+                                          ),
+                                        );
+                                        if (newText != null && newText.isNotEmpty) {
+                                          try {
+                                            await _news.updateComment(articleId: a.id, commentId: c.id, newText: newText);
+                                          } catch (e) {
+                                            if (context.mounted) {
+                                              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+                                            }
+                                          }
+                                        }
+                                      } else if (value == 'delete') {
+                                        try {
+                                          await _news.deleteComment(articleId: a.id, commentId: c.id);
+                                        } catch (e) {
+                                          if (context.mounted) {
+                                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+                                          }
+                                        }
+                                      }
+                                    },
+                                    itemBuilder: (context) => const [
+                                      PopupMenuItem(value: 'edit', child: Text('Edit')),
+                                      PopupMenuItem(value: 'delete', child: Text('Delete')),
+                                    ],
+                                  ),
+                                ],
+                              ),
                             )).toList(),
                           );
                         },
@@ -176,26 +370,49 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
                   ),
                 ),
               ),
-              Container(
-                padding: const EdgeInsets.all(8),
+               Container(
+                padding: const EdgeInsets.all(12),
                 color: Colors.white,
                 child: Row(
                   children: [
+                    CircleAvatar(
+                      radius: 16,
+                      backgroundColor: Colors.blue.withOpacity(0.1),
+                      child: const Icon(Icons.person, color: Colors.blue, size: 18),
+                    ),
+                    const SizedBox(width: 10),
                     Expanded(
                       child: TextField(
                         controller: _commentController,
-                        decoration: const InputDecoration(hintText: 'Add a comment...', border: OutlineInputBorder()),
+                        minLines: 1,
+                        maxLines: 4,
+                        decoration: InputDecoration(
+                          hintText: 'Write a comment...',
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        ),
                       ),
                     ),
                     const SizedBox(width: 8),
-                    ElevatedButton(
-                      onPressed: () async {
-                        final text = _commentController.text.trim();
-                        if (text.isEmpty) return;
-                        await _news.addComment(articleId: a.id, text: text, userName: 'User');
-                        _commentController.clear();
-                      },
-                      child: const Text('Post'),
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      child: FilledButton.icon(
+                        onPressed: () async {
+                          final text = _commentController.text.trim();
+                          if (text.isEmpty) return;
+                          await _news.addComment(articleId: a.id, text: text);
+                          _commentController.clear();
+                        },
+                        icon: const Icon(Icons.send_rounded, size: 18),
+                        label: const Text('Post'),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: Theme.of(context).colorScheme.primary,
+                          foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          elevation: 2,
+                        ),
+                      ),
                     )
                   ],
                 ),
@@ -209,9 +426,20 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
 
   Widget _chip(String label, Color color) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(16)),
-      child: Text(label, style: TextStyle(color: color)),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withOpacity(0.4), width: 1.5),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: color,
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
     );
   }
 
@@ -312,6 +540,219 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error sharing to community: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  void _showEditOptions(ReportArticle article) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+      builder: (context) => Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Edit Options',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 16),
+            ListTile(
+              leading: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1565C0).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.edit, color: Color(0xFF1565C0)),
+              ),
+              title: const Text('Edit Article'),
+              subtitle: const Text('Modify article content and details'),
+              onTap: () {
+                Navigator.pop(context);
+                _navigateToEditArticle(article);
+              },
+            ),
+            ListTile(
+              leading: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.flag, color: Colors.orange),
+              ),
+              title: const Text('Toggle Breaking News'),
+              subtitle: Text(article.isBreakingNews ? 'Remove breaking news status' : 'Mark as breaking news'),
+              onTap: () {
+                Navigator.pop(context);
+                _toggleBreakingNews(article);
+              },
+            ),
+            ListTile(
+              leading: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.green.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.verified, color: Colors.green),
+              ),
+              title: const Text('Toggle Verified Status'),
+              subtitle: Text(article.isVerified ? 'Remove verification' : 'Mark as verified'),
+              onTap: () {
+                Navigator.pop(context);
+                _toggleVerified(article);
+              },
+            ),
+            ListTile(
+              leading: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.red.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.delete, color: Colors.red),
+              ),
+              title: const Text('Delete Article'),
+              subtitle: const Text('Permanently remove this article'),
+              onTap: () {
+                Navigator.pop(context);
+                _showDeleteConfirmation(article);
+              },
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton(
+                onPressed: () => Navigator.pop(context),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.grey,
+                  side: const BorderSide(color: Colors.grey),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+                child: const Text('Cancel'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _navigateToEditArticle(ReportArticle article) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => EditArticleScreen(articleId: article.id),
+      ),
+    );
+  }
+
+  Future<void> _toggleBreakingNews(ReportArticle article) async {
+    try {
+      await _news.toggleBreakingNews(article.id);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(article.isBreakingNews 
+              ? 'Removed breaking news status' 
+              : 'Marked as breaking news'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _toggleVerified(ReportArticle article) async {
+    try {
+      await _news.toggleVerified(article.id);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(article.isVerified 
+              ? 'Removed verification status' 
+              : 'Marked as verified'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  void _showDeleteConfirmation(ReportArticle article) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Article'),
+        content: Text('Are you sure you want to delete "${article.title}"? This action cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _deleteArticle(article);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _deleteArticle(ReportArticle article) async {
+    try {
+      await _news.deleteArticle(article.id);
+      if (mounted) {
+        Navigator.pop(context); // Go back to news feed
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Article deleted successfully'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
             backgroundColor: Colors.red,
           ),
         );

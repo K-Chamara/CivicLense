@@ -11,9 +11,14 @@ class PublishReportScreen extends StatefulWidget {
   State<PublishReportScreen> createState() => _PublishReportScreenState();
 }
 
-class _PublishReportScreenState extends State<PublishReportScreen> {
+class _PublishReportScreenState extends State<PublishReportScreen> with TickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
   final _newsService = NewsService();
+  
+  late AnimationController _formAnimationController;
+  late AnimationController _buttonAnimationController;
+  late Animation<double> _formAnimation;
+  late Animation<double> _buttonAnimation;
 
   final _titleController = TextEditingController();
   final _authorNameController = TextEditingController();
@@ -29,12 +34,33 @@ class _PublishReportScreenState extends State<PublishReportScreen> {
   bool _isVerified = false;
   bool _isSubmitting = false;
 
-  final List<String> _categories = <String>[
-    'Politics', 'Economy', 'Health', 'Education', 'Infrastructure', 'Environment', 'Justice'
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _formAnimationController = AnimationController(
+      duration: const Duration(milliseconds: 600),
+      vsync: this,
+    );
+    _buttonAnimationController = AnimationController(
+      duration: const Duration(milliseconds: 300),
+      vsync: this,
+    );
+    
+    _formAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _formAnimationController, curve: Curves.easeOut),
+    );
+    _buttonAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _buttonAnimationController, curve: Curves.elasticOut),
+    );
+    
+    _formAnimationController.forward();
+    _buttonAnimationController.forward();
+  }
 
   @override
   void dispose() {
+    _formAnimationController.dispose();
+    _buttonAnimationController.dispose();
     _titleController.dispose();
     _authorNameController.dispose();
     _authorEmailController.dispose();
@@ -46,6 +72,11 @@ class _PublishReportScreenState extends State<PublishReportScreen> {
     _hashtagsController.dispose();
     super.dispose();
   }
+
+  final List<String> _categories = <String>[
+    'Politics', 'Economy', 'Health', 'Education', 'Infrastructure', 'Environment', 'Justice'
+  ];
+
 
   void _previewArticle() {
     if (!_formKey.currentState!.validate()) return;
@@ -168,97 +199,225 @@ class _PublishReportScreenState extends State<PublishReportScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFF5F7FA),
       appBar: AppBar(
         leading: const BackButton(),
         title: const Text('Publish Report'),
-        backgroundColor: Colors.blue,
+        backgroundColor: const Color(0xFF1565C0),
         foregroundColor: Colors.white,
       ),
-      body: Form(
-        key: _formKey,
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('Title', style: TextStyle(fontWeight: FontWeight.bold)),
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final bool wide = constraints.maxWidth > 900;
+          return Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 900),
+              child: Form(
+                key: _formKey,
+                child: FadeTransition(
+                  opacity: _formAnimation,
+                  child: SlideTransition(
+                    position: Tween<Offset>(
+                      begin: const Offset(0, 0.1),
+                      end: Offset.zero,
+                    ).animate(CurvedAnimation(
+                      parent: _formAnimationController,
+                      curve: Curves.easeOut,
+                    )),
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4)),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+              const Text('Title', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
               const SizedBox(height: 6),
               _buildTextField(_titleController, 'Enter title', validator: (v) => v!.isEmpty ? 'Required' : null),
               const SizedBox(height: 12),
-              const Text('Author Information', style: TextStyle(fontWeight: FontWeight.bold)),
+              const Text('Author Information', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
               const SizedBox(height: 6),
-              _buildTextField(_authorNameController, 'Author name', validator: (v) => v!.isEmpty ? 'Required' : null),
+              if (wide)
+                Row(
+                  children: [
+                    Expanded(child: _buildTextField(_authorNameController, 'Author name', validator: (v) => v!.isEmpty ? 'Required' : null)),
+                    const SizedBox(width: 12),
+                    Expanded(child: _buildTextField(_authorEmailController, 'Email address', keyboardType: TextInputType.emailAddress, validator: (v) => v!.contains('@') ? null : 'Invalid email')),
+                  ],
+                )
+              else ...[
+                _buildTextField(_authorNameController, 'Author name', validator: (v) => v!.isEmpty ? 'Required' : null),
+                const SizedBox(height: 12),
+              const Text('Contact Email', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                const SizedBox(height: 6),
+                _buildTextField(_authorEmailController, 'Email address', keyboardType: TextInputType.emailAddress, validator: (v) => v!.contains('@') ? null : 'Invalid email'),
+              ],
               const SizedBox(height: 12),
-              const Text('Contact Email', style: TextStyle(fontWeight: FontWeight.bold)),
-              const SizedBox(height: 6),
-              _buildTextField(_authorEmailController, 'Email address', keyboardType: TextInputType.emailAddress, validator: (v) => v!.contains('@') ? null : 'Invalid email'),
-              const SizedBox(height: 12),
-              const Text('Organization / Affiliation', style: TextStyle(fontWeight: FontWeight.bold)),
+              const Text('Organization / Affiliation', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
               const SizedBox(height: 6),
               _buildTextField(_organizationController, 'Organization or affiliation'),
               const SizedBox(height: 12),
-              const Text('Abstract / Introduction', style: TextStyle(fontWeight: FontWeight.bold)),
+              const Text('Abstract / Introduction', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
               const SizedBox(height: 6),
               _buildTextField(_abstractController, 'Write the abstract or introduction', maxLines: 4, validator: (v) => v!.isEmpty ? 'Required' : null),
               const SizedBox(height: 12),
-              const Text('Summary', style: TextStyle(fontWeight: FontWeight.bold)),
+              const Text('Summary', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
               const SizedBox(height: 6),
               _buildTextField(_summaryController, 'Short summary', maxLines: 3, validator: (v) => v!.isEmpty ? 'Required' : null),
               const SizedBox(height: 12),
-              const Text('Main Content', style: TextStyle(fontWeight: FontWeight.bold)),
+              const Text('Main Content', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
               const SizedBox(height: 6),
               _buildTextField(_contentController, 'Body of the article', maxLines: 8, validator: (v) => v!.isEmpty ? 'Required' : null),
               const SizedBox(height: 12),
-              const Text('References', style: TextStyle(fontWeight: FontWeight.bold)),
+              const Text('References', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
               const SizedBox(height: 6),
               _buildTextField(_referencesController, 'Citations and references', maxLines: 3),
               const SizedBox(height: 12),
-              const Text('Category', style: TextStyle(fontWeight: FontWeight.bold)),
+              const Text('Category', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
               const SizedBox(height: 6),
               DropdownButtonFormField<String>(
                 value: _category.isNotEmpty ? _category : null,
                 items: _categories.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
                 onChanged: (v) => setState(() => _category = v ?? ''),
-                decoration: const InputDecoration(hintText: 'Select a category', border: OutlineInputBorder()),
+                decoration: InputDecoration(
+                  hintText: 'Select a category',
+                  filled: true,
+                  fillColor: Colors.grey[50],
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Color(0xFF1565C0)),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                ),
               ),
               const SizedBox(height: 12),
-              const Text('Hashtags', style: TextStyle(fontWeight: FontWeight.bold)),
+              const Text('Hashtags', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
               const SizedBox(height: 6),
               _buildTextField(_hashtagsController, 'Comma separated tags (e.g. corruption, budget)'),
               const SizedBox(height: 12),
-              SwitchListTile(
-                value: _isBreaking,
-                onChanged: (v) => setState(() => _isBreaking = v),
-                title: const Text('Breaking News'),
-              ),
-              SwitchListTile(
-                value: _isVerified,
-                onChanged: (v) => setState(() => _isVerified = v),
-                title: const Text('Verified Content'),
-              ),
+              if (wide)
+                Row(
+                  children: [
+                    Expanded(
+                      child: SwitchListTile(
+                        value: _isBreaking,
+                        onChanged: (v) => setState(() => _isBreaking = v),
+                        title: const Text('Breaking News'),
+                      ),
+                    ),
+                    Expanded(
+                      child: SwitchListTile(
+                        value: _isVerified,
+                        onChanged: (v) => setState(() => _isVerified = v),
+                        title: const Text('Verified Content'),
+                      ),
+                    ),
+                  ],
+                )
+              else ...[
+                SwitchListTile(
+                  value: _isBreaking,
+                  onChanged: (v) => setState(() => _isBreaking = v),
+                  title: const Text('Breaking News'),
+                ),
+                SwitchListTile(
+                  value: _isVerified,
+                  onChanged: (v) => setState(() => _isVerified = v),
+                  title: const Text('Verified Content'),
+                ),
+              ],
               const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: _isSubmitting ? null : _previewArticle,
-                      icon: const Icon(Icons.visibility),
-                      label: const Text('Preview'),
+              ScaleTransition(
+                scale: _buttonAnimation,
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        child: OutlinedButton.icon(
+                          onPressed: _isSubmitting ? null : _previewArticle,
+                          icon: const Icon(Icons.visibility_rounded),
+                          label: const Text(
+                            'Preview',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Theme.of(context).colorScheme.primary,
+                            side: BorderSide(color: Theme.of(context).colorScheme.primary),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      flex: 2,
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        child: FilledButton.icon(
+                          onPressed: _isSubmitting ? null : _publish,
+                          icon: _isSubmitting 
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Icon(Icons.publish_rounded),
+                          label: Text(
+                            _isSubmitting ? 'Publishing...' : 'Publish Article',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          style: FilledButton.styleFrom(
+                            backgroundColor: const Color(0xFF2ECC71),
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            elevation: 4,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+                    ],
+                  ),
+                ),
+                        ],
+                      ),
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: _isSubmitting ? null : _publish,
-                      icon: const Icon(Icons.publish),
-                      label: _isSubmitting ? const Text('Publishing...') : const Text('Publish'),
-                    ),
-                  ),
-                ],
-              )
-            ],
-          ),
-        ),
+                ),
+              ),
+            ),
+          );
+        },
       ),
     );
   }
@@ -269,10 +428,22 @@ class _PublishReportScreenState extends State<PublishReportScreen> {
       maxLines: maxLines,
       keyboardType: keyboardType,
       validator: validator,
-      decoration: const InputDecoration(
-        labelText: 'Enter value',
-        border: OutlineInputBorder(),
-      ).copyWith(labelText: label),
+      decoration: InputDecoration(
+        hintText: label,
+        labelText: label,
+        filled: true,
+        fillColor: Colors.grey[50],
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFF1565C0)),
+        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      ),
     );
   }
 }
