@@ -338,6 +338,14 @@ class _EnhancedDashboardScreenState extends State<EnhancedDashboardScreen>
                   },
                 ),
                 _buildDrawerItem(
+                  icon: Icons.forum,
+                  title: 'Media Hub',
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.pushNamed(context, '/media-hub');
+                  },
+                ),
+                _buildDrawerItem(
                   icon: Icons.people,
                   title: 'Communities',
                   onTap: () {
@@ -1410,14 +1418,14 @@ class _EnhancedDashboardScreenState extends State<EnhancedDashboardScreen>
           'Create and publish investigative reports',
           Icons.article,
           Colors.green,
-          () => _showFeatureComingSoon('Publish Reports'),
+          () => Navigator.pushNamed(context, '/publish'),
         ),
         _buildFeatureCard(
           'Media Hub',
           'Access media resources and tools',
           Icons.media_bluetooth_on,
           Colors.purple,
-          () => _showFeatureComingSoon('Media Hub'),
+          () => Navigator.pushNamed(context, '/media-hub'),
         ),
       ],
     );
