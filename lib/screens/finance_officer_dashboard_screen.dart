@@ -12,7 +12,6 @@ import 'transaction_list_screen.dart';
 import 'financial_reports_screen.dart';
 import 'user_concern_tracking_screen.dart';
 import 'public_tender_viewer_screen.dart';
-import '../utils/generate_budget_data.dart';
 import 'login_screen.dart';
 
 class FinanceOfficerDashboardScreen extends StatefulWidget {
@@ -111,11 +110,6 @@ class _FinanceOfficerDashboardScreenState extends State<FinanceOfficerDashboardS
         elevation: 0,
         actions: [
           _buildNotificationIcon(),
-          IconButton(
-            icon: const Icon(Icons.data_usage),
-            onPressed: _generateSampleData,
-            tooltip: 'Generate Sample Data',
-          ),
         ],
       ),
       body: SingleChildScrollView(
@@ -565,30 +559,6 @@ class _FinanceOfficerDashboardScreenState extends State<FinanceOfficerDashboardS
     );
   }
 
-  Future<void> _generateSampleData() async {
-    try {
-      await BudgetDataGenerator.generateSampleBudgetData();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Sample budget data generated successfully!'),
-            backgroundColor: Colors.green,
-            duration: Duration(seconds: 3),
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error generating sample data: $e'),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 3),
-          ),
-        );
-      }
-    }
-  }
 
   Widget _buildNotificationIcon() {
     final overBudgetCount = categoryAnalytics.where((category) => 

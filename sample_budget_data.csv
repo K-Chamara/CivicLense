@@ -1,11 +1,16 @@
-Category Name,Description,Allocated Amount
-Infrastructure,Roads and bridges construction,50000000
-Healthcare,Medical facilities and equipment,30000000
-Education,Schools and educational programs,25000000
-Public Safety,Police and emergency services,20000000
-Transportation,Public transit and road maintenance,18000000
-Utilities,Water and electricity infrastructure,15000000
-Recreation,Parks and community centers,12000000
-Administration,Government operations and staff,10000000
-Environment,Environmental protection programs,8000000
-Social Services,Welfare and community support,6000000
+Category Name,Description,Allocated Amount,Spent Amount
+Infrastructure,Highways bridges and public infrastructure maintenance,75000000,52000000
+Healthcare,Public hospitals clinics and medical services,45000000,38000000
+Education,Public schools universities and educational programs,35000000,28000000
+Public Safety,Police fire department and emergency services,25000000,19000000
+Social Welfare,Unemployment benefits food assistance and housing aid,20000000,16500000
+Transportation,Public transit buses trains and road maintenance,18000000,14200000
+Environment,Environmental protection waste management and conservation,15000000,9800000
+Utilities,Water treatment electricity and gas services,12000000,10500000
+Recreation,Parks community centers and sports facilities,8000000,6200000
+Administration,Government operations and administrative costs,6000000,4800000
+Public Works,Sewer systems street lighting and public buildings,5000000,3800000
+Economic Development,Business incentives and job creation programs,4000000,2500000
+Public Health,Disease prevention vaccination and health campaigns,3500000,2800000
+Housing,Affordable housing and housing assistance programs,3000000,2200000
+Technology,Digital services IT infrastructure and cybersecurity,2500000,1800000
