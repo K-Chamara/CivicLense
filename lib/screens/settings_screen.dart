@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
@@ -8,6 +9,11 @@ import 'package:permission_handler/permission_handler.dart';
 import 'dart:io';
 import '../services/auth_service.dart';
 import '../services/otp_service.dart';
+=======
+import '../l10n/app_localizations.dart';
+import '../services/settings_service.dart';
+import '../main.dart';
+>>>>>>> Stashed changes
 =======
 import '../l10n/app_localizations.dart';
 import '../services/settings_service.dart';
@@ -22,6 +28,7 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
+<<<<<<< Updated upstream
 <<<<<<< Updated upstream
   final AuthService _authService = AuthService();
   final OTPService _otpService = OTPService();
@@ -46,10 +53,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
   String _selectedCurrency = 'LKR';
   bool _isLoading = true;
 >>>>>>> Stashed changes
+=======
+  String _selectedLanguage = 'en';
+  String _selectedCurrency = 'LKR';
+  bool _isLoading = true;
+>>>>>>> Stashed changes
 
   @override
   void initState() {
     super.initState();
+<<<<<<< Updated upstream
 <<<<<<< Updated upstream
     _loadUserData();
   }
@@ -80,6 +93,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     } catch (e) {
       _showErrorSnackBar('Error loading user data: $e');
 =======
+=======
+>>>>>>> Stashed changes
     _loadSettings();
   }
 
@@ -96,12 +111,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
       });
     } catch (e) {
       print('Error loading settings: $e');
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
     } finally {
       setState(() => _isLoading = false);
     }
   }
 
+<<<<<<< Updated upstream
 <<<<<<< Updated upstream
   Future<void> _pickImage() async {
     // Clear any existing error messages
@@ -480,6 +499,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       appBar: AppBar(
         title: const Text('Settings'),
 =======
+=======
+>>>>>>> Stashed changes
   Future<void> _saveSettings() async {
     try {
       await SettingsService.setLanguage(_selectedLanguage);
@@ -521,12 +542,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(l10n.settings),
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
         backgroundColor: Colors.blue,
         foregroundColor: Colors.white,
         elevation: 0,
       ),
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
+=======
+      backgroundColor: Colors.grey.shade50,
+>>>>>>> Stashed changes
 =======
       backgroundColor: Colors.grey.shade50,
 >>>>>>> Stashed changes
@@ -537,6 +565,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+<<<<<<< Updated upstream
 <<<<<<< Updated upstream
                   _buildProfileSection(),
                   const SizedBox(height: 24),
@@ -771,6 +800,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 12),
 =======
+=======
+>>>>>>> Stashed changes
                   // Language Section
                   _buildSectionCard(
                     title: l10n.language,
@@ -876,12 +907,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
                         ),
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
                       ),
                     ),
                   ),
                 ],
               ),
+<<<<<<< Updated upstream
 <<<<<<< Updated upstream
             ],
           ],
@@ -896,6 +931,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
 =======
+=======
+>>>>>>> Stashed changes
             ),
     );
   }
@@ -910,12 +947,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
       ),
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+<<<<<<< Updated upstream
 <<<<<<< Updated upstream
             const Text(
               'Account Information',
@@ -929,6 +970,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
             _buildInfoRow(Icons.verified, 'Email Verified', 
                 user?.emailVerified == true ? 'Yes' : 'No'),
 =======
+=======
+>>>>>>> Stashed changes
             Row(
               children: [
                 Icon(
@@ -948,6 +991,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
             const SizedBox(height: 16),
             ...children,
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
           ],
         ),
@@ -955,6 +1001,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+<<<<<<< Updated upstream
 <<<<<<< Updated upstream
   Widget _buildInfoRow(IconData icon, String label, String value) {
     return Padding(
@@ -986,6 +1033,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
         ],
 =======
+=======
+>>>>>>> Stashed changes
   Widget _buildRadioTile({
     required String title,
     required String value,
@@ -1015,6 +1064,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
         onChanged: onChanged,
         activeColor: Colors.blue,
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
       ),
     );

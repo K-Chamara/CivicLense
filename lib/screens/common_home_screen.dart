@@ -1377,6 +1377,7 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
                 _buildDrawerItem(
                   icon: Icons.settings,
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
                   title: 'Settings',
                   onTap: () => Navigator.push(
                     context,
@@ -1385,11 +1386,16 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
                     ),
                   ),
 =======
+=======
+>>>>>>> Stashed changes
                   title: AppLocalizations.of(context)!.settings,
                   onTap: () {
                     Navigator.pop(context);
                     Navigator.pushNamed(context, '/settings');
                   },
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
                 ),
                 const Divider(),
