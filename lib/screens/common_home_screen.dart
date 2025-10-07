@@ -3,6 +3,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../l10n/app_localizations.dart';
 import '../services/auth_service.dart';
 import '../services/budget_service.dart';
 import '../models/user_role.dart';
@@ -513,7 +514,7 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
           Expanded(
             flex: 1,
             child: _buildStatCard(
-              'Allocations',
+              AppLocalizations.of(context)!.allocations,
               allocationsCount.toString(),
               Icons.account_balance_wallet,
               Colors.orange,
@@ -524,7 +525,7 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
           Expanded(
             flex: 1,
             child: _buildStatCard(
-              'Active Tenders',
+              AppLocalizations.of(context)!.activeTenders,
               activeTendersCount.toString(),
               Icons.assignment,
               Colors.blue,
@@ -535,7 +536,7 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
           Expanded(
             flex: 1,
             child: _buildStatCard(
-              'Projects',
+              AppLocalizations.of(context)!.projects,
               projectsCount.toString(),
               Icons.work,
               Colors.green,
@@ -1248,12 +1249,12 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
               children: [
                 _buildDrawerItem(
                   icon: Icons.home,
-                  title: 'Home',
+                  title: AppLocalizations.of(context)!.home,
                   onTap: () => Navigator.pop(context),
                 ),
                 _buildDrawerItem(
                   icon: Icons.dashboard,
-                  title: 'My Dashboard',
+                  title: AppLocalizations.of(context)!.dashboard,
                   onTap: () {
                     Navigator.pop(context);
                     _navigateToDashboard();
@@ -1263,7 +1264,7 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
                 if (userRole?.userType == UserType.admin) ...[
                   _buildDrawerItem(
                     icon: Icons.approval,
-                    title: 'User Approvals',
+                    title: AppLocalizations.of(context)!.userManagement,
                     onTap: () {
                       Navigator.pop(context);
                       Navigator.push(
@@ -1375,6 +1376,7 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
                 ),
                 _buildDrawerItem(
                   icon: Icons.settings,
+<<<<<<< Updated upstream
                   title: 'Settings',
                   onTap: () => Navigator.push(
                     context,
@@ -1382,6 +1384,13 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
                       builder: (context) => const SettingsScreen(),
                     ),
                   ),
+=======
+                  title: AppLocalizations.of(context)!.settings,
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.pushNamed(context, '/settings');
+                  },
+>>>>>>> Stashed changes
                 ),
                 const Divider(),
                 _buildDrawerItem(
@@ -1396,7 +1405,7 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
                 ),
                 _buildDrawerItem(
                   icon: Icons.logout,
-                  title: 'Sign Out',
+                  title: AppLocalizations.of(context)!.signOut,
                   onTap: () {
                     Navigator.pop(context);
                     _signOut();
@@ -2210,8 +2219,8 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),
-                      child: const Text(
-                        'Sign Out',
+                      child: Text(
+                        AppLocalizations.of(context)!.signOut,
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.bold,
