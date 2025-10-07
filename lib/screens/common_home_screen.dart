@@ -1311,6 +1311,14 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
                   },
                 ),
                 _buildDrawerItem(
+                  icon: Icons.forum,
+                  title: 'Media Hub',
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.pushNamed(context, '/media-hub');
+                  },
+                ),
+                _buildDrawerItem(
                   icon: Icons.people,
                   title: 'Communities',
                   onTap: () {
