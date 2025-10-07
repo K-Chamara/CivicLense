@@ -57,6 +57,9 @@ class Concern {
   final String authorId;
   final String authorName;
   final String authorEmail;
+  final String? authorRole;
+  final String? authorPhone;
+  final String? authorLocation;
   final ConcernCategory category;
   final ConcernType type;
   final ConcernPriority priority;
@@ -95,6 +98,9 @@ class Concern {
     required this.authorId,
     required this.authorName,
     required this.authorEmail,
+    this.authorRole,
+    this.authorPhone,
+    this.authorLocation,
     required this.category,
     required this.type,
     this.priority = ConcernPriority.medium,
@@ -135,6 +141,9 @@ class Concern {
       'authorId': authorId,
       'authorName': authorName,
       'authorEmail': authorEmail,
+      'authorRole': authorRole,
+      'authorPhone': authorPhone,
+      'authorLocation': authorLocation,
       'category': category.name,
       'type': type.name,
       'priority': priority.name,
@@ -177,6 +186,9 @@ class Concern {
       authorId: data['authorId'] ?? '',
       authorName: data['authorName'] ?? '',
       authorEmail: data['authorEmail'] ?? '',
+      authorRole: data['authorRole'],
+      authorPhone: data['authorPhone'],
+      authorLocation: data['authorLocation'],
       category: ConcernCategory.values.firstWhere(
         (e) => e.name == data['category'],
         orElse: () => ConcernCategory.other,
@@ -244,6 +256,9 @@ class Concern {
     String? authorId,
     String? authorName,
     String? authorEmail,
+    String? authorRole,
+    String? authorPhone,
+    String? authorLocation,
     ConcernCategory? category,
     ConcernType? type,
     ConcernPriority? priority,
@@ -282,6 +297,9 @@ class Concern {
       authorId: authorId ?? this.authorId,
       authorName: authorName ?? this.authorName,
       authorEmail: authorEmail ?? this.authorEmail,
+      authorRole: authorRole ?? this.authorRole,
+      authorPhone: authorPhone ?? this.authorPhone,
+      authorLocation: authorLocation ?? this.authorLocation,
       category: category ?? this.category,
       type: type ?? this.type,
       priority: priority ?? this.priority,

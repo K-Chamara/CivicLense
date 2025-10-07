@@ -8,12 +8,15 @@ import 'raise_concern_screen.dart';
 import 'concern_management_screen.dart';
 import 'public_concerns_screen.dart';
 import 'user_concern_tracking_screen.dart';
+import 'settings_screen.dart';
 import 'public_tender_viewer_screen.dart';
 import 'admin_dashboard_screen.dart';
 import 'finance_officer_dashboard_screen.dart';
 import 'procurement_officer_dashboard_screen.dart';
 import 'anticorruption_officer_dashboard_screen.dart';
 import 'public_user_dashboard_screen.dart';
+import 'budget_allocations_view_screen.dart';
+import 'reports_analytics_screen.dart';
 
 class EnhancedDashboardScreen extends StatefulWidget {
   const EnhancedDashboardScreen({super.key});
@@ -313,8 +316,9 @@ class _EnhancedDashboardScreenState extends State<EnhancedDashboardScreen>
                   title: 'Budget Allocations',
                   onTap: () {
                     Navigator.pop(context);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Budget Allocations feature coming soon!')),
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const BudgetAllocationsViewScreen()),
                     );
                   },
                 ),
@@ -356,7 +360,13 @@ class _EnhancedDashboardScreenState extends State<EnhancedDashboardScreen>
                 _buildDrawerItem(
                   icon: Icons.analytics,
                   title: 'Reports & Analytics',
-                  onTap: () => _showFeatureComingSoon('Reports & Analytics'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const ReportsAnalyticsScreen()),
+                    );
+                  },
                 ),
                 _buildDrawerItem(
                   icon: Icons.report_problem,
@@ -391,7 +401,12 @@ class _EnhancedDashboardScreenState extends State<EnhancedDashboardScreen>
                 _buildDrawerItem(
                   icon: Icons.settings,
                   title: 'Settings',
-                  onTap: () => _showFeatureComingSoon('Settings'),
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const SettingsScreen(),
+                    ),
+                  ),
                 ),
                 const Divider(),
                 _buildDrawerItem(
@@ -654,8 +669,9 @@ class _EnhancedDashboardScreenState extends State<EnhancedDashboardScreen>
             ),
             TextButton(
               onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Budget Allocations feature coming soon!')),
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const BudgetAllocationsViewScreen()),
                 );
               },
               child: const Text(

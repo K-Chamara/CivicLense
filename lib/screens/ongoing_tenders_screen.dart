@@ -365,7 +365,7 @@ class _OngoingTendersScreenState extends State<OngoingTendersScreen> {
       child: Column(
         children: [
           // Category Filter Chips
-          Container(
+          SizedBox(
             height: 40,
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
@@ -377,7 +377,10 @@ class _OngoingTendersScreenState extends State<OngoingTendersScreen> {
                 return Container(
                   margin: const EdgeInsets.only(right: 8),
                   child: FilterChip(
-                    label: Text(category),
+                    label: Text(
+                      category,
+                      style: const TextStyle(fontSize: 12),
+                    ),
                     selected: isSelected,
                     onSelected: (selected) {
                       setState(() {
@@ -400,7 +403,7 @@ class _OngoingTendersScreenState extends State<OngoingTendersScreen> {
           const SizedBox(height: 8),
           
           // Budget Range Filter Chips
-          Container(
+          SizedBox(
             height: 40,
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
@@ -412,7 +415,10 @@ class _OngoingTendersScreenState extends State<OngoingTendersScreen> {
                 return Container(
                   margin: const EdgeInsets.only(right: 8),
                   child: FilterChip(
-                    label: Text(range),
+                    label: Text(
+                      range,
+                      style: const TextStyle(fontSize: 12),
+                    ),
                     selected: isSelected,
                     onSelected: (selected) {
                       setState(() {

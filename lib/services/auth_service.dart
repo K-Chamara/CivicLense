@@ -144,6 +144,26 @@ class AuthService {
     }
   }
 
+  // Verify password without email verification check (for government users)
+  Future<UserCredential> verifyPasswordOnly(
+    String email,
+    String password,
+  ) async {
+    try {
+      final userCredential = await _auth.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+      
+      // Sign out immediately after verification to prevent staying logged in
+      await _auth.signOut();
+      
+      return userCredential;
+    } catch (e) {
+      rethrow;
+    }
+  }
+
   // Sign out
   Future<void> signOut() async {
     try {

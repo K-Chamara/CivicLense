@@ -452,6 +452,21 @@ class ConcernService {
             .toList());
   }
 
+  /// Get user's concerns without ordering (to avoid index requirements)
+  Stream<List<Concern>> getUserConcernsSimple(String userId) {
+    return _concernsCol
+        .where('authorId', isEqualTo: userId)
+        .snapshots()
+        .map((snapshot) {
+          final concerns = snapshot.docs
+              .map((doc) => Concern.fromFirestore(doc))
+              .toList();
+          // Sort by createdAt in memory to avoid index requirements
+          concerns.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+          return concerns;
+        });
+  }
+
   /// Get concerns assigned to officer
   Stream<List<Concern>> getOfficerConcerns(String officerId) {
     return _concernsCol
