@@ -107,7 +107,7 @@ class _LoginScreenState extends State<LoginScreen> {
         if (isGovernmentUser && userRole != null) {
           // For government users, verify password first before sending OTP
           try {
-            await AuthService().signInWithEmailAndPassword(email, password);
+            await AuthService().verifyPasswordOnly(email, password);
             // Password is correct, now redirect to OTP verification
             Navigator.of(context).pushReplacement(
               MaterialPageRoute(
@@ -173,13 +173,36 @@ class _LoginScreenState extends State<LoginScreen> {
           }
         } else {
           // For regular users, sign in and let AuthWrapper handle routing
-          await AuthService().signInWithEmailAndPassword(email, password);
-          await _saveCredentials();
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(
-              builder: (context) => const AuthWrapper(),
-            ),
-          );
+          try {
+            await AuthService().signInWithEmailAndPassword(email, password);
+            await _saveCredentials();
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(
+                builder: (context) => const AuthWrapper(),
+              ),
+            );
+          } catch (e) {
+            // Handle email verification error for regular users
+            if (e is FirebaseAuthException && e.code == 'email-not-verified') {
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Please verify your email before signing in. Check your inbox for the verification link.'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
+            } else {
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Login failed: ${e.toString()}'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
+            }
+          }
         }
       }
     } catch (e) {
