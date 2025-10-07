@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'l10n/app_localizations.dart';
+import 'services/settings_service.dart';
 import 'screens/splash_screen.dart';
 import 'screens/news_feed_screen.dart';
 import 'screens/article_detail_screen.dart';
@@ -20,6 +23,10 @@ import 'screens/email_verification_screen.dart';
 import 'services/user_service.dart';
 import 'utils/create_admin.dart';
 import 'screens/admin_setup_screen.dart';
+import 'screens/settings_screen.dart';
+
+// Global key to access the app state
+final GlobalKey<_MyAppState> _appKey = GlobalKey<_MyAppState>();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -35,11 +42,43 @@ void main() async {
     print('🔄 App will continue with limited functionality');
   }
   
-  runApp(const MyApp());
+  runApp(MyApp(key: _appKey));
 }
 
-class MyApp extends StatelessWidget {
+// Function to reload locale from anywhere in the app
+void reloadAppLocale() {
+  _appKey.currentState?.reloadLocale();
+}
+
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  Locale? _currentLocale;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadLocale();
+  }
+
+  Future<void> _loadLocale() async {
+    final locale = await SettingsService.getLocale();
+    if (mounted) {
+      setState(() {
+        _currentLocale = locale;
+      });
+    }
+  }
+
+  // Method to reload locale when settings change
+  void reloadLocale() {
+    _loadLocale();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -55,8 +94,21 @@ class MyApp extends StatelessWidget {
           elevation: 0,
         ),
       ),
-      home: const AppInitializer(),
+      localizationsDelegates: const [
+        AppLocalizations.delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: const [
+        Locale('en', ''), // English
+        Locale('si', ''), // Sinhala
+        Locale('ta', ''), // Tamil
+      ],
+      locale: _currentLocale,
+      initialRoute: '/',
       routes: {
+        '/': (context) => const AppInitializer(),
         '/news': (context) => const NewsFeedScreen(),
         '/article': (context) => const ArticleDetailScreen(),
         '/media-hub': (context) => const MediaHubScreen(),
@@ -78,6 +130,7 @@ class MyApp extends StatelessWidget {
             userId: args?['userId'] ?? '',
           );
         },
+        '/settings': (context) => const SettingsScreen(),
       },
     );
   }

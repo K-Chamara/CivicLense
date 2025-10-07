@@ -2,11 +2,13 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/concern_models.dart';
 import 'sentiment_service.dart';
+import 'concern_notification_service.dart';
 
 class ConcernService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final SentimentService _sentimentService;
+  final ConcernNotificationService _notificationService = ConcernNotificationService();
 
   ConcernService({String? apiKey}) 
       : _sentimentService = SentimentService(apiKey: apiKey ?? '');
@@ -52,15 +54,13 @@ class ConcernService {
         assignedOfficerId: concern.assignedOfficerId,
         assignedOfficerName: concern.assignedOfficerName,
         tags: concern.tags,
-        relatedBudgetIds: concern.relatedBudgetIds,
-        relatedTenderIds: concern.relatedTenderIds,
+        relatedBudgetId: concern.relatedBudgetId,
+        relatedTenderId: concern.relatedTenderId,
         communityId: concern.communityId,
         engagementScore: concern.engagementScore,
         isFlaggedByCitizens: concern.isFlaggedByCitizens,
         comments: concern.comments,
         attachments: concern.attachments,
-        relatedBudgetId: concern.relatedBudgetId,
-        relatedTenderId: concern.relatedTenderId,
         relatedCommunityId: concern.relatedCommunityId,
         isAnonymous: concern.isAnonymous,
         isPublic: concern.isPublic,
@@ -247,6 +247,12 @@ class ConcernService {
     String? comment,
     ConcernPriority? newPriority,
   }) async {
+    // Get current concern to track status change
+    final currentConcernDoc = await _concernsCol.doc(concernId).get();
+    if (!currentConcernDoc.exists) return;
+    
+    final currentConcern = Concern.fromFirestore(currentConcernDoc);
+    final oldStatus = currentConcern.status;
     try {
       final updateData = <String, dynamic>{
         'status': status.name,
@@ -277,6 +283,18 @@ class ConcernService {
           if (newPriority != null) 'priority': newPriority.name,
         },
       ).toFirestore());
+
+      // Send notification if status changed
+      if (oldStatus != status) {
+        await _notificationService.notifyStatusChange(
+          concernId: concernId,
+          oldStatus: oldStatus,
+          newStatus: status,
+          officerId: officerId,
+          officerName: officerName,
+          comment: comment,
+        );
+      }
 
       // Add comment if provided
       if (comment != null && comment.isNotEmpty) {
@@ -316,6 +334,14 @@ class ConcernService {
           'assignedOfficerName': officerName,
         },
       ).toFirestore());
+
+      // Send assignment notification
+      await _notificationService.notifyAssignment(
+        concernId: concernId,
+        assignedOfficerId: officerId,
+        assignedOfficerName: officerName,
+        assignedBy: assignedBy,
+      );
     } catch (e) {
       print('Error assigning concern: $e');
       throw Exception('Failed to assign concern: $e');
@@ -348,6 +374,15 @@ class ConcernService {
         'commentCount': FieldValue.increment(1),
         'updatedAt': Timestamp.now(),
       });
+
+      // Send comment notification
+      await _notificationService.notifyNewComment(
+        concernId: concernId,
+        commentAuthorId: authorId,
+        commentAuthorName: authorName,
+        commentContent: content,
+        isOfficial: isOfficial,
+      );
 
       return doc.id;
     } catch (e) {

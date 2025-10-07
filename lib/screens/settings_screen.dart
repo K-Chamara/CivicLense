@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+<<<<<<< Updated upstream
+<<<<<<< Updated upstream
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
@@ -7,6 +9,16 @@ import 'package:permission_handler/permission_handler.dart';
 import 'dart:io';
 import '../services/auth_service.dart';
 import '../services/otp_service.dart';
+=======
+import '../l10n/app_localizations.dart';
+import '../services/settings_service.dart';
+import '../main.dart';
+>>>>>>> Stashed changes
+=======
+import '../l10n/app_localizations.dart';
+import '../services/settings_service.dart';
+import '../main.dart';
+>>>>>>> Stashed changes
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -16,6 +28,8 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
+<<<<<<< Updated upstream
+<<<<<<< Updated upstream
   final AuthService _authService = AuthService();
   final OTPService _otpService = OTPService();
   final ImagePicker _imagePicker = ImagePicker();
@@ -34,10 +48,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _isPasswordChangeMode = false;
   bool _isOTPVerificationMode = false;
   String? _otpSessionId;
+=======
+  String _selectedLanguage = 'en';
+  String _selectedCurrency = 'LKR';
+  bool _isLoading = true;
+>>>>>>> Stashed changes
+=======
+  String _selectedLanguage = 'en';
+  String _selectedCurrency = 'LKR';
+  bool _isLoading = true;
+>>>>>>> Stashed changes
 
   @override
   void initState() {
     super.initState();
+<<<<<<< Updated upstream
+<<<<<<< Updated upstream
     _loadUserData();
   }
 
@@ -66,11 +92,36 @@ class _SettingsScreenState extends State<SettingsScreen> {
       }
     } catch (e) {
       _showErrorSnackBar('Error loading user data: $e');
+=======
+=======
+>>>>>>> Stashed changes
+    _loadSettings();
+  }
+
+  Future<void> _loadSettings() async {
+    setState(() => _isLoading = true);
+    
+    try {
+      final language = await SettingsService.getLanguage();
+      final currency = await SettingsService.getCurrency();
+      
+      setState(() {
+        _selectedLanguage = language;
+        _selectedCurrency = currency;
+      });
+    } catch (e) {
+      print('Error loading settings: $e');
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
+>>>>>>> Stashed changes
     } finally {
       setState(() => _isLoading = false);
     }
   }
 
+<<<<<<< Updated upstream
+<<<<<<< Updated upstream
   Future<void> _pickImage() async {
     // Clear any existing error messages
     ScaffoldMessenger.of(context).clearSnackBars();
@@ -447,10 +498,66 @@ class _SettingsScreenState extends State<SettingsScreen> {
       backgroundColor: const Color(0xFFF5F5F5),
       appBar: AppBar(
         title: const Text('Settings'),
+=======
+=======
+>>>>>>> Stashed changes
+  Future<void> _saveSettings() async {
+    try {
+      await SettingsService.setLanguage(_selectedLanguage);
+      await SettingsService.setCurrency(_selectedCurrency);
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(AppLocalizations.of(context)!.success),
+            backgroundColor: Colors.green,
+          ),
+        );
+        
+        // Reload the app locale to apply language changes
+        reloadAppLocale();
+        
+        // Navigate back to home
+        await Future.delayed(const Duration(milliseconds: 500));
+        if (mounted) {
+          Navigator.of(context).pop();
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${AppLocalizations.of(context)!.error}: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(l10n.settings),
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
+>>>>>>> Stashed changes
         backgroundColor: Colors.blue,
         foregroundColor: Colors.white,
         elevation: 0,
       ),
+<<<<<<< Updated upstream
+<<<<<<< Updated upstream
+=======
+      backgroundColor: Colors.grey.shade50,
+>>>>>>> Stashed changes
+=======
+      backgroundColor: Colors.grey.shade50,
+>>>>>>> Stashed changes
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
@@ -458,6 +565,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+<<<<<<< Updated upstream
+<<<<<<< Updated upstream
                   _buildProfileSection(),
                   const SizedBox(height: 24),
                   _buildUsernameSection(),
@@ -690,11 +799,125 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         backgroundColor: Colors.green,
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 12),
+=======
+=======
+>>>>>>> Stashed changes
+                  // Language Section
+                  _buildSectionCard(
+                    title: l10n.language,
+                    icon: Icons.language,
+                    children: [
+                      ...SettingsService.languages.entries.map((entry) {
+                        return _buildRadioTile(
+                          title: entry.value,
+                          value: entry.key,
+                          groupValue: _selectedLanguage,
+                          onChanged: (value) async {
+                            setState(() {
+                              _selectedLanguage = value!;
+                            });
+                            // Save language immediately
+                            await SettingsService.setLanguage(value!);
+                            // Reload the app locale to apply changes
+                            reloadAppLocale();
+                          },
+                        );
+                      }),
+                    ],
+                  ),
+                  
+                  const SizedBox(height: 16),
+                  
+                  // Currency Section
+                  _buildSectionCard(
+                    title: l10n.currency,
+                    icon: Icons.attach_money,
+                    children: [
+                      ...SettingsService.currencies.entries.map((entry) {
+                        return _buildRadioTile(
+                          title: entry.value,
+                          value: entry.key,
+                          groupValue: _selectedCurrency,
+                          onChanged: (value) async {
+                            setState(() {
+                              _selectedCurrency = value!;
+                            });
+                            // Save currency immediately
+                            await SettingsService.setCurrency(value!);
+                          },
+                        );
+                      }),
+                    ],
+                  ),
+                  
+                  const SizedBox(height: 32),
+                  
+                  // Save Button
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: _saveSettings,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      child: Text(
+                        l10n.save,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                  
+                  const SizedBox(height: 16),
+                  
+                  // Reset Button
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton(
+                      onPressed: () async {
+                        await SettingsService.resetToDefaults();
+                        await _loadSettings();
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('${l10n.settings} ${l10n.reset.toLowerCase()}'),
+                              backgroundColor: Colors.orange,
+                            ),
+                          );
+                        }
+                      },
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.orange,
+                        side: const BorderSide(color: Colors.orange),
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      child: Text(
+                        '${l10n.reset} ${l10n.settings.toLowerCase()}',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
+>>>>>>> Stashed changes
                       ),
                     ),
                   ),
                 ],
               ),
+<<<<<<< Updated upstream
+<<<<<<< Updated upstream
             ],
           ],
         ),
@@ -707,11 +930,34 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+=======
+=======
+>>>>>>> Stashed changes
+            ),
+    );
+  }
+
+  Widget _buildSectionCard({
+    required String title,
+    required IconData icon,
+    required List<Widget> children,
+  }) {
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
+>>>>>>> Stashed changes
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+<<<<<<< Updated upstream
+<<<<<<< Updated upstream
             const Text(
               'Account Information',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
@@ -723,12 +969,40 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 user?.metadata.lastSignInTime?.toString() ?? 'Not available'),
             _buildInfoRow(Icons.verified, 'Email Verified', 
                 user?.emailVerified == true ? 'Yes' : 'No'),
+=======
+=======
+>>>>>>> Stashed changes
+            Row(
+              children: [
+                Icon(
+                  icon,
+                  color: Colors.blue,
+                  size: 24,
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            ...children,
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
+>>>>>>> Stashed changes
           ],
         ),
       ),
     );
   }
 
+<<<<<<< Updated upstream
+<<<<<<< Updated upstream
   Widget _buildInfoRow(IconData icon, String label, String value) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
@@ -758,6 +1032,42 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
         ],
+=======
+=======
+>>>>>>> Stashed changes
+  Widget _buildRadioTile({
+    required String title,
+    required String value,
+    required String groupValue,
+    required ValueChanged<String?> onChanged,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        color: groupValue == value ? Colors.blue.withOpacity(0.1) : Colors.transparent,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: groupValue == value ? Colors.blue : Colors.grey.withOpacity(0.3),
+          width: groupValue == value ? 2 : 1,
+        ),
+      ),
+      child: RadioListTile<String>(
+        title: Text(
+          title,
+          style: TextStyle(
+            fontWeight: groupValue == value ? FontWeight.bold : FontWeight.normal,
+            color: groupValue == value ? Colors.blue : null,
+          ),
+        ),
+        value: value,
+        groupValue: groupValue,
+        onChanged: onChanged,
+        activeColor: Colors.blue,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
+>>>>>>> Stashed changes
       ),
     );
   }
