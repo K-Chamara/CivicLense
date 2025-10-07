@@ -8,6 +8,7 @@ import '../services/budget_service.dart';
 import '../models/user_role.dart';
 import 'login_screen.dart';
 import 'budget_viewer_screen.dart';
+import 'settings_screen.dart';
 import 'citizen_tender_screen.dart';
 import 'public_tender_viewer_screen.dart';
 import 'ongoing_tenders_screen.dart';
@@ -22,6 +23,8 @@ import 'anticorruption_officer_dashboard_screen.dart';
 import 'public_user_dashboard_screen.dart';
 import 'admin_approval_screen.dart';
 import 'transparency_dashboard_screen.dart';
+import 'budget_allocations_view_screen.dart';
+import 'reports_analytics_screen.dart';
 
 class CommonHomeScreen extends StatefulWidget {
   const CommonHomeScreen({super.key});
@@ -1288,7 +1291,10 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
                   title: 'Budget Allocations',
                   onTap: () {
                     Navigator.pop(context);
-                    _showFeatureComingSoon('Budget Allocations');
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const BudgetAllocationsViewScreen()),
+                    );
                   },
                 ),
                 _buildDrawerItem(
@@ -1329,7 +1335,13 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
                 _buildDrawerItem(
                   icon: Icons.analytics,
                   title: 'Reports & Analytics',
-                  onTap: () => _showFeatureComingSoon('Reports & Analytics'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const ReportsAnalyticsScreen()),
+                    );
+                  },
                 ),
                 _buildDrawerItem(
                   icon: Icons.report_problem,
@@ -1364,7 +1376,12 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
                 _buildDrawerItem(
                   icon: Icons.settings,
                   title: 'Settings',
-                  onTap: () => _showFeatureComingSoon('Settings'),
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const SettingsScreen(),
+                    ),
+                  ),
                 ),
                 const Divider(),
                 _buildDrawerItem(

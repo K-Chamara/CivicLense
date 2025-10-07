@@ -174,9 +174,37 @@ class _RaiseConcernScreenState extends State<RaiseConcernScreen> {
       }
 
       final userData = await _authService.getUserData(user.uid);
-      final userName = userData?['firstName'] != null && userData?['lastName'] != null
-          ? '${userData!['firstName']} ${userData['lastName']}'
+      final firstName = userData?['firstName']?.toString();
+      final lastName = userData?['lastName']?.toString();
+      final userName = (firstName != null && lastName != null)
+          ? '$firstName $lastName'
           : user.email?.split('@').first ?? 'Anonymous User';
+      
+      // Get additional user information for better tracking
+      final userRole = userData?['role']?.toString() ?? 'citizen';
+      final userPhone = userData?['phone']?.toString() ?? '';
+      final userLocation = userData?['location']?.toString() ?? '';
+      
+      // Handle userRegistrationDate properly - it might be a Firestore Timestamp
+      DateTime? userRegistrationDate;
+      final createdAtData = userData?['createdAt'];
+      if (createdAtData != null) {
+        if (createdAtData is DateTime) {
+          userRegistrationDate = createdAtData;
+        } else if (createdAtData is String) {
+          userRegistrationDate = DateTime.tryParse(createdAtData);
+        } else if (createdAtData is Map<String, dynamic>) {
+          // Handle Firestore Timestamp
+          try {
+            userRegistrationDate = DateTime.fromMillisecondsSinceEpoch(
+              createdAtData['_seconds'] * 1000 + (createdAtData['_nanoseconds'] ?? 0) ~/ 1000000
+            );
+          } catch (e) {
+            print('Error parsing timestamp: $e');
+            userRegistrationDate = null;
+          }
+        }
+      }
 
       final concern = Concern(
         id: '',
@@ -185,6 +213,9 @@ class _RaiseConcernScreenState extends State<RaiseConcernScreen> {
         authorId: user.uid,
         authorName: _isAnonymous ? 'Anonymous User' : userName,
         authorEmail: _isAnonymous ? 'anonymous@example.com' : user.email ?? '',
+        authorRole: _isAnonymous ? null : userRole,
+        authorPhone: _isAnonymous ? null : userPhone,
+        authorLocation: _isAnonymous ? null : userLocation,
         category: _selectedCategory,
         type: _selectedType,
         // Priority will be auto-determined by system
@@ -202,6 +233,17 @@ class _RaiseConcernScreenState extends State<RaiseConcernScreen> {
           'sentimentMagnitude': _sentimentResult?.magnitude,
           'engagementScore': _engagementScore,
           'attachmentCount': _attachedFiles.length,
+          // Enhanced user tracking information
+          'userRole': userRole,
+          'userPhone': _isAnonymous ? 'hidden' : userPhone,
+          'userLocation': _isAnonymous ? 'hidden' : userLocation,
+          'userRegistrationDate': userRegistrationDate?.toIso8601String(),
+          'userAccountAge': userRegistrationDate != null 
+              ? DateTime.now().difference(userRegistrationDate).inDays
+              : null,
+          'submissionTimestamp': DateTime.now().toIso8601String(),
+          'submissionSource': 'mobile_app',
+          'userAgent': 'CivicLense_Mobile_App',
         },
       );
 
