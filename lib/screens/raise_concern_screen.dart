@@ -5,6 +5,7 @@ import '../models/concern_models.dart';
 import '../services/concern_service.dart';
 import '../services/auth_service.dart';
 import '../services/sentiment_service.dart';
+import '../l10n/app_localizations.dart';
 
 class RaiseConcernScreen extends StatefulWidget {
   final String? relatedBudgetId;
@@ -218,6 +219,7 @@ class _RaiseConcernScreenState extends State<RaiseConcernScreen> {
         authorLocation: _isAnonymous ? null : userLocation,
         category: _selectedCategory,
         type: _selectedType,
+        location: _locationController.text.trim().isEmpty ? null : _locationController.text.trim(),
         // Priority will be auto-determined by system
         status: ConcernStatus.pending,
         createdAt: DateTime.now(),
@@ -251,8 +253,8 @@ class _RaiseConcernScreenState extends State<RaiseConcernScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Concern submitted successfully!'),
+          SnackBar(
+            content: Text(AppLocalizations.of(context)!.concernSubmittedSuccessfully),
             backgroundColor: Colors.green,
           ),
         );
@@ -262,7 +264,7 @@ class _RaiseConcernScreenState extends State<RaiseConcernScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error submitting concern: $e'),
+            content: Text(AppLocalizations.of(context)!.concernSubmissionFailed),
             backgroundColor: Colors.red,
           ),
         );
@@ -283,20 +285,20 @@ class _RaiseConcernScreenState extends State<RaiseConcernScreen> {
       backgroundColor: const Color(0xFFF5F5F5),
       resizeToAvoidBottomInset: true,
       appBar: AppBar(
-        title: const Column(
+        title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Raise a Concern',
-              style: TextStyle(
+              AppLocalizations.of(context)!.raiseConcern,
+              style: const TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
                 color: Colors.white,
               ),
             ),
             Text(
-              'Empower transparency by reporting issues you notice',
-              style: TextStyle(
+              AppLocalizations.of(context)!.raiseConcernSubtitle,
+              style: const TextStyle(
                 fontSize: 12,
                 color: Colors.white70,
                 fontWeight: FontWeight.normal,
@@ -329,22 +331,22 @@ class _RaiseConcernScreenState extends State<RaiseConcernScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
                             // Concern Title
-                            _buildModernTextField(
-                controller: _titleController,
-                              label: 'Concern Title',
-                              hint: 'Brief, clear description of your concern',
-                              prefixIcon: Icons.title,
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Please enter a title';
-                  }
-                  if (value.trim().length < 10) {
-                    return 'Title must be at least 10 characters';
-                  }
-                  return null;
-                },
-                maxLength: 100,
-              ),
+                  _buildModernTextField(
+                    controller: _titleController,
+                    label: AppLocalizations.of(context)!.concernTitleLabel,
+                    hint: AppLocalizations.of(context)!.concernTitleHint,
+                    prefixIcon: Icons.title,
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return AppLocalizations.of(context)!.concernTitleRequired;
+                      }
+                      if (value.trim().length < 10) {
+                        return AppLocalizations.of(context)!.concernTitleMinLength;
+                      }
+                      return null;
+                    },
+                    maxLength: 100,
+                  ),
                             const SizedBox(height: 16),
 
                             // Category/Type Dropdown
@@ -447,7 +449,7 @@ class _RaiseConcernScreenState extends State<RaiseConcernScreen> {
           return Column(
             children: [
               _buildDropdown(
-                label: 'Category',
+                label: AppLocalizations.of(context)!.category,
                 value: _getCategoryDisplayName(_selectedCategory),
                 items: ConcernCategory.values.map((category) =>
                   DropdownMenuItem(
@@ -476,7 +478,7 @@ class _RaiseConcernScreenState extends State<RaiseConcernScreen> {
                       ),
               const SizedBox(height: 16),
               _buildDropdown(
-                label: 'Type',
+                label: AppLocalizations.of(context)!.type,
                 value: _getTypeDisplayName(_selectedType),
                 items: ConcernType.values.map((type) =>
                   DropdownMenuItem(
@@ -513,7 +515,7 @@ class _RaiseConcernScreenState extends State<RaiseConcernScreen> {
           children: [
             Expanded(
               child: _buildDropdown(
-                label: 'Category',
+                label: AppLocalizations.of(context)!.category,
                 value: _getCategoryDisplayName(_selectedCategory),
               items: ConcernCategory.values.map((category) =>
                 DropdownMenuItem(
@@ -636,9 +638,9 @@ class _RaiseConcernScreenState extends State<RaiseConcernScreen> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text(
-              'Description',
-              style: TextStyle(
+                        Text(
+              AppLocalizations.of(context)!.description,
+              style: const TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
                 color: Color(0xFF1A3C73),
@@ -653,7 +655,7 @@ class _RaiseConcernScreenState extends State<RaiseConcernScreen> {
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
                 : const Icon(Icons.psychology, size: 16),
-              label: const Text('Analyze Tone'),
+              label: Text(AppLocalizations.of(context)!.analyzeTone),
               style: TextButton.styleFrom(
                 foregroundColor: const Color(0xFF1A3C73),
               ),
@@ -672,7 +674,7 @@ class _RaiseConcernScreenState extends State<RaiseConcernScreen> {
           },
                 validator: (value) {
                   if (value == null || value.trim().isEmpty) {
-                    return 'Please enter a description';
+                    return AppLocalizations.of(context)!.fieldRequired;
                   }
                   if (value.trim().length < 20) {
                     return 'Description must be at least 20 characters';
@@ -1212,19 +1214,19 @@ class _RaiseConcernScreenState extends State<RaiseConcernScreen> {
   String _getCategoryDisplayName(ConcernCategory category) {
     switch (category) {
       case ConcernCategory.budget:
-        return 'Budget & Finance';
+        return AppLocalizations.of(context)!.budgetCategory;
       case ConcernCategory.tender:
-        return 'Tenders & Procurement';
+        return AppLocalizations.of(context)!.tenderCategory;
       case ConcernCategory.community:
-        return 'Community Issues';
+        return AppLocalizations.of(context)!.communityCategory;
       case ConcernCategory.system:
-        return 'System & Technical';
+        return AppLocalizations.of(context)!.systemCategory;
       case ConcernCategory.corruption:
-        return 'Corruption & Fraud';
+        return AppLocalizations.of(context)!.corruptionCategory;
       case ConcernCategory.transparency:
-        return 'Transparency & Accountability';
+        return AppLocalizations.of(context)!.transparencyCategory;
       case ConcernCategory.other:
-        return 'Other';
+        return AppLocalizations.of(context)!.otherCategory;
     }
   }
 
@@ -1250,15 +1252,15 @@ class _RaiseConcernScreenState extends State<RaiseConcernScreen> {
   String _getTypeDisplayName(ConcernType type) {
     switch (type) {
       case ConcernType.complaint:
-        return 'Complaint';
+        return AppLocalizations.of(context)!.complaintType;
       case ConcernType.suggestion:
-        return 'Suggestion';
+        return AppLocalizations.of(context)!.suggestionType;
       case ConcernType.report:
-        return 'Report';
+        return AppLocalizations.of(context)!.reportType;
       case ConcernType.question:
-        return 'Question';
+        return AppLocalizations.of(context)!.questionType;
       case ConcernType.feedback:
-        return 'Feedback';
+        return AppLocalizations.of(context)!.feedbackType;
     }
   }
 
