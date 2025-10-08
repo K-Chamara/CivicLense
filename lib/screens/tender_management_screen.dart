@@ -3,6 +3,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'bidder_management_screen.dart';
 import '../services/budget_service.dart';
+import '../services/admin_service.dart';
+import '../models/user_role.dart';
 
 class TenderManagementScreen extends StatefulWidget {
   const TenderManagementScreen({super.key});
@@ -17,6 +19,11 @@ class _TenderManagementScreenState extends State<TenderManagementScreen> {
   String _selectedStatus = 'All';
   String _selectedCategory = 'All';
   final BudgetService _budgetService = BudgetService();
+  final AdminService _adminService = AdminService();
+  
+  // User permissions
+  bool _canEditTenders = false;
+  bool _canAwardBidders = false;
 
   final List<String> _statuses = ['All', 'active', 'closed', 'cancelled'];
   List<String> _categories = ['All'];
@@ -26,6 +33,7 @@ class _TenderManagementScreenState extends State<TenderManagementScreen> {
     super.initState();
     _loadTenders();
     _loadCategories();
+    _checkUserPermissions();
   }
 
   @override
@@ -33,19 +41,67 @@ class _TenderManagementScreenState extends State<TenderManagementScreen> {
     super.dispose();
   }
 
-  Future<void> _loadTenders() async {
+  Future<void> _checkUserPermissions() async {
     try {
       final user = FirebaseAuth.instance.currentUser;
-      if (user == null) return;
+      
+      // If no user is logged in, allow view-only access
+      if (user == null) {
+        setState(() {
+          _canEditTenders = false;
+          _canAwardBidders = false;
+        });
+        return;
+      }
 
+      // Check if user is admin
+      final isAdmin = await _adminService.isAdmin(user.uid);
+      
+      // Check if user is procurement officer
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+      
+      bool isProcurementOfficer = false;
+      if (userDoc.exists) {
+        final userData = userDoc.data();
+        final roleData = userData?['role'];
+        if (roleData != null) {
+          final role = UserRole.fromMap(roleData);
+          isProcurementOfficer = role.id == 'procurement_officer';
+        }
+      }
+
+      setState(() {
+        _canEditTenders = isAdmin || isProcurementOfficer;
+        _canAwardBidders = isAdmin || isProcurementOfficer;
+      });
+    } catch (e) {
+      print('Error checking user permissions: $e');
+      // Default to no permissions on error
+      setState(() {
+        _canEditTenders = false;
+        _canAwardBidders = false;
+      });
+    }
+  }
+
+  Future<void> _loadTenders() async {
+    try {
+      print('🔄 Loading tenders for any user (no restrictions)...');
+      
+      // Load all tenders for any user (no user restriction)
       final querySnapshot = await FirebaseFirestore.instance
           .collection('tenders')
-          .where('createdBy', isEqualTo: user.uid)
           .get();
+
+      print('📊 Found ${querySnapshot.docs.length} tenders in database');
 
       setState(() {
         _tenders = querySnapshot.docs.map((doc) {
           final data = doc.data();
+          print('📋 Tender: ${data['title']} (Status: ${data['status']})');
           return {
             'id': doc.id,
             'title': data['title'] ?? '',
@@ -65,37 +121,137 @@ class _TenderManagementScreenState extends State<TenderManagementScreen> {
           };
         }).toList();
         
+        print('✅ Loaded ${_tenders.length} tenders successfully');
+        
+        // If no tenders found, create some sample data for testing
+        if (_tenders.isEmpty) {
+          print('📝 No tenders found, creating sample data...');
+          _createSampleTenders();
+        }
+        
         _isLoading = false;
       });
     } catch (e) {
+      print('❌ Error loading tenders: $e');
       setState(() {
         _isLoading = false;
       });
+    }
+  }
+
+  Future<void> _createSampleTenders() async {
+    try {
+      print('🔄 Creating sample tenders...');
+      
+      final sampleTenders = [
+        {
+          'title': 'Road Construction - Main Street',
+          'description': 'Construction of a new main street with proper drainage system',
+          'location': 'Downtown Area',
+          'budget': 250000.0,
+          'deadline': '2024-12-31',
+          'category': 'Infrastructure',
+          'status': 'active',
+          'totalBids': 5,
+          'lowestBid': 220000.0,
+          'highestBid': 280000.0,
+          'createdAt': FieldValue.serverTimestamp(),
+          'createdBy': 'system',
+        },
+        {
+          'title': 'School Building Renovation',
+          'description': 'Renovation of the old school building with modern facilities',
+          'location': 'Education District',
+          'budget': 150000.0,
+          'deadline': '2024-11-30',
+          'category': 'Education',
+          'status': 'closed',
+          'totalBids': 3,
+          'lowestBid': 140000.0,
+          'highestBid': 160000.0,
+          'awardedTo': 'ABC Construction Ltd',
+          'awardedAmount': 145000.0,
+          'createdAt': FieldValue.serverTimestamp(),
+          'createdBy': 'system',
+        },
+        {
+          'title': 'Hospital Equipment Purchase',
+          'description': 'Purchase of medical equipment for the local hospital',
+          'location': 'Medical District',
+          'budget': 75000.0,
+          'deadline': '2024-10-15',
+          'category': 'Healthcare',
+          'status': 'active',
+          'totalBids': 8,
+          'lowestBid': 68000.0,
+          'highestBid': 78000.0,
+          'createdAt': FieldValue.serverTimestamp(),
+          'createdBy': 'system',
+        },
+      ];
+
+      for (final tender in sampleTenders) {
+        await FirebaseFirestore.instance
+            .collection('tenders')
+            .add(tender);
+        print('✅ Created sample tender: ${tender['title']}');
+      }
+      
+      print('🎉 Sample tenders created successfully!');
+      
+      // Reload tenders after creating samples
+      await _loadTenders();
+      
+    } catch (e) {
+      print('❌ Error creating sample tenders: $e');
     }
   }
 
   Future<void> _loadCategories() async {
     try {
+      print('🔄 Loading categories...');
+      
       // Get all categories from budget service (same as Budget Overview)
       final categories = await _budgetService.getBudgetCategories();
+      print('📊 Found ${categories.length} categories');
+      
       setState(() {
-        _categories = ['All', ...categories.map((cat) => cat.name).toList()];
+        final categoryNames = categories.map((cat) => cat.name).toList();
+        final uniqueCategories = categoryNames.toSet().toList();
+        _categories = ['All', ...uniqueCategories];
+        
+        print('✅ Categories loaded: $_categories');
+        
+        // Ensure selected category is still valid
+        if (!_categories.contains(_selectedCategory)) {
+          _selectedCategory = 'All';
+        }
       });
     } catch (e) {
-      print('Error loading categories: $e');
+      print('❌ Error loading categories: $e');
       // Keep default categories if loading fails
       setState(() {
         _categories = ['All'];
+        _selectedCategory = 'All';
       });
     }
   }
 
   List<Map<String, dynamic>> get _filteredTenders {
-    return _tenders.where((tender) {
+    print('🔍 Filtering tenders: Status=$_selectedStatus, Category=$_selectedCategory');
+    print('📊 Total tenders: ${_tenders.length}');
+    
+    final filtered = _tenders.where((tender) {
       final statusMatch = _selectedStatus == 'All' || tender['status'] == _selectedStatus;
       final categoryMatch = _selectedCategory == 'All' || tender['category'] == _selectedCategory;
+      
+      print('📋 Tender: ${tender['title']} - Status: ${tender['status']} (match: $statusMatch), Category: ${tender['category']} (match: $categoryMatch)');
+      
       return statusMatch && categoryMatch;
     }).toList();
+    
+    print('✅ Filtered results: ${filtered.length} tenders');
+    return filtered;
   }
 
   String _formatBudget(double budget) {
@@ -131,18 +287,22 @@ class _TenderManagementScreenState extends State<TenderManagementScreen> {
       builder: (context) => TenderDetailsSheet(
         tender: tender,
         onStatusChanged: () => _loadTenders(),
+        canAwardBidders: _canAwardBidders,
       ),
     );
   }
 
   void _editTender(Map<String, dynamic> tender) {
-    // Navigate to edit tender screen or show edit dialog
-    // For now, show a placeholder message
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Edit functionality for "${tender['title']}" will be implemented soon'),
-        backgroundColor: Colors.blue,
-      ),
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return EditTenderDialog(
+          tender: tender,
+          onTenderUpdated: () {
+            _loadTenders(); // Reload tenders after edit
+          },
+        );
+      },
     );
   }
 
@@ -152,70 +312,90 @@ class _TenderManagementScreenState extends State<TenderManagementScreen> {
       color: Colors.white,
       child: Column(
         children: [
-          // Status Filter Chips
-          Container(
-            height: 40,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              itemCount: _statuses.length,
-              itemBuilder: (context, index) {
-                final status = _statuses[index];
-                final isSelected = status == _selectedStatus;
-                
-                return Container(
-                  margin: const EdgeInsets.only(right: 8),
-                  child: FilterChip(
-                    label: Text(status.toUpperCase()),
-                    selected: isSelected,
-                    onSelected: (selected) {
-                      setState(() {
-                        _selectedStatus = status;
-                      });
-                    },
-                    selectedColor: Colors.blue.withOpacity(0.2),
-                    checkmarkColor: Colors.blue,
-                    labelStyle: TextStyle(
-                      color: isSelected ? Colors.blue : Colors.grey[700],
-                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+          // Status Filter
+          Row(
+            children: [
+              const Text(
+                'Status',
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                  color: Colors.grey,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: DropdownButtonFormField<String>(
+                  value: _selectedStatus,
+                  decoration: InputDecoration(
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
                     ),
                   ),
-                );
-              },
-            ),
+                  items: _statuses.map((status) {
+                    return DropdownMenuItem<String>(
+                      value: status,
+                      child: Text(status.toUpperCase()),
+                    );
+                  }).toList(),
+                  onChanged: (value) {
+                    if (value != null) {
+                      setState(() {
+                        _selectedStatus = value;
+                      });
+                    }
+                  },
+                ),
+              ),
+            ],
           ),
           
-          const SizedBox(height: 8),
+          const SizedBox(height: 16),
           
-          // Category Filter Chips
-          Container(
-            height: 40,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              itemCount: _categories.length,
-              itemBuilder: (context, index) {
-                final category = _categories[index];
-                final isSelected = category == _selectedCategory;
-                
-                return Container(
-                  margin: const EdgeInsets.only(right: 8),
-                  child: FilterChip(
-                    label: Text(category),
-                    selected: isSelected,
-                    onSelected: (selected) {
-                      setState(() {
-                        _selectedCategory = category;
-                      });
-                    },
-                    selectedColor: Colors.orange.withOpacity(0.2),
-                    checkmarkColor: Colors.orange,
-                    labelStyle: TextStyle(
-                      color: isSelected ? Colors.orange : Colors.grey[700],
-                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+          // Category Filter
+          Row(
+            children: [
+              const Text(
+                'Category',
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                  color: Colors.grey,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: DropdownButtonFormField<String>(
+                  value: _selectedCategory,
+                  decoration: InputDecoration(
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
                     ),
                   ),
-                );
-              },
-            ),
+                  items: _categories.map((category) {
+                    return DropdownMenuItem<String>(
+                      value: category,
+                      child: Text(category),
+                    );
+                  }).toList(),
+                  onChanged: (value) {
+                    if (value != null) {
+                      setState(() {
+                        _selectedCategory = value;
+                      });
+                    }
+                  },
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -225,6 +405,37 @@ class _TenderManagementScreenState extends State<TenderManagementScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        title: const Text('Tender Management'),
+        backgroundColor: Colors.lightBlue,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: () async {
+              setState(() {
+                _isLoading = true;
+              });
+              await _loadTenders();
+            },
+            tooltip: 'Refresh',
+          ),
+          IconButton(
+            icon: const Icon(Icons.add),
+            onPressed: () async {
+              await _createSampleTenders();
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Sample tenders created!'),
+                  backgroundColor: Colors.green,
+                ),
+              );
+            },
+            tooltip: 'Create Sample Data',
+          ),
+        ],
+      ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : Column(
@@ -245,12 +456,6 @@ class _TenderManagementScreenState extends State<TenderManagementScreen> {
                           color: Colors.grey,
                         ),
                       ),
-                      const Spacer(),
-                      IconButton(
-                        icon: const Icon(Icons.refresh),
-                        onPressed: _loadTenders,
-                        tooltip: 'Refresh',
-                      ),
                     ],
                   ),
                 ),
@@ -258,10 +463,64 @@ class _TenderManagementScreenState extends State<TenderManagementScreen> {
                 // Tenders list
                 Expanded(
                   child: _filteredTenders.isEmpty
-                      ? const Center(
-                          child: Text(
-                            'No tenders found',
-                            style: TextStyle(fontSize: 18, color: Colors.grey),
+                      ? Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.assignment_outlined,
+                                size: 64,
+                                color: Colors.grey[400],
+                              ),
+                              const SizedBox(height: 16),
+                              const Text(
+                                'No tenders found',
+                                style: TextStyle(fontSize: 18, color: Colors.grey),
+                              ),
+                              const SizedBox(height: 8),
+                              const Text(
+                                'Tenders will appear here when they are created',
+                                style: TextStyle(fontSize: 14, color: Colors.grey),
+                              ),
+                              const SizedBox(height: 16),
+                              ElevatedButton.icon(
+                                onPressed: () {
+                                  // Show info about how to create tenders
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Contact an admin or procurement officer to create tenders'),
+                                      duration: Duration(seconds: 3),
+                                    ),
+                                  );
+                                },
+                                icon: const Icon(Icons.info_outline),
+                                label: const Text('How to create tenders?'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.blue,
+                                  foregroundColor: Colors.white,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              ElevatedButton.icon(
+                                onPressed: () async {
+                                  // Create sample data for testing
+                                  await _createSampleTenders();
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Sample tenders created! Refresh to see them.'),
+                                      backgroundColor: Colors.green,
+                                      duration: Duration(seconds: 3),
+                                    ),
+                                  );
+                                },
+                                icon: const Icon(Icons.add),
+                                label: const Text('Create Sample Data'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.orange,
+                                  foregroundColor: Colors.white,
+                                ),
+                              ),
+                            ],
                           ),
                         )
                       : ListView.builder(
@@ -300,6 +559,7 @@ class _TenderManagementScreenState extends State<TenderManagementScreen> {
                                               if (value == 'details') {
                                                 _showTenderDetails(tender);
                                               } else if (value == 'bidders') {
+                                                print('Navigating to bidders for tender: ${tender['title']} with ID: ${tender['id']}');
                                                 Navigator.push(
                                                   context,
                                                   MaterialPageRoute(
@@ -324,29 +584,31 @@ class _TenderManagementScreenState extends State<TenderManagementScreen> {
                                                   ],
                                                 ),
                                               ),
-                                              PopupMenuItem(
-                                                value: 'edit',
-                                                enabled: tender['status'] != 'cancelled' && tender['status'] != 'closed',
-                                                child: Row(
-                                                  children: [
-                                                    Icon(
-                                                      Icons.edit,
-                                                      color: (tender['status'] == 'cancelled' || tender['status'] == 'closed')
-                                                          ? Colors.grey
-                                                          : null,
-                                                    ),
-                                                    const SizedBox(width: 8),
-                                                    Text(
-                                                      'Edit',
-                                                      style: TextStyle(
+                                              // Only show edit option if user has permission
+                                              if (_canEditTenders)
+                                                PopupMenuItem(
+                                                  value: 'edit',
+                                                  enabled: tender['status'] != 'cancelled' && tender['status'] != 'closed',
+                                                  child: Row(
+                                                    children: [
+                                                      Icon(
+                                                        Icons.edit,
                                                         color: (tender['status'] == 'cancelled' || tender['status'] == 'closed')
                                                             ? Colors.grey
                                                             : null,
                                                       ),
-                                                    ),
-                                                  ],
+                                                      const SizedBox(width: 8),
+                                                      Text(
+                                                        'Edit',
+                                                        style: TextStyle(
+                                                          color: (tender['status'] == 'cancelled' || tender['status'] == 'closed')
+                                                              ? Colors.grey
+                                                              : null,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
                                                 ),
-                                              ),
                                               const PopupMenuItem(
                                                 value: 'bidders',
                                                 child: Row(
@@ -376,10 +638,6 @@ class _TenderManagementScreenState extends State<TenderManagementScreen> {
                                           fontWeight: FontWeight.w500,
                                           color: Colors.blue,
                                         ),
-                                      ),
-                                      Text(
-                                        'Deadline: ${tender['deadline']}',
-                                        style: const TextStyle(color: Colors.grey),
                                       ),
                                       // Show winning bidder info for closed/awarded tenders
                                       if ((tender['status'] == 'closed' || tender['status'] == 'awarded') && tender['awardedTo'] != null) ...[
@@ -522,11 +780,13 @@ class _TenderManagementScreenState extends State<TenderManagementScreen> {
 class TenderDetailsSheet extends StatefulWidget {
   final Map<String, dynamic> tender;
   final VoidCallback onStatusChanged;
+  final bool canAwardBidders;
 
   const TenderDetailsSheet({
     super.key,
     required this.tender,
     required this.onStatusChanged,
+    required this.canAwardBidders,
   });
 
   @override
@@ -546,8 +806,10 @@ class _TenderDetailsSheetState extends State<TenderDetailsSheet> {
     final tenderStatus = widget.tender['status'];
     if (tenderStatus == 'awarded') {
       _selectedStatus = 'closed'; // Default to closed for awarded tenders
-    } else {
+    } else if (tenderStatus == 'active' || tenderStatus == 'closed' || tenderStatus == 'cancelled') {
       _selectedStatus = tenderStatus;
+    } else {
+      _selectedStatus = 'active'; // Default fallback
     }
     _projectName = widget.tender['projectName'] ?? '';
     _loadBidders();
@@ -733,17 +995,19 @@ class _TenderDetailsSheetState extends State<TenderDetailsSheet> {
           // If another bidder is awarded, show nothing for this bidder
           return const SizedBox.shrink();
         } else {
-          // Show Award button if no bidder is awarded yet
-          return ElevatedButton(
-            onPressed: () => _awardBidder(bidder),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.green,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-              minimumSize: const Size(0, 32),
-            ),
-            child: const Text('Award', style: TextStyle(fontSize: 12)),
-          );
+          // Show Award button only if user has permission and no bidder is awarded yet
+          return widget.canAwardBidders
+              ? ElevatedButton(
+                  onPressed: () => _awardBidder(bidder),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                    minimumSize: const Size(0, 32),
+                  ),
+                  child: const Text('Award', style: TextStyle(fontSize: 12)),
+                )
+              : const SizedBox.shrink();
         }
       }
 
@@ -814,7 +1078,6 @@ class _TenderDetailsSheetState extends State<TenderDetailsSheet> {
                           Text('Description: ${widget.tender['description']}'),
                           Text('Location: ${widget.tender['location']}'),
                           Text('Budget: ${_formatBudget(widget.tender['budget'])}'),
-                          Text('Deadline: ${widget.tender['deadline']}'),
                           Text('Category: ${widget.tender['category']}'),
                           Text('Current Status: ${widget.tender['status'].toUpperCase()}'),
                         ],
@@ -843,21 +1106,31 @@ class _TenderDetailsSheetState extends State<TenderDetailsSheet> {
                             
                             // Status Dropdown
                             DropdownButtonFormField<String>(
-                              value: _selectedStatus,
+                              value: _selectedStatus.isNotEmpty && ['active', 'closed', 'cancelled'].contains(_selectedStatus) ? _selectedStatus : null,
                               decoration: const InputDecoration(
                                 labelText: 'New Status',
                                 border: OutlineInputBorder(),
                               ),
-                              items: ['active', 'closed', 'cancelled'].map((status) {
-                                return DropdownMenuItem<String>(
-                                  value: status,
-                                  child: Text(status.toUpperCase()),
-                                );
-                              }).toList(),
+                              items: const [
+                                DropdownMenuItem<String>(
+                                  value: 'active',
+                                  child: Text('ACTIVE'),
+                                ),
+                                DropdownMenuItem<String>(
+                                  value: 'closed',
+                                  child: Text('CLOSED'),
+                                ),
+                                DropdownMenuItem<String>(
+                                  value: 'cancelled',
+                                  child: Text('CANCELLED'),
+                                ),
+                              ],
                               onChanged: (value) {
-                                setState(() {
-                                  _selectedStatus = value!;
-                                });
+                                if (value != null) {
+                                  setState(() {
+                                    _selectedStatus = value;
+                                  });
+                                }
                               },
                             ),
                             
@@ -946,6 +1219,277 @@ class _TenderDetailsSheetState extends State<TenderDetailsSheet> {
           ),
         ],
       ),
+    );
+  }
+}
+
+class EditTenderDialog extends StatefulWidget {
+  final Map<String, dynamic> tender;
+  final VoidCallback onTenderUpdated;
+
+  const EditTenderDialog({
+    super.key,
+    required this.tender,
+    required this.onTenderUpdated,
+  });
+
+  @override
+  State<EditTenderDialog> createState() => _EditTenderDialogState();
+}
+
+class _EditTenderDialogState extends State<EditTenderDialog> {
+  final _formKey = GlobalKey<FormState>();
+  final _titleController = TextEditingController();
+  final _descriptionController = TextEditingController();
+  final _locationController = TextEditingController();
+  final _budgetController = TextEditingController();
+  final _deadlineController = TextEditingController();
+  final _categoryController = TextEditingController();
+  
+  bool _isLoading = false;
+  String _selectedStatus = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _titleController.text = widget.tender['title'] ?? '';
+    _descriptionController.text = widget.tender['description'] ?? '';
+    _locationController.text = widget.tender['location'] ?? '';
+    _budgetController.text = (widget.tender['budget'] ?? 0.0).toString();
+    _deadlineController.text = widget.tender['deadline'] ?? '';
+    _categoryController.text = widget.tender['category'] ?? '';
+    _selectedStatus = widget.tender['status'] ?? 'active';
+  }
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _descriptionController.dispose();
+    _locationController.dispose();
+    _budgetController.dispose();
+    _deadlineController.dispose();
+    _categoryController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _updateTender() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      await FirebaseFirestore.instance
+          .collection('tenders')
+          .doc(widget.tender['id'])
+          .update({
+        'title': _titleController.text.trim(),
+        'description': _descriptionController.text.trim(),
+        'location': _locationController.text.trim(),
+        'budget': double.tryParse(_budgetController.text) ?? 0.0,
+        'deadline': _deadlineController.text.trim(),
+        'category': _categoryController.text.trim(),
+        'status': _selectedStatus,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Tender updated successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        widget.onTenderUpdated();
+        Navigator.of(context).pop();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error updating tender: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Edit Tender'),
+      content: SingleChildScrollView(
+        child: Form(
+          key: _formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Title
+              TextFormField(
+                controller: _titleController,
+                decoration: const InputDecoration(
+                  labelText: 'Title',
+                  border: OutlineInputBorder(),
+                ),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Please enter a title';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+
+              // Description
+              TextFormField(
+                controller: _descriptionController,
+                decoration: const InputDecoration(
+                  labelText: 'Description',
+                  border: OutlineInputBorder(),
+                ),
+                maxLines: 3,
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Please enter a description';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+
+              // Location
+              TextFormField(
+                controller: _locationController,
+                decoration: const InputDecoration(
+                  labelText: 'Location',
+                  border: OutlineInputBorder(),
+                ),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Please enter a location';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+
+              // Budget
+              TextFormField(
+                controller: _budgetController,
+                decoration: const InputDecoration(
+                  labelText: 'Budget',
+                  border: OutlineInputBorder(),
+                  prefixText: '\$',
+                ),
+                keyboardType: TextInputType.number,
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Please enter a budget';
+                  }
+                  if (double.tryParse(value) == null) {
+                    return 'Please enter a valid number';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+
+              // Deadline
+              TextFormField(
+                controller: _deadlineController,
+                decoration: const InputDecoration(
+                  labelText: 'Deadline (YYYY-MM-DD)',
+                  border: OutlineInputBorder(),
+                ),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Please enter a deadline';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+
+              // Category
+              TextFormField(
+                controller: _categoryController,
+                decoration: const InputDecoration(
+                  labelText: 'Category',
+                  border: OutlineInputBorder(),
+                ),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Please enter a category';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+
+              // Status
+              DropdownButtonFormField<String>(
+                value: _selectedStatus.isNotEmpty && ['active', 'closed', 'cancelled'].contains(_selectedStatus) ? _selectedStatus : null,
+                decoration: const InputDecoration(
+                  labelText: 'Status',
+                  border: OutlineInputBorder(),
+                ),
+                items: const [
+                  DropdownMenuItem<String>(
+                    value: 'active',
+                    child: Text('Active'),
+                  ),
+                  DropdownMenuItem<String>(
+                    value: 'closed',
+                    child: Text('Closed'),
+                  ),
+                  DropdownMenuItem<String>(
+                    value: 'cancelled',
+                    child: Text('Cancelled'),
+                  ),
+                ],
+                onChanged: (value) {
+                  if (value != null) {
+                    setState(() {
+                      _selectedStatus = value;
+                    });
+                  }
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _isLoading ? null : () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton(
+          onPressed: _isLoading ? null : _updateTender,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.blue,
+            foregroundColor: Colors.white,
+          ),
+          child: _isLoading
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    color: Colors.white,
+                    strokeWidth: 2,
+                  ),
+                )
+              : const Text('Update'),
+        ),
+      ],
     );
   }
 }

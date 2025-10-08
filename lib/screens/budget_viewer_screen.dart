@@ -3,6 +3,7 @@ import '../widgets/budget_navigator.dart';
 import 'raise_concern_screen.dart';
 import 'common_home_screen.dart';
 import 'citizen_tender_screen.dart';
+import 'public_tender_viewer_screen.dart';
 import '../services/auth_service.dart';
 import '../models/user_role.dart';
 import 'enhanced_dashboard_screen.dart';
@@ -95,7 +96,7 @@ class _BudgetViewerScreenState extends State<BudgetViewerScreen> {
               case 2:
                 Navigator.pushReplacement(
                   context,
-                  MaterialPageRoute(builder: (context) => const CitizenTenderScreen()),
+                  MaterialPageRoute(builder: (context) => const PublicTenderViewerScreen()),
                 );
                 break;
               case 3:

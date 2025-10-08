@@ -1,13 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import '../l10n/app_localizations.dart';
 import '../services/auth_service.dart';
+import '../services/budget_service.dart';
+import '../services/news_service.dart';
 import '../models/user_role.dart';
+import '../models/report.dart';
 import 'login_screen.dart';
 import 'budget_viewer_screen.dart';
+import 'settings_screen.dart';
 import 'citizen_tender_screen.dart';
+import 'public_tender_viewer_screen.dart';
+import 'ongoing_tenders_screen.dart';
 import 'raise_concern_screen.dart';
 import 'public_concerns_screen.dart';
+import 'user_concern_tracking_screen.dart';
 import 'enhanced_dashboard_screen.dart';
 import 'admin_dashboard_screen.dart';
 import 'finance_officer_dashboard_screen.dart';
@@ -15,6 +25,9 @@ import 'procurement_officer_dashboard_screen.dart';
 import 'anticorruption_officer_dashboard_screen.dart';
 import 'public_user_dashboard_screen.dart';
 import 'admin_approval_screen.dart';
+import 'transparency_dashboard_screen.dart';
+import 'budget_allocations_view_screen.dart';
+import 'reports_analytics_screen.dart';
 
 class CommonHomeScreen extends StatefulWidget {
   const CommonHomeScreen({super.key});
@@ -26,11 +39,17 @@ class CommonHomeScreen extends StatefulWidget {
 class _CommonHomeScreenState extends State<CommonHomeScreen>
     with TickerProviderStateMixin {
   final AuthService _authService = AuthService();
+  final BudgetService _budgetService = BudgetService();
   UserRole? userRole;
   Map<String, dynamic>? userData;
   bool isLoading = true;
   bool showPendingScreen = true;
   bool hasChosenLimitedAccess = false;
+  
+  // Dashboard statistics
+  int allocationsCount = 0;
+  int activeTendersCount = 0;
+  int projectsCount = 0;
   
   late AnimationController _fadeController;
   late AnimationController _slideController;
@@ -54,6 +73,7 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
     _initializeAnimations();
     _loadUserData();
     _checkPendingScreenPreference();
+    _loadDashboardData();
   }
 
   void _initializeAnimations() {
@@ -174,6 +194,101 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
     }
   }
 
+  Future<void> _loadDashboardData() async {
+    print('Loading home page dashboard data...');
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        print('No user found, returning');
+        return;
+      }
+      print('User found: ${user.uid}');
+
+      // Load ALL tenders in the database
+      final tendersQuery = await FirebaseFirestore.instance
+          .collection('tenders')
+          .get();
+
+      final tenders = tendersQuery.docs.map((doc) => doc.data()).toList();
+      print('Found ${tenders.length} tenders');
+      
+      // Load ALL projects in the database
+      final projectsQuery = await FirebaseFirestore.instance
+          .collection('projects')
+          .get();
+
+      final projects = projectsQuery.docs.map((doc) => doc.data()).toList();
+      print('Found ${projects.length} projects');
+
+      // Calculate statistics (same logic as PO Dashboard)
+      activeTendersCount = tenders.length; // All tenders in DB
+      projectsCount = projects.length; // Projects should show actual projects in DB
+      
+      // TEMPORARY TEST: Force some values to see if UI updates
+      print('BEFORE calculations:');
+      print('tenders.length: ${tenders.length}');
+      print('projects.length: ${projects.length}');
+      
+      // If we have data but counts are 0, there might be an issue
+      if (tenders.length > 0 && activeTendersCount == 0) {
+        print('WARNING: Found tenders but activeTendersCount is 0');
+        activeTendersCount = tenders.length;
+      }
+      if (tenders.length > 0 && projectsCount == 0) {
+        print('WARNING: Found tenders but projectsCount is 0');
+        projectsCount = tenders.length;
+      }
+      
+      // Load allocations count using BudgetService (same as PO Dashboard)
+      try {
+        int totalBudgetItems = 0;
+        
+        // Use the same method as PO Dashboard and BudgetItemsOverviewScreen
+        final categories = await _budgetService.getBudgetCategories();
+        print('Found ${categories.length} budget categories');
+        
+        for (final category in categories) {
+          try {
+            final subcategories = await _budgetService.getBudgetSubcategories(category.id);
+            print('Category ${category.id} has ${subcategories.length} subcategories');
+            
+            for (final subcategory in subcategories) {
+              try {
+                final items = await _budgetService.getBudgetItems(category.id, subcategory.id);
+                print('Subcategory ${subcategory.id} has ${items.length} items');
+                totalBudgetItems += items.length;
+              } catch (e) {
+                print('Error loading items for subcategory ${subcategory.id}: $e');
+              }
+            }
+          } catch (e) {
+            print('Error loading subcategories for category ${category.id}: $e');
+          }
+        }
+        
+        allocationsCount = totalBudgetItems;
+        print('Allocations count loaded using BudgetService: $allocationsCount');
+      } catch (e) {
+        print('Error loading allocations count with BudgetService: $e');
+        allocationsCount = 0;
+      }
+      
+      print('Home page dashboard statistics loaded:');
+      print('Allocations: $allocationsCount');
+      print('Active Tenders: $activeTendersCount');
+      print('Projects: $projectsCount');
+      
+      // Update the UI
+      if (mounted) {
+        setState(() {
+          // Force UI update with real data
+        });
+      }
+    } catch (e) {
+      print('Error loading home page dashboard data: $e');
+    }
+  }
+
   Future<void> _signOut() async {
     try {
       await _authService.signOut();
@@ -237,6 +352,21 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
     );
   }
 
+  String _formatDate(DateTime date) {
+    final now = DateTime.now();
+    final difference = now.difference(date);
+
+    if (difference.inDays == 0) {
+      return 'Today';
+    } else if (difference.inDays == 1) {
+      return 'Yesterday';
+    } else if (difference.inDays < 7) {
+      return '${difference.inDays} days ago';
+    } else {
+      return '${date.day}/${date.month}/${date.year}';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (isLoading) {
@@ -285,68 +415,127 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
   }
 
 
-  Widget _buildWelcomeHero() {
-    return ScaleTransition(
-      scale: _scaleAnimation,
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(32),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Colors.blue.shade600,
-              Colors.blue.shade800,
-              Colors.indigo.shade700,
-            ],
-          ),
-          borderRadius: BorderRadius.circular(24),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.blue.withOpacity(0.3),
-              blurRadius: 20,
-              offset: const Offset(0, 8),
-            ),
-          ],
+  Widget _buildGovernmentHeader() {
+    return Container(
+      width: double.infinity,
+      height: 280,
+      decoration: BoxDecoration(
+        image: DecorationImage(
+          image: AssetImage('assets/images/backimage.jpg'),
+          fit: BoxFit.cover,
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Icon(
-                    userRole?.icon ?? Icons.person,
-                    color: Colors.white,
-                    size: 32,
-                  ),
+      ),
+      child: Stack(
+        children: [
+          // Light blue gradient overlay
+          Positioned.fill(
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.blue.withOpacity(0.2),
+                    Colors.blue.withOpacity(0.1),
+                    Colors.blue.withOpacity(0.05),
+                  ],
                 ),
-                const SizedBox(width: 20),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+              ),
+            ),
+          ),
+          // Content
+          Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 40),
+                // App Branding
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Image.asset(
+                        'assets/images/logo.png',
+                        width: 28,
+                        height: 28,
+                        errorBuilder: (context, error, stackTrace) {
+                          return const Icon(
+                            Icons.account_balance,
+                            color: Colors.white,
+                            size: 28,
+                          );
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'CivicLense',
+                            style: TextStyle(
+                              fontSize: 28,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                          Text(
+                            'Transparency • Accountability • Progress',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.white70,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 30),
+                // Search Bar
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Row(
                     children: [
-                      Text(
-                        'Welcome back, ${userData?['firstName'] ?? 'User'}!',
-                        style: const TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
+                      const Icon(Icons.search, color: Colors.grey),
+                      const SizedBox(width: 12),
+                      const Expanded(
+                        child: TextField(
+                          decoration: InputDecoration(
+                            hintText: 'Search across services',
+                            border: InputBorder.none,
+                            hintStyle: TextStyle(color: Colors.grey),
+                          ),
                         ),
                       ),
-                      const SizedBox(height: 8),
-                      Text(
-                        userRole?.name ?? 'Civic Lense User',
-                        style: const TextStyle(
-                          fontSize: 16,
-                          color: Colors.white70,
-                          fontWeight: FontWeight.w500,
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.shade100,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(
+                          Icons.qr_code_scanner,
+                          color: Colors.blue,
+                          size: 20,
                         ),
                       ),
                     ],
@@ -354,41 +543,8 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
                 ),
               ],
             ),
-            const SizedBox(height: 24),
-            Text(
-              'Track public spending, ensure transparency, and hold government accountable.',
-              style: const TextStyle(
-                fontSize: 16,
-                color: Colors.white70,
-                height: 1.5,
-              ),
-            ),
-            const SizedBox(height: 24),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.2),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.white.withOpacity(0.3)),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.visibility, color: Colors.white, size: 20),
-                  const SizedBox(width: 8),
-                  const Text(
-                    'Transparency First',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -399,32 +555,35 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
       child: Row(
         children: [
           Expanded(
+            flex: 1,
             child: _buildStatCard(
-              'Active Tenders',
-              '24',
-              Icons.shopping_cart,
-              Colors.orange,
-              '+12% this month',
-            ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: _buildStatCard(
-              'Budget Allocated',
-              '\$2.4M',
+              AppLocalizations.of(context)!.allocations,
+              allocationsCount.toString(),
               Icons.account_balance_wallet,
-              Colors.green,
-              'Across 8 sectors',
+              Colors.orange,
+              'Budget items',
             ),
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: 12),
           Expanded(
+            flex: 1,
             child: _buildStatCard(
-              'Projects',
-              '12',
-              Icons.construction,
-              Colors.purple,
+              AppLocalizations.of(context)!.activeTenders,
+              activeTendersCount.toString(),
+              Icons.assignment,
+              Colors.blue,
               'In progress',
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            flex: 1,
+            child: _buildStatCard(
+              AppLocalizations.of(context)!.projects,
+              projectsCount.toString(),
+              Icons.work,
+              Colors.green,
+              'Ongoing',
             ),
           ),
         ],
@@ -434,17 +593,16 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
 
   Widget _buildStatCard(String title, String value, IconData icon, Color color, String subtitle) {
     return Container(
-      height: 160, // Fixed height for all cards
-      width: double.infinity, // Ensure full width
-      padding: const EdgeInsets.all(12),
+      height: 140,
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+            color: Colors.grey.withOpacity(0.08),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
@@ -464,128 +622,49 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
                 ),
                 child: Icon(icon, color: color, size: 18),
               ),
-              Icon(Icons.trending_up, color: Colors.green, size: 14),
-            ],
-          ),
-          // Content area with fixed heights
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                // Value with fixed height
-                Container(
-                  height: 30,
-                  child: Text(
-                    value,
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: color,
-                    ),
-                  ),
+              Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: Colors.green.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(6),
                 ),
-                // Title with fixed height
-                Container(
-                  height: 20,
-                  child: Text(
-                    title,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-                // Subtitle with fixed height
-                Container(
-                  height: 32,
-                  child: Text(
-                    subtitle,
-                    style: TextStyle(
-                      fontSize: 10,
-                      color: Colors.grey.shade600,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMainNavigationCards() {
-    return SlideTransition(
-      position: _slideAnimation,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Quick Access',
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-              color: Colors.black87,
-            ),
-          ),
-          const SizedBox(height: 20),
-          Row(
-            children: [
-              Expanded(
-                child: _buildNavigationCard(
-                  'My Dashboard',
-                  'Access your personalized dashboard',
-                  Icons.dashboard,
-                  Colors.blue,
-                  _navigateToDashboard,
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: _buildNavigationCard(
-                  'Budget Overview',
-                  'Explore government budgets',
-                  Icons.account_balance,
-                  Colors.green,
-                  () => Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => const BudgetViewerScreen()),
-                  ),
-                ),
+                child: Icon(Icons.trending_up, color: Colors.green, size: 12),
               ),
             ],
           ),
-          const SizedBox(height: 16),
-          Row(
+          // Content area
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
-                child: _buildNavigationCard(
-                  'Active Tenders',
-                  'View current procurement opportunities',
-                  Icons.shopping_cart,
-                  Colors.orange,
-                  () => Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => const CitizenTenderScreen()),
-                  ),
+              // Value
+              Text(
+                value,
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: color,
                 ),
               ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: _buildNavigationCard(
-                  'Raise Concern',
-                  'Report issues and track resolution',
-                  Icons.report_problem,
-                  Colors.red,
-                  () => Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => const RaiseConcernScreen()),
-                  ),
+              const SizedBox(height: 4),
+              // Title
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: Colors.grey,
+                  fontWeight: FontWeight.w600,
                 ),
+              ),
+              const SizedBox(height: 2),
+              // Subtitle
+              Text(
+                subtitle,
+                style: TextStyle(
+                  fontSize: 10,
+                  color: Colors.grey.shade600,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
             ],
           ),
@@ -594,69 +673,97 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
     );
   }
 
-  Widget _buildNavigationCard(String title, String subtitle, IconData icon, Color color, VoidCallback onTap) {
+  Widget _buildQuickAccessIcons() {
     return Container(
+      padding: const EdgeInsets.all(20),
+      child: Row(
+        children: [
+          Expanded(
+            child: _buildQuickAccessCard(
+              'Home',
+              Icons.home,
+              Colors.blue,
+              () => setState(() => _currentIndex = 0),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: _buildQuickAccessCard(
+              'Budget',
+              Icons.account_balance,
+              Colors.green,
+              () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const BudgetViewerScreen()),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: _buildQuickAccessCard(
+              'Tenders',
+              Icons.shopping_cart,
+              Colors.orange,
+              () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const PublicTenderViewerScreen()),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: _buildQuickAccessCard(
+              'Dashboard',
+              Icons.dashboard,
+              Colors.purple,
+              _navigateToDashboard,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQuickAccessCard(String title, IconData icon, Color color, VoidCallback onTap) {
+    return Container(
+      height: 95,
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
             color: Colors.grey.withOpacity(0.1),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(12),
           onTap: onTap,
           child: Padding(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(12),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Container(
-                  padding: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
                     color: color.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Icon(icon, color: color, size: 24),
+                  child: Icon(icon, color: color, size: 20),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 6),
                 Text(
                   title,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  subtitle,
                   style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey.shade600,
-                    height: 1.3,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey.shade800,
                   ),
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Text(
-                      'Explore',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: color,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                    Icon(Icons.arrow_forward, color: color, size: 14),
-                  ],
                 ),
               ],
             ),
@@ -666,14 +773,75 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
     );
   }
 
-  Widget _buildRecentHighlights() {
-    return SlideTransition(
-      position: _slideAnimation,
+  Widget _buildQuickAccessCardWithImage(String title, String imagePath, Color color, VoidCallback onTap) {
+    return Container(
+      height: 95,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Image.asset(
+                    imagePath,
+                    width: 20,
+                    height: 20,
+                    fit: BoxFit.contain,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Icon(
+                        Icons.account_balance,
+                        color: color,
+                        size: 20,
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey.shade800,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildServicesSection() {
+    return Container(
+      padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Recent Highlights',
+            'Services',
             style: TextStyle(
               fontSize: 22,
               fontWeight: FontWeight.bold,
@@ -681,42 +849,499 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
             ),
           ),
           const SizedBox(height: 16),
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.grey.withOpacity(0.1),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
+          Column(
+            children: [
+              _buildServiceCard(
+                'Community',
+                Icons.people,
+                Colors.blue,
+                () => Navigator.pushNamed(context, '/communities'),
+                description: 'Connect with local communities and civic groups',
+              ),
+              const SizedBox(height: 12),
+              _buildServiceCard(
+                'Concerns',
+                Icons.report_problem,
+                Colors.red,
+                () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const PublicConcernsScreen()),
+                ),
+                description: 'Report and track public issues and concerns',
+              ),
+              const SizedBox(height: 12),
+              _buildServiceCard(
+                'News',
+                Icons.article,
+                Colors.green,
+                () => Navigator.pushNamed(context, '/news'),
+                description: 'Stay updated with latest government news and announcements',
+              ),
+              const SizedBox(height: 12),
+              _buildServiceCard(
+                'Reports',
+                Icons.analytics,
+                Colors.purple,
+                () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const ReportsAnalyticsScreen()),
+                ),
+                description: 'View detailed analytics and government reports',
+              ),
+              const SizedBox(height: 12),
+              _buildServiceCard(
+                'Budget',
+                Icons.account_balance,
+                Colors.orange,
+                () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const BudgetViewerScreen()),
+                ),
+                description: 'Track government budget allocations and spending',
+              ),
+              const SizedBox(height: 12),
+              _buildServiceCard(
+                'Tenders',
+                Icons.shopping_cart,
+                Colors.teal,
+                () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const PublicTenderViewerScreen()),
+                ),
+                description: 'Browse and apply for government tenders and contracts',
+              ),
+              const SizedBox(height: 12),
+              _buildServiceCard(
+                'Projects',
+                Icons.work,
+                Colors.indigo,
+                () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const OngoingTendersScreen()),
+                ),
+                description: 'View ongoing and completed government projects',
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildServiceCard(String title, IconData icon, Color color, VoidCallback onTap, {String? description}) {
+    return Container(
+      height: 100,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(icon, color: color, size: 20),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        title,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.black87,
+                        ),
+                      ),
+                      if (description != null) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          description,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey.shade600,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                Icon(
+                  Icons.arrow_forward_ios,
+                  color: Colors.grey.shade400,
+                  size: 16,
                 ),
               ],
             ),
-            child: Column(
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildServiceCardWithImage(String title, String imagePath, Color color, VoidCallback onTap, {String? description}) {
+    return Container(
+      height: 100,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
               children: [
-                _buildHighlightItem(
-                  'New tender published for road construction',
-                  '2 hours ago',
-                  Icons.shopping_cart,
-                  Colors.orange,
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Image.asset(
+                    imagePath,
+                    width: 20,
+                    height: 20,
+                    fit: BoxFit.contain,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Icon(
+                        Icons.account_balance,
+                        color: color,
+                        size: 20,
+                      );
+                    },
+                  ),
                 ),
-                const Divider(height: 24),
-                _buildHighlightItem(
-                  'Budget allocation updated for Q4',
-                  '1 day ago',
-                  Icons.account_balance_wallet,
-                  Colors.blue,
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        title,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.black87,
+                        ),
+                      ),
+                      if (description != null) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          description,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey.shade600,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ],
+                  ),
                 ),
-                const Divider(height: 24),
-                _buildHighlightItem(
-                  'Project milestone completed',
-                  '2 days ago',
-                  Icons.check_circle,
-                  Colors.green,
+                Icon(
+                  Icons.arrow_forward_ios,
+                  color: Colors.grey.shade400,
+                  size: 16,
                 ),
               ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNewsSection() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'News',
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pushNamed(context, '/news'),
+                child: const Text('See all'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          StreamBuilder<List<ReportArticle>>(
+            stream: NewsService().streamArticles(),
+            builder: (context, snapshot) {
+              if (!snapshot.hasData) {
+                return _buildNewsShimmer();
+              }
+              
+              final news = snapshot.data!.take(3).toList();
+              if (news.isEmpty) {
+                return _buildEmptyNewsCard();
+              }
+              
+              return Column(
+                children: news.map((article) => _buildNewsCard(article)).toList(),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNewsCard(ReportArticle article) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: () => Navigator.pushNamed(context, '/article', arguments: article.id),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                // News Image
+                Container(
+                  width: 80,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(8),
+                    color: Colors.grey.shade200,
+                  ),
+                  child: article.imageUrl != null && article.imageUrl!.isNotEmpty
+                      ? ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Image.network(
+                            article.imageUrl!,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) {
+                              return Icon(
+                                Icons.image,
+                                color: Colors.grey.shade400,
+                                size: 32,
+                              );
+                            },
+                          ),
+                        )
+                      : Icon(
+                          Icons.article,
+                          color: Colors.grey.shade400,
+                          size: 32,
+                        ),
+                ),
+                const SizedBox(width: 16),
+                // News Content
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        article.title,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        article.summary,
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey.shade600,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.schedule,
+                            size: 14,
+                            color: Colors.grey.shade500,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            _formatDate(article.createdAt.toDate()),
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey.shade500,
+                            ),
+                          ),
+                          const Spacer(),
+                          if (article.isBreakingNews)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: Colors.red.shade100,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                'Breaking',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: Colors.red.shade700,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNewsShimmer() {
+    return Column(
+      children: List.generate(3, (index) => Container(
+        margin: const EdgeInsets.only(bottom: 16),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade200,
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    height: 16,
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade200,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Container(
+                    height: 14,
+                    width: MediaQuery.of(context).size.width * 0.6,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade200,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      )),
+    );
+  }
+
+  Widget _buildEmptyNewsCard() {
+    return Container(
+      padding: const EdgeInsets.all(32),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Icon(
+            Icons.article_outlined,
+            size: 48,
+            color: Colors.grey.shade400,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'No news available',
+            style: TextStyle(
+              fontSize: 16,
+              color: Colors.grey.shade600,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Check back later for updates',
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey.shade500,
             ),
           ),
         ],
@@ -724,42 +1349,588 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
     );
   }
 
-  Widget _buildHighlightItem(String title, String time, IconData icon, Color color) {
-    return Row(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Icon(icon, color: color, size: 20),
-        ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _buildProjectsSection() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  fontWeight: FontWeight.w600,
-                  fontSize: 14,
+              const Text(
+                'Projects',
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
                   color: Colors.black87,
                 ),
               ),
-              const SizedBox(height: 4),
-              Text(
-                time,
-                style: TextStyle(
-                  color: Colors.grey.shade600,
-                  fontSize: 12,
+              TextButton(
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const OngoingTendersScreen()),
                 ),
+                child: const Text('See all'),
               ),
             ],
           ),
+          const SizedBox(height: 16),
+          StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection('tenders')
+                .where('status', isEqualTo: 'awarded')
+                .orderBy('awardedDate', descending: true)
+                .limit(3)
+                .snapshots(),
+            builder: (context, snapshot) {
+              if (!snapshot.hasData) {
+                return _buildProjectsShimmer();
+              }
+              
+              final projects = snapshot.data!.docs;
+              if (projects.isEmpty) {
+                return _buildEmptyProjectsCard();
+              }
+              
+              return Column(
+                children: projects.map((doc) => _buildProjectCard(doc.data() as Map<String, dynamic>)).toList(),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProjectCard(Map<String, dynamic> project) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: () {
+            // Navigate to project details
+          },
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Container(
+                  width: 80,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(8),
+                    color: Colors.green.shade100,
+                  ),
+                  child: Icon(
+                    Icons.work,
+                    color: Colors.green.shade600,
+                    size: 32,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        project['title'] ?? 'Project Title',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Awarded to: ${project['awardedTo'] ?? 'Contractor'}',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey.shade600,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.account_balance_wallet,
+                            size: 14,
+                            color: Colors.grey.shade500,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            'LKR ${(project['awardedAmount'] ?? 0).toStringAsFixed(0)}',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey.shade500,
+                            ),
+                          ),
+                          const Spacer(),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Colors.green.shade100,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              'Awarded',
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: Colors.green.shade700,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
-      ],
+      ),
+    );
+  }
+
+  Widget _buildUpcomingEventsSection() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Upcoming Events',
+            style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+              color: Colors.black87,
+            ),
+          ),
+          const SizedBox(height: 16),
+          StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection('tenders')
+                .where('status', isEqualTo: 'active')
+                .orderBy('deadline')
+                .limit(3)
+                .snapshots(),
+            builder: (context, snapshot) {
+              if (!snapshot.hasData) {
+                return _buildEventsShimmer();
+              }
+              
+              final events = snapshot.data!.docs;
+              if (events.isEmpty) {
+                return _buildEmptyEventsCard();
+              }
+              
+              return Column(
+                children: events.map((doc) => _buildEventCard(doc.data() as Map<String, dynamic>)).toList(),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEventCard(Map<String, dynamic> event) {
+    final deadline = DateTime.tryParse(event['deadline'] ?? '');
+    final daysLeft = deadline != null ? deadline.difference(DateTime.now()).inDays : 0;
+    
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: () {
+            // Navigate to tender details
+          },
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Container(
+                  width: 80,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(8),
+                    color: Colors.orange.shade100,
+                  ),
+                  child: Icon(
+                    Icons.event,
+                    color: Colors.orange.shade600,
+                    size: 32,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        event['title'] ?? 'Tender Title',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Deadline: ${event['deadline'] ?? 'N/A'}',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey.shade600,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.schedule,
+                            size: 14,
+                            color: daysLeft <= 3 ? Colors.red.shade500 : Colors.grey.shade500,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            daysLeft > 0 ? '$daysLeft days left' : 'Expired',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: daysLeft <= 3 ? Colors.red.shade500 : Colors.grey.shade500,
+                              fontWeight: daysLeft <= 3 ? FontWeight.bold : FontWeight.normal,
+                            ),
+                          ),
+                          const Spacer(),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: daysLeft <= 3 ? Colors.red.shade100 : Colors.orange.shade100,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              daysLeft <= 3 ? 'Urgent' : 'Active',
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: daysLeft <= 3 ? Colors.red.shade700 : Colors.orange.shade700,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildConcernsSection() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'High Priority Concerns',
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+              ),
+              TextButton(
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const PublicConcernsScreen()),
+                ),
+                child: const Text('See all'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection('concerns')
+                .where('priority', isEqualTo: 'high')
+                .orderBy('createdAt', descending: true)
+                .limit(3)
+                .snapshots(),
+            builder: (context, snapshot) {
+              if (!snapshot.hasData) {
+                return _buildConcernsShimmer();
+              }
+              
+              final concerns = snapshot.data!.docs;
+              if (concerns.isEmpty) {
+                return _buildEmptyConcernsCard();
+              }
+              
+              return Column(
+                children: concerns.map((doc) => _buildConcernCard(doc.data() as Map<String, dynamic>)).toList(),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildConcernCard(Map<String, dynamic> concern) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: () {
+            // Navigate to concern details
+          },
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Container(
+                  width: 80,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(8),
+                    color: Colors.red.shade100,
+                  ),
+                  child: Icon(
+                    Icons.report_problem,
+                    color: Colors.red.shade600,
+                    size: 32,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        concern['title'] ?? 'Concern Title',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        concern['description'] ?? 'No description available',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey.shade600,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.location_on,
+                            size: 14,
+                            color: Colors.grey.shade500,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            concern['location'] ?? 'Location not specified',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey.shade500,
+                            ),
+                          ),
+                          const Spacer(),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Colors.red.shade100,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              'High Priority',
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: Colors.red.shade700,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Shimmer loading widgets
+  Widget _buildProjectsShimmer() {
+    return Column(
+      children: List.generate(3, (index) => Container(
+        margin: const EdgeInsets.only(bottom: 16),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade200,
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    height: 16,
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade200,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Container(
+                    height: 14,
+                    width: MediaQuery.of(context).size.width * 0.6,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade200,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      )),
+    );
+  }
+
+  Widget _buildEventsShimmer() {
+    return _buildProjectsShimmer(); // Same structure
+  }
+
+  Widget _buildConcernsShimmer() {
+    return _buildProjectsShimmer(); // Same structure
+  }
+
+  // Empty state widgets
+  Widget _buildEmptyProjectsCard() {
+    return _buildEmptyStateCard('No projects available', Icons.work);
+  }
+
+  Widget _buildEmptyEventsCard() {
+    return _buildEmptyStateCard('No upcoming events', Icons.event);
+  }
+
+  Widget _buildEmptyConcernsCard() {
+    return _buildEmptyStateCard('No high priority concerns', Icons.report_problem);
+  }
+
+  Widget _buildEmptyStateCard(String message, IconData icon) {
+    return Container(
+      padding: const EdgeInsets.all(32),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Icon(
+            icon,
+            size: 48,
+            color: Colors.grey.shade400,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            message,
+            style: TextStyle(
+              fontSize: 16,
+              color: Colors.grey.shade600,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -849,6 +2020,10 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
           context,
           MaterialPageRoute(builder: (context) => const BudgetViewerScreen()),
         )),
+        _buildActionCard('Transparency Dashboard', Icons.visibility, Colors.blue, () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const TransparencyDashboardScreen()),
+        )),
         _buildActionCard('View Public Concerns', Icons.people_alt, Colors.purple, () => Navigator.push(
           context,
           MaterialPageRoute(builder: (context) => const PublicConcernsScreen()),
@@ -872,6 +2047,10 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
         _buildActionCard('Track Public Spending', Icons.account_balance, Colors.blue, () => Navigator.push(
           context,
           MaterialPageRoute(builder: (context) => const BudgetViewerScreen()),
+        )),
+        _buildActionCard('Transparency Dashboard', Icons.visibility, Colors.purple, () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const TransparencyDashboardScreen()),
         )),
         _buildActionCard('View Reports', Icons.analytics, Colors.green, () => _showFeatureComingSoon('View Reports')),
       ],
@@ -1099,12 +2278,12 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
               children: [
                 _buildDrawerItem(
                   icon: Icons.home,
-                  title: 'Home',
+                  title: AppLocalizations.of(context)!.home,
                   onTap: () => Navigator.pop(context),
                 ),
                 _buildDrawerItem(
                   icon: Icons.dashboard,
-                  title: 'My Dashboard',
+                  title: AppLocalizations.of(context)!.dashboard,
                   onTap: () {
                     Navigator.pop(context);
                     _navigateToDashboard();
@@ -1114,7 +2293,7 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
                 if (userRole?.userType == UserType.admin) ...[
                   _buildDrawerItem(
                     icon: Icons.approval,
-                    title: 'User Approvals',
+                    title: AppLocalizations.of(context)!.userManagement,
                     onTap: () {
                       Navigator.pop(context);
                       Navigator.push(
@@ -1142,7 +2321,10 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
                   title: 'Budget Allocations',
                   onTap: () {
                     Navigator.pop(context);
-                    _showFeatureComingSoon('Budget Allocations');
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const BudgetAllocationsViewScreen()),
+                    );
                   },
                 ),
                 _buildDrawerItem(
@@ -1165,6 +2347,14 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
                   },
                 ),
                 _buildDrawerItem(
+                  icon: Icons.forum,
+                  title: 'Media Hub',
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.pushNamed(context, '/media-hub');
+                  },
+                ),
+                _buildDrawerItem(
                   icon: Icons.people,
                   title: 'Communities',
                   onTap: () {
@@ -1175,7 +2365,13 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
                 _buildDrawerItem(
                   icon: Icons.analytics,
                   title: 'Reports & Analytics',
-                  onTap: () => _showFeatureComingSoon('Reports & Analytics'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const ReportsAnalyticsScreen()),
+                    );
+                  },
                 ),
                 _buildDrawerItem(
                   icon: Icons.report_problem,
@@ -1184,6 +2380,16 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
                     context,
                     MaterialPageRoute(
                       builder: (context) => const RaiseConcernScreen(),
+                    ),
+                  ),
+                ),
+                _buildDrawerItem(
+                  icon: Icons.track_changes,
+                  title: 'My Concerns',
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const UserConcernTrackingScreen(),
                     ),
                   ),
                 ),
@@ -1199,8 +2405,11 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
                 ),
                 _buildDrawerItem(
                   icon: Icons.settings,
-                  title: 'Settings',
-                  onTap: () => _showFeatureComingSoon('Settings'),
+                  title: AppLocalizations.of(context)!.settings,
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.pushNamed(context, '/settings');
+                  },
                 ),
                 const Divider(),
                 _buildDrawerItem(
@@ -1215,7 +2424,7 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
                 ),
                 _buildDrawerItem(
                   icon: Icons.logout,
-                  title: 'Sign Out',
+                  title: AppLocalizations.of(context)!.signOut,
                   onTap: () {
                     Navigator.pop(context);
                     _signOut();
@@ -1371,11 +2580,11 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
         });
         return _buildHomePage();
       case 2:
-        // Navigate to Citizen Tender Screen
+        // Navigate to Public Tender Viewer Screen
         WidgetsBinding.instance.addPostFrameCallback((_) {
           Navigator.push(
             context,
-            MaterialPageRoute(builder: (context) => const CitizenTenderScreen()),
+            MaterialPageRoute(builder: (context) => const PublicTenderViewerScreen()),
           );
           // Reset to home page after navigation
           setState(() {
@@ -1400,36 +2609,30 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
 
   Widget _buildHomePage() {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Welcome Hero Section
-          _buildWelcomeHero(),
-          const SizedBox(height: 32),
-
-          // Quick Stats with Animations
-          _buildAnimatedQuickStats(),
-          const SizedBox(height: 32),
-
-          // Interactive Charts Section
-          _buildInteractiveCharts(),
-          const SizedBox(height: 32),
-
-          // Main Navigation Cards
-          _buildMainNavigationCards(),
-          const SizedBox(height: 32),
-
-          // Recent Highlights
-          _buildRecentHighlights(),
-          const SizedBox(height: 32),
-
-          // Role-specific Quick Actions
-          _buildRoleSpecificActions(),
-          const SizedBox(height: 32),
-
-          // App Purpose & Transparency
-          _buildAppPurposeSection(),
+          // Government Portal Header with Image
+          _buildGovernmentHeader(),
+          
+          // Quick Access Icons (4 horizontal squares)
+          _buildQuickAccessIcons(),
+          
+          // Services Section
+          _buildServicesSection(),
+          
+          // News Section with Images
+          _buildNewsSection(),
+          
+          // Projects Section (Awarded Tenders)
+          _buildProjectsSection(),
+          
+          // Upcoming Events Section
+          _buildUpcomingEventsSection(),
+          
+          // Concerns Section
+          _buildConcernsSection(),
+          
           const SizedBox(height: 20),
         ],
       ),
@@ -1450,11 +2653,11 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
                 return Transform.scale(
                   scale: _pulseAnimation.value,
                   child: _buildStatCard(
-                    'Active Tenders',
-                    '24',
-                    Icons.shopping_cart,
+                    'Allocations',
+                    allocationsCount.toString(),
+                    Icons.account_balance_wallet,
                     Colors.orange,
-                    '+12% this month',
+                    'Budget items',
                   ),
                 );
               },
@@ -1468,11 +2671,11 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
                 return Transform.scale(
                   scale: _pulseAnimation.value * 0.95,
                   child: _buildStatCard(
-                    'Budget Allocated',
-                    '\$2.4M',
-                    Icons.account_balance_wallet,
-                    Colors.green,
-                    'Across 8 sectors',
+                    'Active Tenders',
+                    activeTendersCount.toString(),
+                    Icons.assignment,
+                    Colors.blue,
+                    'In progress',
                   ),
                 );
               },
@@ -1487,10 +2690,10 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
                   scale: _pulseAnimation.value * 0.9,
                   child: _buildStatCard(
                     'Projects',
-                    '12',
-                    Icons.construction,
-                    Colors.purple,
-                    'In progress',
+                    projectsCount.toString(),
+                    Icons.work,
+                    Colors.green,
+                    'Ongoing',
                   ),
                 );
               },
@@ -1535,6 +2738,12 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
   }
 
   Widget _buildPieChart() {
+    // Calculate total for percentage calculations
+    final total = allocationsCount + activeTendersCount + projectsCount;
+    final allocationsPercent = total > 0 ? (allocationsCount / total * 100) : 0;
+    final tendersPercent = total > 0 ? (activeTendersCount / total * 100) : 0;
+    final projectsPercent = total > 0 ? (projectsCount / total * 100) : 0;
+    
     return Container(
       height: 200,
       padding: const EdgeInsets.all(20),
@@ -1556,9 +2765,20 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
             PieChartData(
               sections: [
                 PieChartSectionData(
+                  color: Colors.orange,
+                  value: allocationsPercent * _chartAnimation.value,
+                  title: '${allocationsPercent.toInt()}%',
+                  radius: 50,
+                  titleStyle: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+                PieChartSectionData(
                   color: Colors.blue,
-                  value: 40 * _chartAnimation.value,
-                  title: '40%',
+                  value: tendersPercent * _chartAnimation.value,
+                  title: '${tendersPercent.toInt()}%',
                   radius: 50,
                   titleStyle: const TextStyle(
                     fontSize: 12,
@@ -1568,30 +2788,8 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
                 ),
                 PieChartSectionData(
                   color: Colors.green,
-                  value: 30 * _chartAnimation.value,
-                  title: '30%',
-                  radius: 50,
-                  titleStyle: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-                PieChartSectionData(
-                  color: Colors.orange,
-                  value: 20 * _chartAnimation.value,
-                  title: '20%',
-                  radius: 50,
-                  titleStyle: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-                PieChartSectionData(
-                  color: Colors.red,
-                  value: 10 * _chartAnimation.value,
-                  title: '10%',
+                  value: projectsPercent * _chartAnimation.value,
+                  title: '${projectsPercent.toInt()}%',
                   radius: 50,
                   titleStyle: const TextStyle(
                     fontSize: 12,
@@ -1630,7 +2828,7 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
           return BarChart(
             BarChartData(
               alignment: BarChartAlignment.spaceAround,
-              maxY: 100,
+              maxY: [allocationsCount, activeTendersCount, projectsCount].reduce((a, b) => a > b ? a : b).toDouble(),
               barTouchData: BarTouchData(enabled: false),
               titlesData: FlTitlesData(
                 show: true,
@@ -1644,16 +2842,13 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
                       Widget text;
                       switch (value.toInt()) {
                         case 0:
-                          text = const Text('Jan', style: style);
+                          text = const Text('Allocations', style: style);
                           break;
                         case 1:
-                          text = const Text('Feb', style: style);
+                          text = const Text('Tenders', style: style);
                           break;
                         case 2:
-                          text = const Text('Mar', style: style);
-                          break;
-                        case 3:
-                          text = const Text('Apr', style: style);
+                          text = const Text('Projects', style: style);
                           break;
                         default:
                           text = const Text('', style: style);
@@ -1682,8 +2877,8 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
                   x: 0,
                   barRods: [
                     BarChartRodData(
-                      toY: 60 * _chartAnimation.value,
-                      color: Colors.blue,
+                      toY: (allocationsCount * _chartAnimation.value).toDouble(),
+                      color: Colors.orange,
                       width: 20,
                       borderRadius: const BorderRadius.only(
                         topLeft: Radius.circular(4),
@@ -1696,8 +2891,8 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
                   x: 1,
                   barRods: [
                     BarChartRodData(
-                      toY: 80 * _chartAnimation.value,
-                      color: Colors.green,
+                      toY: (activeTendersCount * _chartAnimation.value).toDouble(),
+                      color: Colors.blue,
                       width: 20,
                       borderRadius: const BorderRadius.only(
                         topLeft: Radius.circular(4),
@@ -1710,22 +2905,8 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
                   x: 2,
                   barRods: [
                     BarChartRodData(
-                      toY: 45 * _chartAnimation.value,
-                      color: Colors.orange,
-                      width: 20,
-                      borderRadius: const BorderRadius.only(
-                        topLeft: Radius.circular(4),
-                        topRight: Radius.circular(4),
-                      ),
-                    ),
-                  ],
-                ),
-                BarChartGroupData(
-                  x: 3,
-                  barRods: [
-                    BarChartRodData(
-                      toY: 90 * _chartAnimation.value,
-                      color: Colors.purple,
+                      toY: (projectsCount * _chartAnimation.value).toDouble(),
+                      color: Colors.green,
                       width: 20,
                       borderRadius: const BorderRadius.only(
                         topLeft: Radius.circular(4),
@@ -1811,10 +2992,10 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
               lineBarsData: [
                 LineChartBarData(
                   spots: [
-                    FlSpot(0, 3 * _chartAnimation.value),
-                    FlSpot(1, 5 * _chartAnimation.value),
-                    FlSpot(2, 4 * _chartAnimation.value),
-                    FlSpot(3, 7 * _chartAnimation.value),
+                    FlSpot(0, (allocationsCount * _chartAnimation.value).toDouble()),
+                    FlSpot(1, (activeTendersCount * _chartAnimation.value).toDouble()),
+                    FlSpot(2, (projectsCount * _chartAnimation.value).toDouble()),
+                    FlSpot(3, ((allocationsCount + activeTendersCount + projectsCount) * _chartAnimation.value).toDouble()),
                   ],
                   isCurved: true,
                   color: Colors.blue,
@@ -2059,8 +3240,8 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),
-                      child: const Text(
-                        'Sign Out',
+                      child: Text(
+                        AppLocalizations.of(context)!.signOut,
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.bold,

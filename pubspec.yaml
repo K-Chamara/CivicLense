@@ -59,11 +59,18 @@ dependencies:
   # For file picking (Excel upload)
   file_picker: ^8.0.0+1
   
+  # For image picking (profile images)
+  image_picker: ^1.0.7
+  # Permission handler for camera and gallery access
+  permission_handler: ^11.0.1
+  
   # For Excel file processing
   excel: ^2.1.0
   
-  # For date formatting
-  intl: ^0.19.0
+  # For date formatting and internationalization
+  intl: ^0.20.2
+  flutter_localizations:
+    sdk: flutter
   
   # For animations
   lottie: ^3.1.2
@@ -95,6 +102,9 @@ flutter:
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
+  
+  # Enable code generation for localization
+  generate: true
 
   # To add assets to your application, add an assets section, like this:
   assets:

@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/concern_models.dart';
-import '../services/concern_service.dart';
+import '../services/concern_management_service.dart';
+import '../services/notification_service.dart';
 import 'concern_detail_screen.dart';
+import 'public_tender_viewer_screen.dart';
+import '../l10n/app_localizations.dart';
 
 class ConcernManagementScreen extends StatefulWidget {
   const ConcernManagementScreen({super.key});
@@ -13,17 +16,16 @@ class ConcernManagementScreen extends StatefulWidget {
 
 class _ConcernManagementScreenState extends State<ConcernManagementScreen>
     with TickerProviderStateMixin {
-  final _concernService = ConcernService();
   late TabController _tabController;
-  
-  ConcernFilter _currentFilter = ConcernFilter();
-  String _searchQuery = '';
-  bool _isLoading = false;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  String? _currentUserId;
+  String? _currentUserName;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 5, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
+    _getCurrentUser();
   }
 
   @override
@@ -32,159 +34,54 @@ class _ConcernManagementScreenState extends State<ConcernManagementScreen>
     super.dispose();
   }
 
+  Future<void> _getCurrentUser() async {
+    final user = _auth.currentUser;
+    if (user != null) {
+      setState(() {
+        _currentUserId = user.uid;
+        _currentUserName = user.displayName ?? 'Officer';
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFF5F5F5),
       appBar: AppBar(
-        title: const Text('Concern Management'),
-        backgroundColor: Colors.blue,
+        title: Text(AppLocalizations.of(context)!.concernManagement),
+        backgroundColor: Colors.purple,
         foregroundColor: Colors.white,
         elevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.search),
-            onPressed: _showSearchDialog,
-          ),
-          IconButton(
-            icon: const Icon(Icons.filter_list),
-            onPressed: _showFilterDialog,
-          ),
-        ],
         bottom: TabBar(
           controller: _tabController,
           indicatorColor: Colors.white,
           labelColor: Colors.white,
           unselectedLabelColor: Colors.white70,
-          tabs: const [
-            Tab(text: 'All', icon: Icon(Icons.list)),
-            Tab(text: 'Most Supported', icon: Icon(Icons.trending_up)),
-            Tab(text: 'Pending', icon: Icon(Icons.pending)),
-            Tab(text: 'In Progress', icon: Icon(Icons.work)),
-            Tab(text: 'Resolved', icon: Icon(Icons.check_circle)),
+          tabs: [
+            Tab(text: AppLocalizations.of(context)!.all, icon: const Icon(Icons.list)),
+            Tab(text: AppLocalizations.of(context)!.pending, icon: const Icon(Icons.pending)),
+            Tab(text: AppLocalizations.of(context)!.underReview, icon: const Icon(Icons.search)),
+            Tab(text: AppLocalizations.of(context)!.priority, icon: const Icon(Icons.priority_high)),
           ],
         ),
       ),
-      body: Column(
+      body: TabBarView(
+        controller: _tabController,
         children: [
-          // Statistics Cards
-          _buildStatsSection(),
-          
-          // Concerns List
-          Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: [
-                _buildConcernsList(ConcernFilter()),
-                _buildMostSupportedConcernsList(),
-                _buildConcernsList(ConcernFilter(status: ConcernStatus.pending)),
-                _buildConcernsList(ConcernFilter(status: ConcernStatus.inProgress)),
-                _buildConcernsList(ConcernFilter(status: ConcernStatus.resolved)),
-              ],
-            ),
-          ),
+          _buildConcernsList(ConcernManagementService.getConcernsForOfficer()),
+          _buildConcernsList(ConcernManagementService.getConcernsByStatus(ConcernStatus.pending)),
+          _buildConcernsList(ConcernManagementService.getConcernsByStatus(ConcernStatus.underReview)),
+          _buildConcernsList(ConcernManagementService.getPriorityConcerns()),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _showQuickActionsDialog(),
-        backgroundColor: Colors.blue,
-        child: const Icon(Icons.add, color: Colors.white),
-      ),
+      bottomNavigationBar: _buildBottomNavigationBar(),
     );
   }
 
-  Widget _buildStatsSection() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      color: Colors.grey.shade50,
-      child: StreamBuilder<ConcernStats>(
-        stream: _getConcernStats(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          if (!snapshot.hasData) {
-            return const Center(child: Text('No statistics available'));
-          }
-
-          final stats = snapshot.data!;
-          return Row(
-            children: [
-              Expanded(
-                child: _buildStatCard(
-                  'Total',
-                  stats.totalConcerns.toString(),
-                  Colors.blue,
-                  Icons.assignment,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _buildStatCard(
-                  'Pending',
-                  stats.pendingConcerns.toString(),
-                  Colors.orange,
-                  Icons.pending,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _buildStatCard(
-                  'Critical',
-                  stats.criticalConcerns.toString(),
-                  Colors.red,
-                  Icons.priority_high,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _buildStatCard(
-                  'Resolved',
-                  stats.resolvedConcerns.toString(),
-                  Colors.green,
-                  Icons.check_circle,
-                ),
-              ),
-            ],
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildStatCard(String title, String value, Color color, IconData icon) {
-    return Card(
-      elevation: 2,
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          children: [
-            Icon(icon, color: color, size: 24),
-            const SizedBox(height: 4),
-            Text(
-              value,
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: color,
-              ),
-            ),
-            Text(
-              title,
-              style: const TextStyle(
-                fontSize: 12,
-                color: Colors.grey,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildConcernsList(ConcernFilter filter) {
+  Widget _buildConcernsList(Stream<List<Concern>> concernsStream) {
     return StreamBuilder<List<Concern>>(
-      stream: _concernService.getConcerns(filter: filter),
+      stream: concernsStream,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
@@ -195,7 +92,7 @@ class _ConcernManagementScreenState extends State<ConcernManagementScreen>
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.error, size: 48, color: Colors.red),
+                const Icon(Icons.error, size: 64, color: Colors.red),
                 const SizedBox(height: 16),
                 Text('Error: ${snapshot.error}'),
                 const SizedBox(height: 16),
@@ -221,72 +118,6 @@ class _ConcernManagementScreenState extends State<ConcernManagementScreen>
                   'No concerns found',
                   style: TextStyle(fontSize: 18, color: Colors.grey),
                 ),
-                SizedBox(height: 8),
-                Text(
-                  'All concerns have been addressed',
-                  style: TextStyle(color: Colors.grey),
-                ),
-              ],
-            ),
-          );
-        }
-
-        return ListView.builder(
-          padding: const EdgeInsets.all(16),
-          itemCount: concerns.length,
-          itemBuilder: (context, index) {
-            final concern = concerns[index];
-            return _buildConcernCard(concern);
-          },
-        );
-      },
-    );
-  }
-
-  Widget _buildMostSupportedConcernsList() {
-    return StreamBuilder<List<Concern>>(
-      stream: _concernService.getPublicConcernsBySupport(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-
-        if (snapshot.hasError) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(Icons.error, size: 48, color: Colors.red),
-                const SizedBox(height: 16),
-                Text('Error: ${snapshot.error}'),
-                const SizedBox(height: 16),
-                ElevatedButton(
-                  onPressed: () => setState(() {}),
-                  child: const Text('Retry'),
-                ),
-              ],
-            ),
-          );
-        }
-
-        final concerns = snapshot.data ?? [];
-
-        if (concerns.isEmpty) {
-          return const Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.trending_up, size: 64, color: Colors.grey),
-                SizedBox(height: 16),
-                Text(
-                  'No supported concerns yet',
-                  style: TextStyle(fontSize: 18, color: Colors.grey),
-                ),
-                SizedBox(height: 8),
-                Text(
-                  'Concerns with community support will appear here',
-                  style: TextStyle(color: Colors.grey),
-                ),
               ],
             ),
           );
@@ -308,134 +139,100 @@ class _ConcernManagementScreenState extends State<ConcernManagementScreen>
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
       child: InkWell(
-        onTap: () => _openConcernDetail(concern),
-        borderRadius: BorderRadius.circular(8),
+        onTap: () => _navigateToConcernDetail(concern),
+        borderRadius: BorderRadius.circular(12),
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header
               Row(
                 children: [
-                  _buildPriorityChip(concern.priority),
-                  const SizedBox(width: 8),
-                  _buildStatusChip(concern.status),
-                  const Spacer(),
-                  _buildCategoryChip(concern.category),
-                ],
-              ),
-              const SizedBox(height: 12),
-
-              // Title
-              Text(
-                concern.title,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: 8),
-
-              // Description
-              Text(
-                concern.description,
-                style: const TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey,
-                ),
-                maxLines: 3,
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: 12),
-
-              // Footer
-              Row(
-                children: [
-                  Icon(Icons.person, size: 16, color: Colors.grey.shade600),
-                  const SizedBox(width: 4),
-                  Text(
-                    concern.isAnonymous ? 'Anonymous' : concern.authorName,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey.shade600,
+                  Expanded(
+                    child: Text(
+                      concern.title,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
-                  const SizedBox(width: 16),
-                  Icon(Icons.access_time, size: 16, color: Colors.grey.shade600),
+                  _buildStatusChip(concern.status),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                concern.description,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Colors.grey,
+                  fontSize: 14,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  _buildInfoChip(
+                    Icons.person,
+                    concern.authorName,
+                    Colors.blue,
+                  ),
+                  const SizedBox(width: 8),
+                  _buildInfoChip(
+                    Icons.category,
+                    concern.category.name.toUpperCase(),
+                    Colors.green,
+                  ),
+                  const SizedBox(width: 8),
+                  if (concern.supportCount > 0)
+                    _buildInfoChip(
+                      Icons.thumb_up,
+                      '${concern.supportCount} supports',
+                      Colors.orange,
+                    ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Icon(
+                    Icons.access_time,
+                    size: 16,
+                    color: Colors.grey[600],
+                  ),
                   const SizedBox(width: 4),
                   Text(
                     _formatDate(concern.createdAt),
                     style: TextStyle(
+                      color: Colors.grey[600],
                       fontSize: 12,
-                      color: Colors.grey.shade600,
                     ),
                   ),
                   const Spacer(),
-                  // Support count
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: concern.supportCount > 0 ? Colors.green.shade50 : Colors.grey.shade50,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: concern.supportCount > 0 ? Colors.green : Colors.grey,
-                        width: 1,
+                  if (concern.supportCount > 100)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.red.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.red),
+                      ),
+                      child: const Text(
+                        'HIGH PRIORITY',
+                        style: TextStyle(
+                          color: Colors.red,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.thumb_up,
-                          size: 14,
-                          color: concern.supportCount > 0 ? Colors.green : Colors.grey,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          '${concern.supportCount}',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: concern.supportCount > 0 ? Colors.green : Colors.grey,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  if (concern.assignedOfficerName != null) ...[
-                    Icon(Icons.assignment_ind, size: 16, color: Colors.blue),
-                    const SizedBox(width: 4),
-                    Text(
-                      concern.assignedOfficerName!,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: Colors.blue,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
                 ],
               ),
-              if (concern.tags.isNotEmpty) ...[
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 4,
-                  runSpacing: 4,
-                  children: concern.tags.take(3).map((tag) => Chip(
-                    label: Text(
-                      tag,
-                      style: const TextStyle(fontSize: 10),
-                    ),
-                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    visualDensity: VisualDensity.compact,
-                  )).toList(),
-                ),
-              ],
             ],
           ),
         ),
@@ -443,61 +240,41 @@ class _ConcernManagementScreenState extends State<ConcernManagementScreen>
     );
   }
 
-  Widget _buildPriorityChip(ConcernPriority priority) {
-    Color color;
-    switch (priority) {
-      case ConcernPriority.low:
-        color = Colors.green;
-        break;
-      case ConcernPriority.medium:
-        color = Colors.orange;
-        break;
-      case ConcernPriority.high:
-        color = Colors.red;
-        break;
-      case ConcernPriority.critical:
-        color = Colors.purple;
-        break;
-    }
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.3)),
-      ),
-      child: Text(
-        priority.name.toUpperCase(),
-        style: TextStyle(
-          fontSize: 10,
-          fontWeight: FontWeight.bold,
-          color: color,
-        ),
-      ),
-    );
-  }
-
   Widget _buildStatusChip(ConcernStatus status) {
     Color color;
+    String text;
+    IconData icon;
+
     switch (status) {
       case ConcernStatus.pending:
         color = Colors.orange;
+        text = AppLocalizations.of(context)!.pending;
+        icon = Icons.pending;
         break;
       case ConcernStatus.underReview:
         color = Colors.blue;
+        text = AppLocalizations.of(context)!.underReview;
+        icon = Icons.search;
         break;
       case ConcernStatus.inProgress:
         color = Colors.purple;
+        text = AppLocalizations.of(context)!.inProgress;
+        icon = Icons.work;
         break;
       case ConcernStatus.resolved:
         color = Colors.green;
+        text = AppLocalizations.of(context)!.resolved;
+        icon = Icons.check_circle;
         break;
       case ConcernStatus.dismissed:
         color = Colors.grey;
+        text = AppLocalizations.of(context)!.dismissed;
+        icon = Icons.cancel;
         break;
       case ConcernStatus.escalated:
         color = Colors.red;
+        text = AppLocalizations.of(context)!.escalated;
+        icon = Icons.priority_high;
         break;
     }
 
@@ -506,55 +283,49 @@ class _ConcernManagementScreenState extends State<ConcernManagementScreen>
       decoration: BoxDecoration(
         color: color.withOpacity(0.1),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color),
       ),
-      child: Text(
-        status.name.toUpperCase(),
-        style: TextStyle(
-          fontSize: 10,
-          fontWeight: FontWeight.bold,
-          color: color,
-        ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: color),
+          const SizedBox(width: 4),
+          Text(
+            text,
+            style: TextStyle(
+              color: color,
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildCategoryChip(ConcernCategory category) {
+  Widget _buildInfoChip(IconData icon, String text, Color color) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: Colors.blue.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.blue.withOpacity(0.3)),
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8),
       ),
-      child: Text(
-        _getCategoryDisplayName(category),
-        style: const TextStyle(
-          fontSize: 10,
-          fontWeight: FontWeight.bold,
-          color: Colors.blue,
-        ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: color),
+          const SizedBox(width: 4),
+          Text(
+            text,
+            style: TextStyle(
+              color: color,
+              fontSize: 10,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
       ),
     );
-  }
-
-  String _getCategoryDisplayName(ConcernCategory category) {
-    switch (category) {
-      case ConcernCategory.budget:
-        return 'BUDGET';
-      case ConcernCategory.tender:
-        return 'TENDER';
-      case ConcernCategory.community:
-        return 'COMMUNITY';
-      case ConcernCategory.system:
-        return 'SYSTEM';
-      case ConcernCategory.corruption:
-        return 'CORRUPTION';
-      case ConcernCategory.transparency:
-        return 'TRANSPARENCY';
-      case ConcernCategory.other:
-        return 'OTHER';
-    }
   }
 
   String _formatDate(DateTime date) {
@@ -572,182 +343,63 @@ class _ConcernManagementScreenState extends State<ConcernManagementScreen>
     }
   }
 
-  Stream<ConcernStats> _getConcernStats() {
-    return Stream.periodic(const Duration(seconds: 30))
-        .asyncMap((_) => _concernService.getConcernStats());
-  }
-
-  void _openConcernDetail(Concern concern) {
+  void _navigateToConcernDetail(Concern concern) {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => ConcernDetailScreen(concern: concern),
+        builder: (context) => ConcernDetailScreen(
+          concern: concern,
+          officerId: _currentUserId!,
+          officerName: _currentUserName!,
+        ),
       ),
     );
   }
 
-  void _showSearchDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Search Concerns'),
-        content: TextField(
-          decoration: const InputDecoration(
-            hintText: 'Search by title, description, or author',
-            border: OutlineInputBorder(),
-          ),
-          onChanged: (value) {
-            setState(() {
-              _searchQuery = value;
-            });
-          },
+  Widget _buildBottomNavigationBar() {
+    return BottomNavigationBar(
+      type: BottomNavigationBarType.fixed,
+      backgroundColor: Colors.white,
+      selectedItemColor: Colors.purple,
+      unselectedItemColor: Colors.grey,
+      currentIndex: 3, // Dashboard is selected (index 3)
+      onTap: (index) {
+        switch (index) {
+          case 0:
+            Navigator.pushNamed(context, '/common-home');
+            break;
+          case 1:
+            Navigator.pushNamed(context, '/budget-viewer');
+            break;
+          case 2:
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const PublicTenderViewerScreen()),
+            );
+            break;
+          case 3:
+            Navigator.pushNamed(context, '/dashboard');
+            break;
+        }
+      },
+      items: [
+        BottomNavigationBarItem(
+          icon: const Icon(Icons.home),
+          label: AppLocalizations.of(context)!.home,
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              // Implement search functionality
-            },
-            child: const Text('Search'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showFilterDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Filter Concerns'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Category filter
-              DropdownButtonFormField<ConcernCategory?>(
-                value: _currentFilter.category,
-                decoration: const InputDecoration(
-                  labelText: 'Category',
-                  border: OutlineInputBorder(),
-                ),
-                items: [
-                  const DropdownMenuItem<ConcernCategory?>(
-                    value: null,
-                    child: Text('All Categories'),
-                  ),
-                  ...ConcernCategory.values.map((category) => DropdownMenuItem(
-                    value: category,
-                    child: Text(_getCategoryDisplayName(category)),
-                  )),
-                ],
-                onChanged: (value) {
-                  setState(() {
-                    _currentFilter = ConcernFilter(
-                      category: value,
-                      type: _currentFilter.type,
-                      priority: _currentFilter.priority,
-                      status: _currentFilter.status,
-                    );
-                  });
-                },
-              ),
-              const SizedBox(height: 16),
-
-              // Priority filter
-              DropdownButtonFormField<ConcernPriority?>(
-                value: _currentFilter.priority,
-                decoration: const InputDecoration(
-                  labelText: 'Priority',
-                  border: OutlineInputBorder(),
-                ),
-                items: [
-                  const DropdownMenuItem<ConcernPriority?>(
-                    value: null,
-                    child: Text('All Priorities'),
-                  ),
-                  ...ConcernPriority.values.map((priority) => DropdownMenuItem(
-                    value: priority,
-                    child: Text(priority.name.toUpperCase()),
-                  )),
-                ],
-                onChanged: (value) {
-                  setState(() {
-                    _currentFilter = ConcernFilter(
-                      category: _currentFilter.category,
-                      type: _currentFilter.type,
-                      priority: value,
-                      status: _currentFilter.status,
-                    );
-                  });
-                },
-              ),
-            ],
-          ),
+        BottomNavigationBarItem(
+          icon: const Icon(Icons.account_balance),
+          label: AppLocalizations.of(context)!.budget,
         ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              setState(() {
-                _currentFilter = ConcernFilter();
-              });
-              Navigator.pop(context);
-            },
-            child: const Text('Clear'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Apply'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showQuickActionsDialog() {
-    showModalBottomSheet(
-      context: context,
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              'Quick Actions',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 16),
-            ListTile(
-              leading: const Icon(Icons.assignment_ind),
-              title: const Text('Assign Concerns'),
-              onTap: () {
-                Navigator.pop(context);
-                // Implement bulk assignment
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.priority_high),
-              title: const Text('Update Priorities'),
-              onTap: () {
-                Navigator.pop(context);
-                // Implement bulk priority update
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.analytics),
-              title: const Text('View Analytics'),
-              onTap: () {
-                Navigator.pop(context);
-                // Implement analytics view
-              },
-            ),
-          ],
+        BottomNavigationBarItem(
+          icon: const Icon(Icons.shopping_cart),
+          label: AppLocalizations.of(context)!.tenders,
         ),
-      ),
+        BottomNavigationBarItem(
+          icon: const Icon(Icons.dashboard),
+          label: AppLocalizations.of(context)!.dashboard,
+        ),
+      ],
     );
   }
 }

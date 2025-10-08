@@ -103,78 +103,107 @@ class _LoginScreenState extends State<LoginScreen> {
         }
       }
 
-      // Sign in the user
-      await AuthService().signInWithEmailAndPassword(email, password);
-
-      await _saveCredentials();
-
       if (mounted) {
         if (isGovernmentUser && userRole != null) {
-          // For government users, redirect to email OTP verification
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(
-              builder: (context) => GovernmentOtpVerificationScreen(
-                email: email,
-                userRole: userRole!,
-                isLogin: true,
-                password: password,
+          // For government users, verify password first before sending OTP
+          try {
+            await AuthService().verifyPasswordOnly(email, password);
+            // Password is correct, now redirect to OTP verification
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(
+                builder: (context) => GovernmentOtpVerificationScreen(
+                  email: email,
+                  userRole: userRole!,
+                  isLogin: true,
+                  password: password,
+                ),
               ),
-            ),
-          );
-        } else {
-          // For regular users, let AuthWrapper handle routing
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(
-              builder: (context) => const AuthWrapper(),
-            ),
-          );
-        }
-      }
-    } on FirebaseAuthException catch (e) {
-      String message = 'An error occurred during login.';
-
-      switch (e.code) {
-        case 'user-not-found':
-          message = 'No user found with this email address.';
-          break;
-        case 'wrong-password':
-          message = 'Incorrect password.';
-          break;
-        case 'invalid-email':
-          message = 'Please enter a valid email address.';
-          break;
-        case 'user-disabled':
-          message = 'This account has been disabled.';
-          break;
-        case 'too-many-requests':
-          message = 'Too many failed attempts. Please try again later.';
-          break;
-        case 'email-not-verified':
-          message =
-          'Please verify your email before signing in. Check your inbox for the verification link.';
-          // Show dialog to resend verification email
-          if (mounted) {
-            _showResendVerificationDialog();
+            );
+          } catch (e) {
+            // Password verification failed, show error
+            if (e is FirebaseAuthException) {
+              String message = 'An error occurred during login.';
+              switch (e.code) {
+                case 'user-not-found':
+                  message = 'No user found with this email address.';
+                  break;
+                case 'wrong-password':
+                  message = 'Incorrect password.';
+                  break;
+                case 'invalid-email':
+                  message = 'Please enter a valid email address.';
+                  break;
+                case 'user-disabled':
+                  message = 'This account has been disabled.';
+                  break;
+                case 'too-many-requests':
+                  message = 'Too many failed attempts. Please try again later.';
+                  break;
+                case 'email-not-verified':
+                  message = 'Please verify your email before signing in. Check your inbox for the verification link.';
+                  break;
+                case 'operation-not-allowed':
+                  message = 'Email/Password authentication is not enabled. Please enable it in Firebase Console.';
+                  break;
+                case 'network-request-failed':
+                  message = 'Network error. Please check your internet connection.';
+                  break;
+                default:
+                  message = 'Firebase Error: ${e.code} - ${e.message}';
+              }
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(message),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
+            } else {
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('An unexpected error occurred.'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
+            }
+            return; // Exit the function to prevent further processing
           }
-          break;
-        case 'operation-not-allowed':
-          message =
-          'Email/Password authentication is not enabled. Please enable it in Firebase Console.';
-          break;
-        case 'network-request-failed':
-          message = 'Network error. Please check your internet connection.';
-          break;
-        default:
-          message = 'Firebase Error: ${e.code} - ${e.message}';
-      }
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(message),
-            backgroundColor: Colors.red,
-          ),
-        );
+        } else {
+          // For regular users, sign in and let AuthWrapper handle routing
+          try {
+            await AuthService().signInWithEmailAndPassword(email, password);
+            await _saveCredentials();
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(
+                builder: (context) => const AuthWrapper(),
+              ),
+            );
+          } catch (e) {
+            // Handle email verification error for regular users
+            if (e is FirebaseAuthException && e.code == 'email-not-verified') {
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Please verify your email before signing in. Check your inbox for the verification link.'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
+            } else {
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Login failed: ${e.toString()}'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
+            }
+          }
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -247,6 +276,7 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.white,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24.0),
@@ -265,10 +295,11 @@ class _LoginScreenState extends State<LoginScreen> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     // App Logo/Title
-                    const Icon(
-                      Icons.account_balance,
-                      size: 80,
-                      color: Colors.blue,
+                    Image.asset(
+                      'assets/images/logo.png',
+                      width: 80,
+                      height: 80,
+                      fit: BoxFit.contain,
                     ),
                     const SizedBox(height: 16),
                     const Text(

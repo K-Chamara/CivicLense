@@ -65,16 +65,29 @@ class _SignupScreenState extends State<SignupScreen> {
       );
 
       if (mounted) {
-        // ALL users must verify their email first, regardless of role
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(
-            builder: (context) => EmailVerificationScreen(
-              email: _emailController.text.trim(),
-              userRole: _selectedRole!.id, // Pass the role for after verification
-              userId: userCredential.user!.uid,
+        // Check if user needs document upload
+        if (_selectedRole!.id != 'citizen' && _selectedRole!.id != 'taxpayer') {
+          // Non-citizen users go to document upload first
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder: (context) => DocumentUploadScreen(
+                userRole: _selectedRole!.id,
+                userId: userCredential.user!.uid,
+              ),
             ),
-          ),
-        );
+          );
+        } else {
+          // Citizen/taxpayer users go to email verification first
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder: (context) => EmailVerificationScreen(
+                email: _emailController.text.trim(),
+                userRole: _selectedRole!.id,
+                userId: userCredential.user!.uid,
+              ),
+            ),
+          );
+        }
       }
     } on FirebaseAuthException catch (e) {
       String message = 'An error occurred during registration.';
@@ -126,6 +139,7 @@ class _SignupScreenState extends State<SignupScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(
         title: const Text('Create Account'),
         backgroundColor: Colors.transparent,
@@ -140,7 +154,12 @@ class _SignupScreenState extends State<SignupScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 // App Logo/Title
-                const Icon(Icons.account_balance, size: 60, color: Colors.blue),
+                Image.asset(
+                  'assets/images/logo.png',
+                  width: 60,
+                  height: 60,
+                  fit: BoxFit.contain,
+                ),
                 const SizedBox(height: 16),
                 const Text(
                   'Join Civic Lense',

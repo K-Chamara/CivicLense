@@ -3,6 +3,7 @@ import '../services/auth_service.dart';
 import '../models/user_role.dart';
 import 'enhanced_dashboard_screen.dart';
 import 'login_screen.dart';
+import 'raise_concern_screen.dart';
 
 class PublicUserDashboardScreen extends StatefulWidget {
   const PublicUserDashboardScreen({super.key});
@@ -157,6 +158,13 @@ class _PublicUserDashboardScreenState extends State<PublicUserDashboardScreen> {
         ),
         const SizedBox(height: 16),
         _buildFeatureCard(
+          'Tender Management',
+          'View and monitor government tenders',
+          Icons.shopping_cart,
+          Colors.orange,
+          () => Navigator.pushNamed(context, '/tender-management'),
+        ),
+        _buildFeatureCard(
           'Track Public Spending',
           'Monitor government budgets and expenditures',
           Icons.account_balance,
@@ -168,7 +176,12 @@ class _PublicUserDashboardScreenState extends State<PublicUserDashboardScreen> {
           'Report issues and track their resolution',
           Icons.report_problem,
           Colors.orange,
-          () => _showFeatureComingSoon('Raise Concerns'),
+          () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const RaiseConcernScreen(),
+            ),
+          ),
         ),
         _buildFeatureCard(
           'View Reports',
@@ -194,6 +207,13 @@ class _PublicUserDashboardScreenState extends State<PublicUserDashboardScreen> {
           ),
         ),
         const SizedBox(height: 16),
+        _buildFeatureCard(
+          'Tender Management',
+          'View and monitor government tenders',
+          Icons.shopping_cart,
+          Colors.orange,
+          () => Navigator.pushNamed(context, '/tender-management'),
+        ),
         _buildFeatureCard(
           'Publish Reports',
           'Create and publish investigative reports',
@@ -233,6 +253,13 @@ class _PublicUserDashboardScreenState extends State<PublicUserDashboardScreen> {
         ),
         const SizedBox(height: 16),
         _buildFeatureCard(
+          'Tender Management',
+          'View and monitor government tenders',
+          Icons.shopping_cart,
+          Colors.orange,
+          () => Navigator.pushNamed(context, '/tender-management'),
+        ),
+        _buildFeatureCard(
           'Community Management',
           'Manage community groups and initiatives',
           Icons.people,
@@ -270,6 +297,13 @@ class _PublicUserDashboardScreenState extends State<PublicUserDashboardScreen> {
           ),
         ),
         const SizedBox(height: 16),
+        _buildFeatureCard(
+          'Tender Management',
+          'View and monitor government tenders',
+          Icons.shopping_cart,
+          Colors.orange,
+          () => Navigator.pushNamed(context, '/tender-management'),
+        ),
         _buildFeatureCard(
           'Research Data',
           'Access anonymized datasets for research',
@@ -309,6 +343,13 @@ class _PublicUserDashboardScreenState extends State<PublicUserDashboardScreen> {
         ),
         const SizedBox(height: 16),
         _buildFeatureCard(
+          'Tender Management',
+          'View and monitor government tenders',
+          Icons.shopping_cart,
+          Colors.orange,
+          () => Navigator.pushNamed(context, '/tender-management'),
+        ),
+        _buildFeatureCard(
           'Project Management',
           'Manage NGO projects and contracts',
           Icons.business,
@@ -347,6 +388,13 @@ class _PublicUserDashboardScreenState extends State<PublicUserDashboardScreen> {
         ),
         const SizedBox(height: 16),
         _buildFeatureCard(
+          'Tender Management',
+          'View and monitor government tenders',
+          Icons.shopping_cart,
+          Colors.orange,
+          () => Navigator.pushNamed(context, '/tender-management'),
+        ),
+        _buildFeatureCard(
           'Track Public Spending',
           'Monitor government budgets and expenditures',
           Icons.account_balance,
@@ -358,7 +406,12 @@ class _PublicUserDashboardScreenState extends State<PublicUserDashboardScreen> {
           'Report issues and track their resolution',
           Icons.report_problem,
           Colors.orange,
-          () => _showFeatureComingSoon('Raise Concerns'),
+          () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const RaiseConcernScreen(),
+            ),
+          ),
         ),
       ],
     );
@@ -396,7 +449,12 @@ class _PublicUserDashboardScreenState extends State<PublicUserDashboardScreen> {
           'Report issues and track their resolution',
           Icons.report_problem,
           Colors.orange,
-          () => _showFeatureComingSoon('Raise Concerns'),
+          () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const RaiseConcernScreen(),
+            ),
+          ),
         ),
         _buildFeatureCard(
           'Government Directory',

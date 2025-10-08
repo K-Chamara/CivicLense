@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../services/project_service.dart';
 
 class BidderManagementScreen extends StatefulWidget {
   final String tenderId;
@@ -39,6 +40,7 @@ class _BidderManagementScreenState extends State<BidderManagementScreen> {
 
   Future<void> _loadBids() async {
     try {
+      print('Loading bids for tender ID: ${widget.tenderId}');
       final querySnapshot = await FirebaseFirestore.instance
           .collection('bids')
           .where('tenderId', isEqualTo: widget.tenderId)
@@ -57,6 +59,8 @@ class _BidderManagementScreenState extends State<BidderManagementScreen> {
             'status': data['status'] ?? 'pending',
           };
         }).toList();
+        
+        print('Found ${_bids.length} bids for tender ${widget.tenderId}');
         
         // Sort by bid amount (lowest first)
         _bids.sort((a, b) => (a['bidAmount'] as double).compareTo(b['bidAmount'] as double));
@@ -228,24 +232,39 @@ class _BidderManagementScreenState extends State<BidderManagementScreen> {
           .doc(bidId)
           .update({'status': 'awarded'});
 
-      // Update tender with award information
+      // Get tender data first
+      final tenderDoc = await FirebaseFirestore.instance
+          .collection('tenders')
+          .doc(widget.tenderId)
+          .get();
+      
+      if (!tenderDoc.exists) {
+        throw Exception('Tender not found');
+      }
+      
+      final tenderData = tenderDoc.data()!;
+
+      // Update tender with award information and close it
       await FirebaseFirestore.instance
           .collection('tenders')
           .doc(widget.tenderId)
           .update({
-        'status': 'awarded',
+        'status': 'closed', // Changed from 'awarded' to 'closed'
         'awardedTo': bidderName,
         'awardedAmount': bidAmount,
         'awardedDate': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
+      // Create project automatically from the closed tender
+      await _createProjectFromTender(tenderData, bidderName, bidAmount);
+
       await _loadBids();
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Tender awarded to $bidderName'),
+            content: Text('Tender awarded to $bidderName and project created automatically'),
             backgroundColor: Colors.green,
           ),
         );
@@ -259,6 +278,23 @@ class _BidderManagementScreenState extends State<BidderManagementScreen> {
           ),
         );
       }
+    }
+  }
+
+  Future<void> _createProjectFromTender(Map<String, dynamic> tenderData, String winningBidder, double winningBidAmount) async {
+    try {
+      // Use the new ProjectService to create project
+      final projectId = await ProjectService.createProjectFromTender(
+        tenderId: widget.tenderId,
+        tenderData: tenderData,
+        winningBidder: winningBidder,
+        winningBidAmount: winningBidAmount,
+      );
+      
+      print('✅ Project created successfully with ID: $projectId');
+    } catch (e) {
+      print('❌ Error creating project from tender: $e');
+      // Don't throw error here to avoid breaking the tender awarding process
     }
   }
 

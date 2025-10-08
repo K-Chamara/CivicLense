@@ -50,15 +50,33 @@ class UserService {
     }
   }
 
-  /// Update user status
+  /// Update user status (approve/reject)
   Future<void> updateUserStatus(String userId, String status) async {
     try {
       await _firestore.collection('users').doc(userId).update({
         'status': status,
         'updatedAt': FieldValue.serverTimestamp(),
+        'reviewedAt': FieldValue.serverTimestamp(),
+        'reviewedBy': _auth.currentUser?.uid,
       });
+      print('✅ User status updated to: $status');
     } catch (e) {
-      print('Error updating user status: $e');
+      print('❌ Error updating user status: $e');
+      throw e;
+    }
+  }
+
+  /// Update user active status
+  Future<void> updateUserActiveStatus(String userId, bool isActive) async {
+    try {
+      await _firestore.collection('users').doc(userId).update({
+        'isActive': isActive,
+        'updatedAt': FieldValue.serverTimestamp(),
+        'updatedBy': _auth.currentUser?.uid,
+      });
+      print('✅ User active status updated to: $isActive');
+    } catch (e) {
+      print('❌ Error updating user active status: $e');
       throw e;
     }
   }
@@ -155,14 +173,18 @@ class UserService {
           roleId = roleData['id'].toString().toLowerCase();
         }
         
-        // Email must be verified for all users
-        if (!emailVerified) return false;
+        // For users who have uploaded documents but not verified email yet,
+        // allow them to login to complete the verification process
+        final hasDocuments = data['documents'] != null && (data['documents'] as List).isNotEmpty;
+        if (!emailVerified && !hasDocuments) return false;
         
         // Citizens and admins can always login with full access
         if (roleId == 'citizen' || roleId == 'admin') return true;
         
-        // Non-citizen users can login with limited access if email is verified
-        // They get citizen-level features until approved
+        // ALL users with verified email can login
+        // - NGO/Contractor users can login to upload documents
+        // - Government users can login with their role
+        // - Other users get citizen-level features until approved
         return true;
       }
       return false; // If no user document exists, they can't login

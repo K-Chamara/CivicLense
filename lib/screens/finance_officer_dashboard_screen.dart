@@ -10,7 +10,8 @@ import 'add_transaction_screen.dart';
 import 'expense_tracking_screen.dart';
 import 'transaction_list_screen.dart';
 import 'financial_reports_screen.dart';
-import '../utils/generate_budget_data.dart';
+import 'user_concern_tracking_screen.dart';
+import 'public_tender_viewer_screen.dart';
 import 'login_screen.dart';
 
 class FinanceOfficerDashboardScreen extends StatefulWidget {
@@ -101,6 +102,7 @@ class _FinanceOfficerDashboardScreenState extends State<FinanceOfficerDashboardS
 
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
+      drawer: _buildNavigationDrawer(),
       appBar: AppBar(
         title: const Text('Finance Officer Dashboard'),
         backgroundColor: Colors.green,
@@ -108,15 +110,6 @@ class _FinanceOfficerDashboardScreenState extends State<FinanceOfficerDashboardS
         elevation: 0,
         actions: [
           _buildNotificationIcon(),
-          IconButton(
-            icon: const Icon(Icons.data_usage),
-            onPressed: _generateSampleData,
-            tooltip: 'Generate Sample Data',
-          ),
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: _signOut,
-          ),
         ],
       ),
       body: SingleChildScrollView(
@@ -161,7 +154,10 @@ class _FinanceOfficerDashboardScreenState extends State<FinanceOfficerDashboardS
             Navigator.pushNamed(context, '/budget-viewer');
             break;
           case 2:
-            Navigator.pushNamed(context, '/citizen-tender');
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const PublicTenderViewerScreen()),
+            );
             break;
           case 3:
             // Already on dashboard
@@ -563,30 +559,6 @@ class _FinanceOfficerDashboardScreenState extends State<FinanceOfficerDashboardS
     );
   }
 
-  Future<void> _generateSampleData() async {
-    try {
-      await BudgetDataGenerator.generateSampleBudgetData();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Sample budget data generated successfully!'),
-            backgroundColor: Colors.green,
-            duration: Duration(seconds: 3),
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error generating sample data: $e'),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 3),
-          ),
-        );
-      }
-    }
-  }
 
   Widget _buildNotificationIcon() {
     final overBudgetCount = categoryAnalytics.where((category) => 
@@ -1030,5 +1002,170 @@ class _FinanceOfficerDashboardScreenState extends State<FinanceOfficerDashboardS
     
     final symbol = currencySymbols[selectedCurrency] ?? '\$';
     return '$symbol${NumberFormat('#,##,##,##0').format(amount)}';
+  }
+
+  Widget _buildNavigationDrawer() {
+    return Drawer(
+      backgroundColor: Colors.white,
+      child: Column(
+        children: [
+          // Drawer Header
+          Container(
+            width: double.infinity,
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Colors.green, Color(0xFF2E7D32)],
+              ),
+            ),
+            child: SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    CircleAvatar(
+                      radius: 30,
+                      backgroundColor: Colors.white.withOpacity(0.2),
+                      child: Icon(
+                        userRole?.icon ?? Icons.account_balance_wallet,
+                        color: Colors.white,
+                        size: 30,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      '${userData?['firstName'] ?? 'User'} ${userData?['lastName'] ?? ''}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      userRole?.name ?? 'Finance Officer',
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          
+          // Navigation Items
+          Expanded(
+            child: ListView(
+              padding: EdgeInsets.zero,
+              children: [
+                _buildDrawerItem(
+                  icon: Icons.dashboard,
+                  title: 'Dashboard',
+                  onTap: () => Navigator.pop(context),
+                ),
+                _buildDrawerItem(
+                  icon: Icons.account_balance,
+                  title: 'Budget Dashboard',
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const BudgetDashboardScreen()),
+                    );
+                  },
+                ),
+                _buildDrawerItem(
+                  icon: Icons.analytics,
+                  title: 'Budget Analytics',
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const BudgetAnalyticsScreen()),
+                    );
+                  },
+                ),
+                _buildDrawerItem(
+                  icon: Icons.add,
+                  title: 'Add Transaction',
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const AddTransactionScreen()),
+                    );
+                  },
+                ),
+                _buildDrawerItem(
+                  icon: Icons.shopping_cart,
+                  title: 'Tenders',
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const PublicTenderViewerScreen()),
+                    );
+                  },
+                ),
+                _buildDrawerItem(
+                  icon: Icons.track_changes,
+                  title: 'My Concerns',
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const UserConcernTrackingScreen()),
+                    );
+                  },
+                ),
+                _buildDrawerItem(
+                  icon: Icons.receipt_long,
+                  title: 'Financial Reports',
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const FinancialReportsScreen()),
+                    );
+                  },
+                ),
+                const Divider(),
+                _buildDrawerItem(
+                  icon: Icons.logout,
+                  title: 'Sign Out',
+                  onTap: () {
+                    Navigator.pop(context);
+                    _signOut();
+                  },
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDrawerItem({
+    required IconData icon,
+    required String title,
+    required VoidCallback onTap,
+  }) {
+    return ListTile(
+      leading: Icon(icon, color: Colors.grey[700]),
+      title: Text(
+        title,
+        style: const TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+      onTap: onTap,
+    );
   }
 }

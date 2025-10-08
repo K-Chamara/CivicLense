@@ -7,11 +7,16 @@ import 'citizen_tender_screen.dart';
 import 'raise_concern_screen.dart';
 import 'concern_management_screen.dart';
 import 'public_concerns_screen.dart';
+import 'user_concern_tracking_screen.dart';
+import 'settings_screen.dart';
+import 'public_tender_viewer_screen.dart';
 import 'admin_dashboard_screen.dart';
 import 'finance_officer_dashboard_screen.dart';
 import 'procurement_officer_dashboard_screen.dart';
 import 'anticorruption_officer_dashboard_screen.dart';
 import 'public_user_dashboard_screen.dart';
+import 'budget_allocations_view_screen.dart';
+import 'reports_analytics_screen.dart';
 
 class EnhancedDashboardScreen extends StatefulWidget {
   const EnhancedDashboardScreen({super.key});
@@ -311,8 +316,9 @@ class _EnhancedDashboardScreenState extends State<EnhancedDashboardScreen>
                   title: 'Budget Allocations',
                   onTap: () {
                     Navigator.pop(context);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Budget Allocations feature coming soon!')),
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const BudgetAllocationsViewScreen()),
                     );
                   },
                 ),
@@ -323,7 +329,7 @@ class _EnhancedDashboardScreenState extends State<EnhancedDashboardScreen>
                     Navigator.pop(context);
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (context) => const CitizenTenderScreen()),
+                      MaterialPageRoute(builder: (context) => const PublicTenderViewerScreen()),
                     );
                   },
                 ),
@@ -333,6 +339,14 @@ class _EnhancedDashboardScreenState extends State<EnhancedDashboardScreen>
                   onTap: () {
                     Navigator.pop(context);
                     Navigator.pushNamed(context, '/news');
+                  },
+                ),
+                _buildDrawerItem(
+                  icon: Icons.forum,
+                  title: 'Media Hub',
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.pushNamed(context, '/media-hub');
                   },
                 ),
                 _buildDrawerItem(
@@ -346,7 +360,13 @@ class _EnhancedDashboardScreenState extends State<EnhancedDashboardScreen>
                 _buildDrawerItem(
                   icon: Icons.analytics,
                   title: 'Reports & Analytics',
-                  onTap: () => _showFeatureComingSoon('Reports & Analytics'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const ReportsAnalyticsScreen()),
+                    );
+                  },
                 ),
                 _buildDrawerItem(
                   icon: Icons.report_problem,
@@ -355,6 +375,16 @@ class _EnhancedDashboardScreenState extends State<EnhancedDashboardScreen>
                     context,
                     MaterialPageRoute(
                       builder: (context) => const RaiseConcernScreen(),
+                    ),
+                  ),
+                ),
+                _buildDrawerItem(
+                  icon: Icons.track_changes,
+                  title: 'My Concerns',
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const UserConcernTrackingScreen(),
                     ),
                   ),
                 ),
@@ -371,9 +401,22 @@ class _EnhancedDashboardScreenState extends State<EnhancedDashboardScreen>
                 _buildDrawerItem(
                   icon: Icons.settings,
                   title: 'Settings',
-                  onTap: () => _showFeatureComingSoon('Settings'),
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const SettingsScreen(),
+                    ),
+                  ),
                 ),
                 const Divider(),
+                _buildDrawerItem(
+                  icon: Icons.logout,
+                  title: 'Sign Out',
+                  onTap: () {
+                    Navigator.pop(context);
+                    _signOut();
+                  },
+                ),
                 _buildDrawerItem(
                   icon: Icons.help,
                   title: 'Help & Support',
@@ -626,8 +669,9 @@ class _EnhancedDashboardScreenState extends State<EnhancedDashboardScreen>
             ),
             TextButton(
               onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Budget Allocations feature coming soon!')),
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const BudgetAllocationsViewScreen()),
                 );
               },
               child: const Text(
@@ -1390,14 +1434,14 @@ class _EnhancedDashboardScreenState extends State<EnhancedDashboardScreen>
           'Create and publish investigative reports',
           Icons.article,
           Colors.green,
-          () => _showFeatureComingSoon('Publish Reports'),
+          () => Navigator.pushNamed(context, '/publish'),
         ),
         _buildFeatureCard(
           'Media Hub',
           'Access media resources and tools',
           Icons.media_bluetooth_on,
           Colors.purple,
-          () => _showFeatureComingSoon('Media Hub'),
+          () => Navigator.pushNamed(context, '/media-hub'),
         ),
       ],
     );
@@ -1634,7 +1678,10 @@ class _EnhancedDashboardScreenState extends State<EnhancedDashboardScreen>
             Navigator.pushNamed(context, '/budget-viewer');
             break;
           case 2:
-            Navigator.pushNamed(context, '/citizen-tender');
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const PublicTenderViewerScreen()),
+            );
             break;
           case 3:
             // Navigate to role-specific dashboard (same as hamburger menu)

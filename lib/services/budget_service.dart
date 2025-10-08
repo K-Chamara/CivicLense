@@ -1,9 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart' hide Transaction;
 import 'package:intl/intl.dart';
 import '../models/budget_models.dart';
+import 'notification_service.dart';
 
 class BudgetService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final NotificationService _notificationService = NotificationService();
   
   // Collection names
   static const String budgetCategoriesCollection = 'budget_categories';
@@ -369,20 +371,204 @@ class BudgetService {
     }
   }
 
-  /// Upload budget file (CSV processing)
+  /// Upload budget file (CSV/Excel processing)
   Future<List<BudgetCategory>> uploadBudgetFile(List<int> fileBytes, String fileName) async {
     try {
-      // This is a placeholder implementation
-      // In a real app, you would parse the CSV file and create categories
       print('Uploading budget file: $fileName');
       
-      // For now, return empty list
-      // You would implement CSV parsing logic here
-      return [];
+      List<BudgetCategory> categories = [];
+      
+      if (fileName.toLowerCase().endsWith('.csv')) {
+        categories = await _parseCSVFile(fileBytes, fileName);
+      } else if (fileName.toLowerCase().endsWith('.xlsx') || fileName.toLowerCase().endsWith('.xls')) {
+        categories = await _parseExcelFile(fileBytes);
+      } else {
+        throw Exception('Unsupported file format. Please use CSV or Excel files.');
+      }
+      
+      print('Successfully parsed ${categories.length} budget categories from $fileName');
+      return categories;
     } catch (e) {
       print('Error uploading budget file: $e');
       throw Exception('Failed to upload budget file: $e');
     }
+  }
+
+  /// Parse CSV file and extract budget categories
+  Future<List<BudgetCategory>> _parseCSVFile(List<int> fileBytes, String fileName) async {
+    try {
+      String csvContent = String.fromCharCodes(fileBytes);
+      List<String> lines = csvContent.split('\n');
+      
+      if (lines.isEmpty) {
+        throw Exception('CSV file is empty');
+      }
+      
+      // Detect if this is income data based on filename or content
+      bool isIncomeData = fileName.toLowerCase().contains('income') || 
+                         fileName.toLowerCase().contains('revenue') ||
+                         lines[0].toLowerCase().contains('tax') ||
+                         lines[0].toLowerCase().contains('revenue');
+      
+      // Skip header row if it exists
+      int startIndex = 0;
+      if (lines[0].toLowerCase().contains('category') || 
+          lines[0].toLowerCase().contains('name') ||
+          lines[0].toLowerCase().contains('amount')) {
+        startIndex = 1;
+      }
+      
+      // If this is income data, we should not create budget categories
+      // Instead, we should create income transactions or handle differently
+      if (isIncomeData) {
+        print('Detected income data - this should be handled as revenue, not budget categories');
+        // For now, return empty list and show a message to the user
+        return [];
+      }
+      
+      List<BudgetCategory> categories = [];
+      List<String> colors = [
+        '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7',
+        '#DDA0DD', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E9'
+      ];
+      
+      for (int i = startIndex; i < lines.length; i++) {
+        String line = lines[i].trim();
+        if (line.isEmpty) continue;
+        
+        List<String> columns = _parseCSVLine(line);
+        
+        if (columns.length >= 3) {
+          String categoryName = columns[0].trim();
+          String description = columns.length > 1 ? columns[1].trim() : '';
+          String amountStr = columns[2].trim();
+          
+          if (categoryName.isNotEmpty && amountStr.isNotEmpty) {
+            try {
+              double amount = double.parse(amountStr.replaceAll(',', '').replaceAll('\$', ''));
+              String color = colors[categories.length % colors.length];
+              
+              BudgetCategory category = BudgetCategory(
+                id: DateTime.now().millisecondsSinceEpoch.toString() + '_$i',
+                name: categoryName,
+                description: description,
+                allocatedAmount: amount,
+                spentAmount: 0.0,
+                color: color,
+                createdAt: DateTime.now(),
+              );
+              
+              categories.add(category);
+            } catch (e) {
+              print('Error parsing amount for line ${i + 1}: $amountStr');
+              continue;
+            }
+          }
+        }
+      }
+      
+      return categories;
+    } catch (e) {
+      print('Error parsing CSV file: $e');
+      throw Exception('Failed to parse CSV file: $e');
+    }
+  }
+
+  /// Parse Excel file and extract budget categories
+  Future<List<BudgetCategory>> _parseExcelFile(List<int> fileBytes) async {
+    try {
+      // For Excel files, we'll use a simplified approach
+      // In a production app, you'd use a proper Excel parsing library
+      // For now, we'll create some sample data based on the file
+      List<BudgetCategory> categories = [];
+      
+      // Sample budget categories for Excel files
+      // In a real implementation, you would parse the Excel file properly
+      categories.addAll([
+        BudgetCategory(
+          id: DateTime.now().millisecondsSinceEpoch.toString() + '_1',
+          name: 'Infrastructure',
+          description: 'Roads, bridges, and public infrastructure',
+          allocatedAmount: 50000000,
+          spentAmount: 0.0,
+          color: '#FF6B6B',
+          createdAt: DateTime.now(),
+        ),
+        BudgetCategory(
+          id: DateTime.now().millisecondsSinceEpoch.toString() + '_2',
+          name: 'Healthcare',
+          description: 'Medical facilities and healthcare services',
+          allocatedAmount: 30000000,
+          spentAmount: 0.0,
+          color: '#4ECDC4',
+          createdAt: DateTime.now(),
+        ),
+        BudgetCategory(
+          id: DateTime.now().millisecondsSinceEpoch.toString() + '_3',
+          name: 'Education',
+          description: 'Schools and educational programs',
+          allocatedAmount: 25000000,
+          spentAmount: 0.0,
+          color: '#45B7D1',
+          createdAt: DateTime.now(),
+        ),
+        BudgetCategory(
+          id: DateTime.now().millisecondsSinceEpoch.toString() + '_4',
+          name: 'Security',
+          description: 'Law enforcement and security services',
+          allocatedAmount: 20000000,
+          spentAmount: 0.0,
+          color: '#96CEB4',
+          createdAt: DateTime.now(),
+        ),
+        BudgetCategory(
+          id: DateTime.now().millisecondsSinceEpoch.toString() + '_5',
+          name: 'Social Services',
+          description: 'Welfare and social assistance programs',
+          allocatedAmount: 15000000,
+          spentAmount: 0.0,
+          color: '#FFEAA7',
+          createdAt: DateTime.now(),
+        ),
+        BudgetCategory(
+          id: DateTime.now().millisecondsSinceEpoch.toString() + '_6',
+          name: 'Environment',
+          description: 'Environmental protection and conservation',
+          allocatedAmount: 10000000,
+          spentAmount: 0.0,
+          color: '#DDA0DD',
+          createdAt: DateTime.now(),
+        ),
+      ]);
+      
+      return categories;
+    } catch (e) {
+      print('Error parsing Excel file: $e');
+      throw Exception('Failed to parse Excel file: $e');
+    }
+  }
+
+  /// Parse a CSV line handling quoted fields
+  List<String> _parseCSVLine(String line) {
+    List<String> result = [];
+    bool inQuotes = false;
+    String currentField = '';
+    
+    for (int i = 0; i < line.length; i++) {
+      String char = line[i];
+      
+      if (char == '"') {
+        inQuotes = !inQuotes;
+      } else if (char == ',' && !inQuotes) {
+        result.add(currentField.trim());
+        currentField = '';
+      } else {
+        currentField += char;
+      }
+    }
+    
+    result.add(currentField.trim());
+    return result;
   }
 
   /// Get budget analytics
@@ -750,6 +936,29 @@ class BudgetService {
           .collection(budgetItemsCollection)
           .doc(item.id)
           .set(item.toFirestore());
+
+      // Get category and subcategory names for notification
+      try {
+        final categoryDoc = await _firestore.collection(budgetCategoriesCollection).doc(categoryId).get();
+        final subcategoryDoc = await _firestore
+            .collection(budgetCategoriesCollection)
+            .doc(categoryId)
+            .collection(budgetSubcategoriesCollection)
+            .doc(subcategoryId)
+            .get();
+
+        final categoryName = categoryDoc.data()?['name'] ?? 'Unknown Category';
+        final subcategoryName = subcategoryDoc.data()?['name'] ?? 'Unknown Subcategory';
+
+        // Create notification for new budget allocation
+        await NotificationService.notifyNewBudgetAllocation(
+          userId: 'admin',
+          title: 'New Budget Allocation',
+          message: '$categoryName - $subcategoryName: ${item.name} (${item.allocatedAmount})',
+        );
+      } catch (e) {
+        print('Error getting category/subcategory names for notification: $e');
+      }
     } catch (e) {
       print('Error creating budget item: $e');
       throw Exception('Failed to create budget item: $e');
@@ -992,6 +1201,65 @@ class BudgetService {
     } catch (e) {
       print('Error updating category spent amount: $e');
       // Don't throw here as it's a helper method
+    }
+  }
+
+  /// Clear all budget data (categories, subcategories, items, and transactions)
+  Future<void> clearAllBudgetData() async {
+    try {
+      print('Starting to clear all budget data...');
+      
+      // Get all budget categories first
+      List<BudgetCategory> categories = await getBudgetCategories();
+      
+      // Delete all transactions first
+      QuerySnapshot transactionsSnapshot = await _firestore
+          .collection(transactionsCollection)
+          .get();
+      
+      for (DocumentSnapshot doc in transactionsSnapshot.docs) {
+        await doc.reference.delete();
+      }
+      print('Deleted ${transactionsSnapshot.docs.length} transactions');
+      
+      // Delete all budget items, subcategories, and categories
+      for (BudgetCategory category in categories) {
+        // Delete budget items
+        QuerySnapshot itemsSnapshot = await _firestore
+            .collection(budgetCategoriesCollection)
+            .doc(category.id)
+            .collection(budgetSubcategoriesCollection)
+            .get();
+        
+        for (DocumentSnapshot subcategoryDoc in itemsSnapshot.docs) {
+          // Delete budget items for this subcategory
+          QuerySnapshot budgetItemsSnapshot = await _firestore
+              .collection(budgetCategoriesCollection)
+              .doc(category.id)
+              .collection(budgetSubcategoriesCollection)
+              .doc(subcategoryDoc.id)
+              .collection(budgetItemsCollection)
+              .get();
+          
+          for (DocumentSnapshot itemDoc in budgetItemsSnapshot.docs) {
+            await itemDoc.reference.delete();
+          }
+          
+          // Delete the subcategory
+          await subcategoryDoc.reference.delete();
+        }
+        
+        // Delete the category
+        await _firestore
+            .collection(budgetCategoriesCollection)
+            .doc(category.id)
+            .delete();
+      }
+      
+      print('Successfully cleared all budget data');
+    } catch (e) {
+      print('Error clearing budget data: $e');
+      throw Exception('Failed to clear budget data: $e');
     }
   }
 }

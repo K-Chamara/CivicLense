@@ -4,7 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../utils/onboarding_utils.dart';
 import '../utils/create_admin.dart';
-import 'onboarding_screen.dart';
+import 'enhanced_onboarding_screen.dart';
 import 'login_screen.dart';
 import 'common_home_screen.dart';
 import 'dashboard_screen.dart';
@@ -152,8 +152,8 @@ class _SplashScreenState extends State<SplashScreen>
       
       if (!hasSeenOnboarding) {
         // First time app installation - show onboarding
-        print('🎯 SplashScreen: First time user, showing onboarding');
-        nextScreen = const OnboardingScreen();
+        print('🎯 SplashScreen: First time user, showing enhanced onboarding');
+        nextScreen = const EnhancedOnboardingScreen();
       } else {
         // App has been used before - go to auth wrapper
         print('✅ SplashScreen: Returning user, going to auth wrapper');

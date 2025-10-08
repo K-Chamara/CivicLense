@@ -46,6 +46,8 @@ class _BudgetUploadScreenState extends State<BudgetUploadScreen> {
               _buildManualEntrySection(),
               const SizedBox(height: 24),
               if (_uploadedCategories.isNotEmpty) _buildUploadedCategories(),
+              const SizedBox(height: 24),
+              _buildResetBudgetSection(),
             ],
         ),
       ),
@@ -498,12 +500,22 @@ class _BudgetUploadScreenState extends State<BudgetUploadScreen> {
         _isUploading = false;
       });
       
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Successfully processed ${categories.length} budget categories'),
-          backgroundColor: Colors.green,
-        ),
-      );
+      if (categories.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Income data detected. Please use the expenditure budget file for budget categories.'),
+            backgroundColor: Colors.orange,
+            duration: Duration(seconds: 4),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Successfully processed ${categories.length} budget categories'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
     } catch (e) {
       setState(() => _isUploading = false);
       ScaffoldMessenger.of(context).showSnackBar(
@@ -534,10 +546,16 @@ class _BudgetUploadScreenState extends State<BudgetUploadScreen> {
       
       print('Test successful - processed ${categories.length} categories');
       
+      // Show preview of categories that would be created
+      setState(() {
+        _uploadedCategories = categories;
+      });
+      
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Test successful! Found ${categories.length} budget categories'),
+          content: Text('Test successful! Found ${categories.length} budget categories. Click "Save All" to add them to the database.'),
           backgroundColor: Colors.green,
+          duration: const Duration(seconds: 4),
         ),
       );
     } catch (e) {
@@ -715,6 +733,145 @@ class _BudgetUploadScreenState extends State<BudgetUploadScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error saving categories: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Widget _buildResetBudgetSection() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.warning, color: Colors.red[600], size: 24),
+              const SizedBox(width: 8),
+              const Text(
+                'Reset Budget Data',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            'This will permanently delete all budget categories, subcategories, items, and transactions. This action cannot be undone.',
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey,
+            ),
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: _showResetBudgetDialog,
+              icon: const Icon(Icons.delete_forever),
+              label: const Text('Reset All Budget Data'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showResetBudgetDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.warning, color: Colors.red[600]),
+            const SizedBox(width: 8),
+            const Text('Reset Budget Data'),
+          ],
+        ),
+        content: const Text(
+          'Are you sure you want to reset all budget data?\n\n'
+          'This will permanently delete:\n'
+          '• All budget categories\n'
+          '• All subcategories and items\n'
+          '• All transactions\n\n'
+          'This action cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              await _resetBudgetData();
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Reset All Data'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _resetBudgetData() async {
+    try {
+      // Show loading indicator
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const AlertDialog(
+          content: Row(
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(width: 16),
+              Text('Resetting budget data...'),
+            ],
+          ),
+        ),
+      );
+
+      await _budgetService.clearAllBudgetData();
+      
+      // Close loading dialog
+      if (mounted) Navigator.pop(context);
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('All budget data has been reset successfully'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      // Close loading dialog
+      if (mounted) Navigator.pop(context);
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error resetting budget data: $e'),
             backgroundColor: Colors.red,
           ),
         );

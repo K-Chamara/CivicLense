@@ -21,6 +21,7 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
   double? _winningBidAmount;
   List<Map<String, dynamic>> _milestones = [];
   bool _isLoading = true;
+  bool _isTracked = false; // Track if this project is being tracked by the user
   String _selectedColor = '#FF5722'; // Default color (red)
 
   // Available colors for milestones
@@ -51,6 +52,92 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
     super.dispose();
   }
 
+  bool _shouldShowAddButton() {
+    // Only procurement officers can add milestones
+    // Citizens can only view and track projects
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return false;
+    
+    // TODO: Implement proper role checking
+    // For now, hide the add button for all users to prevent editing
+    // Only procurement officers should be able to add/edit milestones
+    return false; // Citizens can only view and track, not edit
+  }
+
+  Widget _buildStatusRow() {
+    final status = widget.project['status'] as String? ?? 'ongoing';
+    final statusColor = _getStatusColor(status);
+    final statusText = status.toUpperCase();
+    
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      child: Row(
+        children: [
+          const Text(
+            'Status: ',
+            style: TextStyle(
+              fontWeight: FontWeight.w600,
+              fontSize: 16,
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: statusColor.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: statusColor),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  _getStatusIcon(status),
+                  size: 16,
+                  color: statusColor,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  statusText,
+                  style: TextStyle(
+                    color: statusColor,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Color _getStatusColor(String status) {
+    switch (status.toLowerCase()) {
+      case 'ongoing':
+        return Colors.blue;
+      case 'done':
+        return Colors.green;
+      case 'delayed':
+        return Colors.orange;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  IconData _getStatusIcon(String status) {
+    switch (status.toLowerCase()) {
+      case 'ongoing':
+        return Icons.play_circle;
+      case 'done':
+        return Icons.check_circle;
+      case 'delayed':
+        return Icons.schedule;
+      default:
+        return Icons.help;
+    }
+  }
+
   Future<void> _loadProjectData() async {
     try {
       final user = FirebaseAuth.instance.currentUser;
@@ -77,6 +164,9 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
 
       // Load milestones
       await _loadMilestones();
+
+      // Check if this project is already being tracked
+      await _checkTrackingStatus();
 
       setState(() {
         _isLoading = false;
@@ -324,12 +414,12 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
         backgroundColor: Colors.lightBlue,
         foregroundColor: Colors.white,
       ),
-      floatingActionButton: FloatingActionButton(
+      floatingActionButton: _shouldShowAddButton() ? FloatingActionButton(
         onPressed: () => _showAddMilestoneDialog(),
         backgroundColor: Colors.lightBlue,
         foregroundColor: Colors.white,
         child: const Icon(Icons.add),
-      ),
+      ) : null,
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
@@ -356,10 +446,52 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
                           _buildInfoRow('Description', widget.project['description'] ?? ''),
                           if (widget.project['winningBidder'] != null)
                             _buildInfoRow('Winning Bidder', widget.project['winningBidder']),
+                          _buildStatusRow(),
                         ],
                       ),
                     ),
                   ),
+                  const SizedBox(height: 16),
+
+                  // Track Project Button (for citizens)
+                  if (_isCitizenUser())
+                    Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Project Tracking',
+                              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'Get notified when milestones are updated for this project.',
+                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton.icon(
+                                onPressed: _toggleProjectTracking,
+                                icon: Icon(_isProjectTracked() ? Icons.notifications_active : Icons.notifications_off),
+                                label: Text(_isProjectTracked() ? 'Stop Tracking' : 'Track This Project'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: _isProjectTracked() ? Colors.red : Colors.blue,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                   const SizedBox(height: 16),
 
                   // Financial Summary Card
@@ -407,11 +539,32 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            'Project Milestones',
-                            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
+                          Row(
+                            children: [
+                              Text(
+                                'Project Milestones',
+                                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const Spacer(),
+                              if (_isCitizenUser())
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: Colors.blue.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Text(
+                                    'View Only',
+                                    style: TextStyle(
+                                      color: Colors.blue[700],
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ),
+                            ],
                           ),
                           const SizedBox(height: 16),
                                                      if (_milestones.isEmpty)
@@ -572,19 +725,6 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
     );
   }
 
-  Color _getStatusColor(String status) {
-    switch (status) {
-      case 'done':
-        return Colors.green;
-      case 'ongoing':
-        return Colors.lightBlue;
-      case 'delayed':
-        return Colors.red;
-      case 'pending':
-      default:
-        return Colors.grey;
-    }
-  }
 
   void _showAddMilestoneDialog() {
     showDialog(
@@ -715,5 +855,95 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
         ],
       ),
     );
+  }
+
+  bool _isCitizenUser() {
+    // Check if current user is a citizen (not a government officer)
+    // This is a simplified check - in a real app, you'd check the user's role
+    // For now, show tracking button to all users (citizens and officers)
+    return true; // Allow all users to track projects for notifications
+  }
+
+  bool _isProjectTracked() {
+    // Return the current tracking state
+    return _isTracked;
+  }
+
+  Future<void> _checkTrackingStatus() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+
+      final projectId = widget.project['id'];
+      final trackedProjectsRef = FirebaseFirestore.instance
+          .collection('tracked_projects')
+          .doc('${user.uid}_$projectId');
+
+      final doc = await trackedProjectsRef.get();
+      setState(() {
+        _isTracked = doc.exists;
+      });
+    } catch (e) {
+      print('Error checking tracking status: $e');
+      setState(() {
+        _isTracked = false;
+      });
+    }
+  }
+
+  Future<void> _toggleProjectTracking() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+
+      final projectId = widget.project['id'];
+      final trackedProjectsRef = FirebaseFirestore.instance
+          .collection('tracked_projects')
+          .doc('${user.uid}_$projectId');
+
+      if (_isProjectTracked()) {
+        // Stop tracking
+        await trackedProjectsRef.delete();
+        setState(() {
+          _isTracked = false;
+        });
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Stopped tracking this project'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+      } else {
+        // Start tracking
+        await trackedProjectsRef.set({
+          'userId': user.uid,
+          'projectId': projectId,
+          'projectTitle': widget.project['title'],
+          'trackedAt': FieldValue.serverTimestamp(),
+        });
+        setState(() {
+          _isTracked = true;
+        });
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Now tracking this project! You\'ll get notifications for updates.'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error updating tracking: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 }
