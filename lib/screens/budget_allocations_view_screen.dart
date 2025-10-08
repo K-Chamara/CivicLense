@@ -217,7 +217,7 @@ class _BudgetAllocationsViewScreenState extends State<BudgetAllocationsViewScree
           const SizedBox(height: 12),
           // Category Filter
           DropdownButtonFormField<String>(
-            initialValue: _selectedCategory,
+            value: _selectedCategory,
             decoration: InputDecoration(
               labelText: 'Category',
               border: OutlineInputBorder(
