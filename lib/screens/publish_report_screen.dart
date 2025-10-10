@@ -5,11 +5,6 @@ import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import '../models/report.dart';
 import '../services/news_service.dart';
-import '../services/cloudinary_image_service.dart';
-import 'package:image_picker/image_picker.dart';
-import 'dart:io';
-import '../models/report.dart';
-import '../services/news_service.dart';
 import '../services/cloudinary_service.dart';
 
 class PublishReportScreen extends StatefulWidget {
@@ -22,7 +17,7 @@ class PublishReportScreen extends StatefulWidget {
 class _PublishReportScreenState extends State<PublishReportScreen> with TickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
   final _newsService = NewsService();
-  final _cloudinaryService = CloudinaryImageService();
+  // Using static methods from CloudinaryService
   
   late AnimationController _formAnimationController;
   late AnimationController _buttonAnimationController;
@@ -44,9 +39,6 @@ class _PublishReportScreenState extends State<PublishReportScreen> with TickerPr
   bool _isSubmitting = false;
   File? _selectedImage;
   String? _bannerImageUrl;
-  
-  // Image upload variables
-  File? _selectedImage;
   String? _imageUrl;
   bool _isUploadingImage = false;
 
@@ -95,7 +87,14 @@ class _PublishReportScreenState extends State<PublishReportScreen> with TickerPr
 
   Future<void> _pickImage() async {
     try {
-      final XFile? image = await _cloudinaryService.pickImage();
+      final ImagePicker picker = ImagePicker();
+      final XFile? image = await picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1920,
+        maxHeight: 1080,
+        imageQuality: 85,
+      );
+      
       if (image != null) {
         setState(() {
           _selectedImage = File(image.path);
@@ -104,7 +103,7 @@ class _PublishReportScreenState extends State<PublishReportScreen> with TickerPr
         
         // Automatically upload the image
         try {
-          final imageUrl = await _cloudinaryService.uploadImage(_selectedImage!);
+          final imageUrl = await CloudinaryService.uploadFile(_selectedImage!);
           setState(() {
             _bannerImageUrl = imageUrl;
             _isUploadingImage = false;
@@ -126,30 +125,11 @@ class _PublishReportScreenState extends State<PublishReportScreen> with TickerPr
             );
           }
         }
-      final ImagePicker picker = ImagePicker();
-      final XFile? image = await picker.pickImage(
-        source: ImageSource.gallery,
-        maxWidth: 1920,
-        maxHeight: 1080,
-        imageQuality: 85,
-      );
-      
-      if (image != null) {
-        setState(() {
-          _selectedImage = File(image.path);
-        });
-        await _uploadImage();
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed to pick image: $e')),
-        );
-      }
-    }
-  }
-
-          SnackBar(content: Text('Error picking image: $e')),
         );
       }
     }
@@ -387,8 +367,6 @@ class _PublishReportScreenState extends State<PublishReportScreen> with TickerPr
               else ...[
                 _buildTextField(_authorNameController, 'Author name', validator: (v) => v!.isEmpty ? 'Required' : null),
                 const SizedBox(height: 12),
-              const Text('Contact Email', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                const SizedBox(height: 6),
                 _buildTextField(_authorEmailController, 'Email address', keyboardType: TextInputType.emailAddress, validator: (v) => v!.contains('@') ? null : 'Invalid email'),
               ],
               const SizedBox(height: 12),
@@ -701,124 +679,6 @@ class _PublishReportScreenState extends State<PublishReportScreen> with TickerPr
     );
   }
 
-  Widget _buildImageUploadSection() {
-    return Container(
-      decoration: BoxDecoration(
-        border: Border.all(color: Colors.grey.shade300),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        children: [
-          if (_selectedImage != null || _imageUrl != null) ...[
-            Container(
-              width: double.infinity,
-              height: 200,
-              decoration: BoxDecoration(
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(12),
-                  topRight: Radius.circular(12),
-                ),
-                color: Colors.grey.shade100,
-              ),
-              child: ClipRRect(
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(12),
-                  topRight: Radius.circular(12),
-                ),
-                child: _imageUrl != null
-                    ? Image.network(
-                        _imageUrl!,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
-                          return const Icon(Icons.broken_image, size: 50);
-                        },
-                      )
-                    : Image.file(
-                        _selectedImage!,
-                        fit: BoxFit.cover,
-                      ),
-              ),
-            ),
-            Container(
-              padding: const EdgeInsets.all(12),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: _isUploadingImage ? null : _pickImage,
-                      icon: _isUploadingImage
-                          ? const SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Icon(Icons.edit),
-                      label: Text(_isUploadingImage ? 'Uploading...' : 'Change Image'),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  OutlinedButton.icon(
-                    onPressed: _removeImage,
-                    icon: const Icon(Icons.delete),
-                    label: const Text('Remove'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.red,
-                      side: const BorderSide(color: Colors.red),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ] else ...[
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(32),
-              child: Column(
-                children: [
-                  Icon(
-                    Icons.image_outlined,
-                    size: 48,
-                    color: Colors.grey.shade400,
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Add an image to your article',
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: Colors.grey.shade600,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Images help make your article more engaging',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey.shade500,
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  ElevatedButton.icon(
-                    onPressed: _pickImage,
-                    icon: const Icon(Icons.add_photo_alternate),
-                    label: const Text('Select Image'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF1565C0),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
 }
 
 

@@ -84,6 +84,7 @@ class _PublicTenderViewerScreenState extends State<PublicTenderViewerScreen> {
             'awardedTo': data['awardedTo'],
             'awardedAmount': data['awardedAmount'],
             'createdAt': data['createdAt'],
+            'imageUrl': data['imageUrl'], // Include image URL
           };
         }).toList();
         
@@ -329,38 +330,60 @@ class _PublicTenderViewerScreenState extends State<PublicTenderViewerScreen> {
           );
         },
         borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header Row
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      tender['title'],
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Tender Image (if available) - Full width, no padding
+            if (tender['imageUrl'] != null) ...[
+              Container(
+                width: double.infinity,
+                height: 150,
+                decoration: BoxDecoration(
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(12),
+                    topRight: Radius.circular(12),
                   ),
-                  _buildStatusChip(tender['status']),
-                ],
-              ),
-              const SizedBox(height: 8),
-              
-              // Description
-              Text(
-                tender['description'],
-                style: TextStyle(
-                  color: Colors.grey[600],
-                  fontSize: 14,
+                  image: DecorationImage(
+                    image: NetworkImage(tender['imageUrl']),
+                    fit: BoxFit.cover,
+                  ),
                 ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
               ),
+            ],
+            
+            // Content with padding
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Header Row
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          tender['title'],
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      _buildStatusChip(tender['status']),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  
+                  // Description
+                  Text(
+                    tender['description'],
+                    style: TextStyle(
+                      color: Colors.grey[600],
+                      fontSize: 14,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
               const SizedBox(height: 12),
               
               // Details Row
@@ -485,8 +508,10 @@ class _PublicTenderViewerScreenState extends State<PublicTenderViewerScreen> {
                   ),
                 ),
               ],
-            ],
-          ),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );

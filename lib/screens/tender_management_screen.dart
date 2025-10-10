@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'bidder_management_screen.dart';
+import 'edit_tender_screen.dart';
 import '../services/budget_service.dart';
 import '../services/admin_service.dart';
 import '../models/user_role.dart';
@@ -118,6 +119,7 @@ class _TenderManagementScreenState extends State<TenderManagementScreen> {
             'awardedTo': data['awardedTo'],
             'awardedAmount': data['awardedAmount'],
             'createdAt': data['createdAt'],
+            'imageUrl': data['imageUrl'], // Include image URL
           };
         }).toList();
         
@@ -293,17 +295,17 @@ class _TenderManagementScreenState extends State<TenderManagementScreen> {
   }
 
   void _editTender(Map<String, dynamic> tender) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return EditTenderDialog(
-          tender: tender,
-          onTenderUpdated: () {
-            _loadTenders(); // Reload tenders after edit
-          },
-        );
-      },
-    );
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => EditTenderScreen(tender: tender),
+      ),
+    ).then((result) {
+      // Reload tenders if the edit was successful
+      if (result == true) {
+        _loadTenders();
+      }
+    });
   }
 
   Widget _buildSearchAndFilterSection() {
@@ -542,6 +544,21 @@ class _TenderManagementScreenState extends State<TenderManagementScreen> {
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
+                                      // Tender Image (if available)
+                                      if (tender['imageUrl'] != null) ...[
+                                        Container(
+                                          width: double.infinity,
+                                          height: 120,
+                                          decoration: BoxDecoration(
+                                            borderRadius: BorderRadius.circular(8),
+                                            image: DecorationImage(
+                                              image: NetworkImage(tender['imageUrl']),
+                                              fit: BoxFit.cover,
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 12),
+                                      ],
                                       Row(
                                         children: [
                                           Expanded(
@@ -1067,6 +1084,21 @@ class _TenderDetailsSheetState extends State<TenderDetailsSheet> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
+                          // Tender Image (if available)
+                          if (widget.tender['imageUrl'] != null) ...[
+                            Container(
+                              width: double.infinity,
+                              height: 200,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(8),
+                                image: DecorationImage(
+                                  image: NetworkImage(widget.tender['imageUrl']),
+                                  fit: BoxFit.cover,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                          ],
                           Text(
                             widget.tender['title'],
                             style: const TextStyle(
@@ -1223,273 +1255,3 @@ class _TenderDetailsSheetState extends State<TenderDetailsSheet> {
   }
 }
 
-class EditTenderDialog extends StatefulWidget {
-  final Map<String, dynamic> tender;
-  final VoidCallback onTenderUpdated;
-
-  const EditTenderDialog({
-    super.key,
-    required this.tender,
-    required this.onTenderUpdated,
-  });
-
-  @override
-  State<EditTenderDialog> createState() => _EditTenderDialogState();
-}
-
-class _EditTenderDialogState extends State<EditTenderDialog> {
-  final _formKey = GlobalKey<FormState>();
-  final _titleController = TextEditingController();
-  final _descriptionController = TextEditingController();
-  final _locationController = TextEditingController();
-  final _budgetController = TextEditingController();
-  final _deadlineController = TextEditingController();
-  final _categoryController = TextEditingController();
-  
-  bool _isLoading = false;
-  String _selectedStatus = '';
-
-  @override
-  void initState() {
-    super.initState();
-    _titleController.text = widget.tender['title'] ?? '';
-    _descriptionController.text = widget.tender['description'] ?? '';
-    _locationController.text = widget.tender['location'] ?? '';
-    _budgetController.text = (widget.tender['budget'] ?? 0.0).toString();
-    _deadlineController.text = widget.tender['deadline'] ?? '';
-    _categoryController.text = widget.tender['category'] ?? '';
-    _selectedStatus = widget.tender['status'] ?? 'active';
-  }
-
-  @override
-  void dispose() {
-    _titleController.dispose();
-    _descriptionController.dispose();
-    _locationController.dispose();
-    _budgetController.dispose();
-    _deadlineController.dispose();
-    _categoryController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _updateTender() async {
-    if (!_formKey.currentState!.validate()) return;
-
-    setState(() {
-      _isLoading = true;
-    });
-
-    try {
-      await FirebaseFirestore.instance
-          .collection('tenders')
-          .doc(widget.tender['id'])
-          .update({
-        'title': _titleController.text.trim(),
-        'description': _descriptionController.text.trim(),
-        'location': _locationController.text.trim(),
-        'budget': double.tryParse(_budgetController.text) ?? 0.0,
-        'deadline': _deadlineController.text.trim(),
-        'category': _categoryController.text.trim(),
-        'status': _selectedStatus,
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Tender updated successfully!'),
-            backgroundColor: Colors.green,
-          ),
-        );
-        widget.onTenderUpdated();
-        Navigator.of(context).pop();
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error updating tender: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('Edit Tender'),
-      content: SingleChildScrollView(
-        child: Form(
-          key: _formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Title
-              TextFormField(
-                controller: _titleController,
-                decoration: const InputDecoration(
-                  labelText: 'Title',
-                  border: OutlineInputBorder(),
-                ),
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Please enter a title';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 16),
-
-              // Description
-              TextFormField(
-                controller: _descriptionController,
-                decoration: const InputDecoration(
-                  labelText: 'Description',
-                  border: OutlineInputBorder(),
-                ),
-                maxLines: 3,
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Please enter a description';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 16),
-
-              // Location
-              TextFormField(
-                controller: _locationController,
-                decoration: const InputDecoration(
-                  labelText: 'Location',
-                  border: OutlineInputBorder(),
-                ),
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Please enter a location';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 16),
-
-              // Budget
-              TextFormField(
-                controller: _budgetController,
-                decoration: const InputDecoration(
-                  labelText: 'Budget',
-                  border: OutlineInputBorder(),
-                  prefixText: '\$',
-                ),
-                keyboardType: TextInputType.number,
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Please enter a budget';
-                  }
-                  if (double.tryParse(value) == null) {
-                    return 'Please enter a valid number';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 16),
-
-              // Deadline
-              TextFormField(
-                controller: _deadlineController,
-                decoration: const InputDecoration(
-                  labelText: 'Deadline (YYYY-MM-DD)',
-                  border: OutlineInputBorder(),
-                ),
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Please enter a deadline';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 16),
-
-              // Category
-              TextFormField(
-                controller: _categoryController,
-                decoration: const InputDecoration(
-                  labelText: 'Category',
-                  border: OutlineInputBorder(),
-                ),
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Please enter a category';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 16),
-
-              // Status
-              DropdownButtonFormField<String>(
-                value: _selectedStatus.isNotEmpty && ['active', 'closed', 'cancelled'].contains(_selectedStatus) ? _selectedStatus : null,
-                decoration: const InputDecoration(
-                  labelText: 'Status',
-                  border: OutlineInputBorder(),
-                ),
-                items: const [
-                  DropdownMenuItem<String>(
-                    value: 'active',
-                    child: Text('Active'),
-                  ),
-                  DropdownMenuItem<String>(
-                    value: 'closed',
-                    child: Text('Closed'),
-                  ),
-                  DropdownMenuItem<String>(
-                    value: 'cancelled',
-                    child: Text('Cancelled'),
-                  ),
-                ],
-                onChanged: (value) {
-                  if (value != null) {
-                    setState(() {
-                      _selectedStatus = value;
-                    });
-                  }
-                },
-              ),
-            ],
-          ),
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: _isLoading ? null : () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
-        ),
-        ElevatedButton(
-          onPressed: _isLoading ? null : _updateTender,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.blue,
-            foregroundColor: Colors.white,
-          ),
-          child: _isLoading
-              ? const SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(
-                    color: Colors.white,
-                    strokeWidth: 2,
-                  ),
-                )
-              : const Text('Update'),
-        ),
-      ],
-    );
-  }
-}
