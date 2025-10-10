@@ -192,13 +192,19 @@ class NewsService {
   Future<void> updateArticle({
     required String articleId,
     required String title,
+    required String authorName,
+    required String authorEmail,
+    required String organization,
     required String summary,
     required String content,
     required String abstractText,
     required String references,
     required String category,
     required List<String> hashtags,
+    required bool isBreakingNews,
+    required bool isVerified,
     String? bannerImageUrl,
+    String? imageUrl,
   }) async {
     final uid = _auth.currentUser?.uid ?? '';
     if (uid.isEmpty) {
@@ -217,17 +223,26 @@ class NewsService {
 
     final updateData = {
       'title': title,
+      'authorName': authorName,
+      'authorEmail': authorEmail,
+      'organization': organization,
       'summary': summary,
       'content': content,
       'abstractText': abstractText,
       'references': references,
       'category': category,
       'hashtags': hashtags,
+      'isBreakingNews': isBreakingNews,
+      'isVerified': isVerified,
       'updatedAt': FieldValue.serverTimestamp(),
     };
     
     if (bannerImageUrl != null) {
       updateData['bannerImageUrl'] = bannerImageUrl;
+    }
+    
+    if (imageUrl != null) {
+      updateData['imageUrl'] = imageUrl;
     }
     
     await _articlesCol.doc(articleId).update(updateData);
@@ -312,6 +327,48 @@ class NewsService {
     for (var doc in commentsSnapshot.docs) {
       await doc.reference.delete();
     }
+  }
+
+  /// Get articles published by the current user
+  Stream<List<ReportArticle>> streamUserArticles() {
+    final uid = _auth.currentUser?.uid;
+    if (uid == null || uid.isEmpty) {
+      return Stream.value([]);
+    }
+
+    return _articlesCol
+        .where('authorUid', isEqualTo: uid)
+        .orderBy('createdAt', descending: true)
+        .snapshots()
+        .map((snap) => snap.docs.map((d) => ReportArticle.fromDoc(d)).toList());
+  }
+
+  /// Get count of articles published by the current user
+  Stream<int> streamUserArticleCount() {
+    final uid = _auth.currentUser?.uid;
+    if (uid == null || uid.isEmpty) {
+      return Stream.value(0);
+    }
+
+    return _articlesCol
+        .where('authorUid', isEqualTo: uid)
+        .snapshots()
+        .map((snap) => snap.docs.length);
+  }
+
+  /// Get recent articles published by the current user (limit 3)
+  Stream<List<ReportArticle>> streamRecentUserArticles() {
+    final uid = _auth.currentUser?.uid;
+    if (uid == null || uid.isEmpty) {
+      return Stream.value([]);
+    }
+
+    return _articlesCol
+        .where('authorUid', isEqualTo: uid)
+        .orderBy('createdAt', descending: true)
+        .limit(3)
+        .snapshots()
+        .map((snap) => snap.docs.map((d) => ReportArticle.fromDoc(d)).toList());
   }
 }
 

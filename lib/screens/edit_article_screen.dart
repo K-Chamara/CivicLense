@@ -22,6 +22,9 @@ class _EditArticleScreenState extends State<EditArticleScreen> {
   final _cloudinaryService = CloudinaryImageService();
 
   final _titleController = TextEditingController();
+  final _authorNameController = TextEditingController();
+  final _authorEmailController = TextEditingController();
+  final _organizationController = TextEditingController();
   final _abstractController = TextEditingController();
   final _summaryController = TextEditingController();
   final _contentController = TextEditingController();
@@ -29,6 +32,8 @@ class _EditArticleScreenState extends State<EditArticleScreen> {
   final _hashtagsController = TextEditingController();
   
   String _category = '';
+  bool _isBreaking = false;
+  bool _isVerified = false;
   bool _isSubmitting = false;
   bool _isLoading = true;
   File? _selectedImage;
@@ -98,6 +103,9 @@ class _EditArticleScreenState extends State<EditArticleScreen> {
   @override
   void dispose() {
     _titleController.dispose();
+    _authorNameController.dispose();
+    _authorEmailController.dispose();
+    _organizationController.dispose();
     _abstractController.dispose();
     _summaryController.dispose();
     _contentController.dispose();
@@ -111,6 +119,9 @@ class _EditArticleScreenState extends State<EditArticleScreen> {
       final article = await _newsService.getArticle(widget.articleId);
       if (article != null) {
         _titleController.text = article.title;
+        _authorNameController.text = article.authorName;
+        _authorEmailController.text = article.authorEmail;
+        _organizationController.text = article.organization;
         _abstractController.text = article.abstractText;
         _summaryController.text = article.summary;
         _contentController.text = article.content;
@@ -118,6 +129,8 @@ class _EditArticleScreenState extends State<EditArticleScreen> {
         _hashtagsController.text = article.hashtags.join(', ');
         setState(() {
           _category = article.category;
+          _isBreaking = article.isBreakingNews;
+          _isVerified = article.isVerified;
           _bannerImageUrl = article.bannerImageUrl;
           _isLoading = false;
         });
@@ -155,6 +168,9 @@ class _EditArticleScreenState extends State<EditArticleScreen> {
       await _newsService.updateArticle(
         articleId: widget.articleId,
         title: _titleController.text.trim(),
+        authorName: _authorNameController.text.trim(),
+        authorEmail: _authorEmailController.text.trim(),
+        organization: _organizationController.text.trim(),
         summary: _summaryController.text.trim(),
         content: _contentController.text.trim(),
         abstractText: _abstractController.text.trim(),
@@ -165,7 +181,10 @@ class _EditArticleScreenState extends State<EditArticleScreen> {
             .map((h) => h.trim())
             .where((h) => h.isNotEmpty)
             .toList(),
+        isBreakingNews: _isBreaking,
+        isVerified: _isVerified,
         bannerImageUrl: _bannerImageUrl,
+        imageUrl: _bannerImageUrl, // Use the same image for both banner and article image
       );
 
       if (!mounted) return;
@@ -258,6 +277,16 @@ class _EditArticleScreenState extends State<EditArticleScreen> {
                             const SizedBox(height: 6),
                             _buildImageUploadSection(),
                             const SizedBox(height: 12),
+                            const Text('Author Information', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                            const SizedBox(height: 6),
+                            _buildTextField(_authorNameController, 'Author name', validator: (v) => v!.isEmpty ? 'Required' : null),
+                            const SizedBox(height: 12),
+                            _buildReadOnlyTextField(_authorEmailController, 'Email address (from login)'),
+                            const SizedBox(height: 12),
+                            const Text('Organization / Affiliation', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                            const SizedBox(height: 6),
+                            _buildTextField(_organizationController, 'Organization or affiliation'),
+                            const SizedBox(height: 12),
                             const Text('Abstract / Introduction', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                             const SizedBox(height: 6),
                             _buildTextField(_abstractController, 'Write the abstract or introduction', maxLines: 4, validator: (v) => v!.isEmpty ? 'Required' : null),
@@ -300,6 +329,19 @@ class _EditArticleScreenState extends State<EditArticleScreen> {
                             const Text('Hashtags', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                             const SizedBox(height: 6),
                             _buildTextField(_hashtagsController, 'Comma separated tags (e.g. corruption, budget)'),
+                            const SizedBox(height: 12),
+                            SwitchListTile(
+                              value: _isBreaking,
+                              onChanged: (v) => setState(() => _isBreaking = v),
+                              title: const Text('Breaking News'),
+                              subtitle: const Text('Mark this article as breaking news'),
+                            ),
+                            SwitchListTile(
+                              value: _isVerified,
+                              onChanged: (v) => setState(() => _isVerified = v),
+                              title: const Text('Verified Content'),
+                              subtitle: const Text('Mark this article as verified'),
+                            ),
                             const SizedBox(height: 16),
                             Row(
                               children: [
@@ -510,6 +552,30 @@ class _EditArticleScreenState extends State<EditArticleScreen> {
           borderSide: const BorderSide(color: Color(0xFF1565C0)),
         ),
         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      ),
+    );
+  }
+
+  Widget _buildReadOnlyTextField(TextEditingController controller, String label) {
+    return TextFormField(
+      controller: controller,
+      readOnly: true,
+      decoration: InputDecoration(
+        hintText: label,
+        labelText: label,
+        filled: true,
+        fillColor: Colors.grey[100],
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFF1565C0)),
+        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        suffixIcon: const Icon(Icons.lock, color: Colors.grey, size: 16),
       ),
     );
   }

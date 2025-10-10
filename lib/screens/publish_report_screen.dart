@@ -39,9 +39,6 @@ class _PublishReportScreenState extends State<PublishReportScreen> with TickerPr
   bool _isSubmitting = false;
   File? _selectedImage;
   String? _bannerImageUrl;
-  
-  // Image URL from upload
-  String? _imageUrl;
   bool _isUploadingImage = false;
   bool _canPublish = false;
   bool _isCheckingPermission = true;
@@ -50,6 +47,7 @@ class _PublishReportScreenState extends State<PublishReportScreen> with TickerPr
   void initState() {
     super.initState();
     _checkJournalistPermission();
+    _setAuthorEmailFromLogin();
     _formAnimationController = AnimationController(
       duration: const Duration(milliseconds: 600),
       vsync: this,
@@ -68,6 +66,13 @@ class _PublishReportScreenState extends State<PublishReportScreen> with TickerPr
     
     _formAnimationController.forward();
     _buttonAnimationController.forward();
+  }
+
+  void _setAuthorEmailFromLogin() {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user?.email != null) {
+      _authorEmailController.text = user!.email!;
+    }
   }
 
   @override
@@ -222,7 +227,6 @@ class _PublishReportScreenState extends State<PublishReportScreen> with TickerPr
           final imageUrl = await CloudinaryService.uploadFile(_selectedImage!);
           setState(() {
             _bannerImageUrl = imageUrl;
-            _imageUrl = imageUrl;
             _isUploadingImage = false;
           });
           
@@ -252,47 +256,11 @@ class _PublishReportScreenState extends State<PublishReportScreen> with TickerPr
     }
   }
 
-  Future<void> _uploadImage() async {
-    if (_selectedImage == null) return;
-    
-    setState(() {
-      _isUploadingImage = true;
-    });
-    
-    try {
-      final url = await CloudinaryService.uploadFile(_selectedImage!);
-      if (url != null) {
-        setState(() {
-          _imageUrl = url;
-        });
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Image uploaded successfully')),
-          );
-        }
-      } else {
-        throw Exception('Failed to upload image');
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error uploading image: $e')),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isUploadingImage = false;
-        });
-      }
-    }
-  }
 
   void _removeImage() {
     setState(() {
       _selectedImage = null;
       _bannerImageUrl = null;
-      _imageUrl = null;
     });
   }
 
@@ -397,7 +365,7 @@ class _PublishReportScreenState extends State<PublishReportScreen> with TickerPr
         commentCount: 0,
         createdAt: Timestamp.now(),
         bannerImageUrl: _bannerImageUrl,
-        imageUrl: _imageUrl,
+        imageUrl: _bannerImageUrl, // Use the same image for both banner and article image
       );
 
       final id = await _newsService.publishArticle(article);
@@ -496,13 +464,13 @@ class _PublishReportScreenState extends State<PublishReportScreen> with TickerPr
                   children: [
                     Expanded(child: _buildTextField(_authorNameController, 'Author name', validator: (v) => v!.isEmpty ? 'Required' : null)),
                     const SizedBox(width: 12),
-                    Expanded(child: _buildTextField(_authorEmailController, 'Email address', keyboardType: TextInputType.emailAddress, validator: (v) => v!.contains('@') ? null : 'Invalid email')),
+                    Expanded(child: _buildReadOnlyTextField(_authorEmailController, 'Email address (from login)')),
                   ],
                 )
               else ...[
                 _buildTextField(_authorNameController, 'Author name', validator: (v) => v!.isEmpty ? 'Required' : null),
                 const SizedBox(height: 12),
-                _buildTextField(_authorEmailController, 'Email address', keyboardType: TextInputType.emailAddress, validator: (v) => v!.contains('@') ? null : 'Invalid email'),
+                _buildReadOnlyTextField(_authorEmailController, 'Email address (from login)'),
               ],
               const SizedBox(height: 12),
               const Text('Organization / Affiliation', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
@@ -547,10 +515,6 @@ class _PublishReportScreenState extends State<PublishReportScreen> with TickerPr
                   contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                 ),
               ),
-              const SizedBox(height: 12),
-              const Text('Article Image', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-              const SizedBox(height: 6),
-              _buildImageUploadSection(),
               const SizedBox(height: 12),
               const Text('Hashtags', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
               const SizedBox(height: 6),
@@ -785,6 +749,30 @@ class _PublishReportScreenState extends State<PublishReportScreen> with TickerPr
           borderSide: const BorderSide(color: Color(0xFF1565C0)),
         ),
         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      ),
+    );
+  }
+
+  Widget _buildReadOnlyTextField(TextEditingController controller, String label) {
+    return TextFormField(
+      controller: controller,
+      readOnly: true,
+      decoration: InputDecoration(
+        hintText: label,
+        labelText: label,
+        filled: true,
+        fillColor: Colors.grey[100],
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFF1565C0)),
+        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        suffixIcon: const Icon(Icons.lock, color: Colors.grey, size: 16),
       ),
     );
   }
