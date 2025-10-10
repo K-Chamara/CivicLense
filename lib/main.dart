@@ -151,13 +151,17 @@ class AuthWrapper extends StatelessWidget {
 
   Future<Map<String, dynamic>> _checkUserStatus(String userId) async {
     try {
+      print('🔍 _checkUserStatus: Starting check for user: $userId');
       final userService = UserService();
       final userData = await userService.getCurrentUserData();
       
       if (userData == null) {
+        print('🔍 _checkUserStatus: No user data found, returning default');
         return {'role': 'citizen', 'needsUpload': false, 'isApproved': true, 'canLogin': false, 'emailVerified': false, 'hasDocuments': false};
       }
 
+      print('🔍 _checkUserStatus: Raw user data: $userData');
+      
       final role = userData['role'] ?? 'citizen';
       final status = userData['status'] ?? 'pending';
       final needsUpload = await userService.needsDocumentUpload(userId);
@@ -166,7 +170,14 @@ class AuthWrapper extends StatelessWidget {
       final emailVerified = userData['emailVerified'] ?? false;
       final hasDocuments = userData['documents'] != null && (userData['documents'] as List).isNotEmpty;
 
-      print('User status check: role=$role, status=$status, needsUpload=$needsUpload, isApproved=$isApproved, canLogin=$canLogin, emailVerified=$emailVerified, hasDocuments=$hasDocuments');
+      print('🔍 _checkUserStatus: Final results:');
+      print('🔍 - role: $role');
+      print('🔍 - status: $status');
+      print('🔍 - needsUpload: $needsUpload');
+      print('🔍 - isApproved: $isApproved');
+      print('🔍 - canLogin: $canLogin');
+      print('🔍 - emailVerified: $emailVerified');
+      print('🔍 - hasDocuments: $hasDocuments');
 
       return {
         'role': role,
@@ -177,8 +188,10 @@ class AuthWrapper extends StatelessWidget {
         'hasDocuments': hasDocuments,
       };
     } catch (e) {
-      print('Error checking user status: $e');
-      return {'role': 'citizen', 'needsUpload': false, 'isApproved': true, 'canLogin': false, 'emailVerified': false, 'hasDocuments': false};
+      print('❌ Error checking user status: $e');
+      print('❌ Error stack trace: ${StackTrace.current}');
+      // On error, allow login to proceed (don't lock users out)
+      return {'role': 'citizen', 'needsUpload': false, 'isApproved': true, 'canLogin': true, 'emailVerified': false, 'hasDocuments': false};
     }
   }
 
@@ -196,6 +209,8 @@ class AuthWrapper extends StatelessWidget {
         }
 
         if (snapshot.hasData && snapshot.data != null) {
+          print('🔍 AuthWrapper: User is signed in: ${snapshot.data!.uid}');
+          print('🔍 AuthWrapper: User email: ${snapshot.data!.email}');
           // User is signed in, check their role and document upload status
           return FutureBuilder<Map<String, dynamic>>(
             future: _checkUserStatus(snapshot.data!.uid),
@@ -210,6 +225,7 @@ class AuthWrapper extends StatelessWidget {
 
               final userData = statusSnapshot.data;
               if (userData == null) {
+                print('🔍 AuthWrapper: No user data found, going to CommonHomeScreen');
                 return const CommonHomeScreen();
               }
 
@@ -217,6 +233,12 @@ class AuthWrapper extends StatelessWidget {
               final needsUpload = userData['needsUpload'] ?? false;
               final isApproved = userData['isApproved'] ?? false;
               final canLogin = userData['canLogin'] ?? false;
+              
+              print('🔍 AuthWrapper: User status check results:');
+              print('🔍 - userRole: $userRole');
+              print('🔍 - needsUpload: $needsUpload');
+              print('🔍 - isApproved: $isApproved');
+              print('🔍 - canLogin: $canLogin');
 
               // Extract role ID and userType from role object or string
               String roleId = 'citizen';
@@ -240,6 +262,7 @@ class AuthWrapper extends StatelessWidget {
               // If user needs document upload, redirect to upload page
               if (needsUpload && roleId != 'citizen' && roleId != 'admin' && userType != 'government') {
                 print('📄 AuthWrapper: Redirecting to document upload screen');
+                print('📄 AuthWrapper: User needs upload - roleId: $roleId, hasDocuments: $hasDocuments');
                 return DocumentUploadScreen(
                   userRole: roleId,
                   userId: snapshot.data!.uid,
@@ -249,6 +272,7 @@ class AuthWrapper extends StatelessWidget {
               // If user has uploaded documents but hasn't verified email, redirect to email verification
               if (hasDocuments && !emailVerified && roleId != 'citizen' && roleId != 'admin' && userType != 'government') {
                 print('📧 AuthWrapper: Redirecting to email verification screen');
+                print('📧 AuthWrapper: User has documents but needs email verification - hasDocuments: $hasDocuments, emailVerified: $emailVerified');
                 return EmailVerificationScreen(
                   email: snapshot.data!.email ?? '',
                   userRole: roleId,

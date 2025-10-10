@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../models/community_models.dart';
 import '../services/community_service.dart';
+import '../services/notification_service.dart';
 import 'create_community_post_screen.dart';
 
 class CommunityPostsScreen extends StatefulWidget {
@@ -14,6 +16,28 @@ class CommunityPostsScreen extends StatefulWidget {
 
 class _CommunityPostsScreenState extends State<CommunityPostsScreen> {
   final CommunityService _communityService = CommunityService();
+  bool _canDeleteCommunity = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkDeletePermission();
+  }
+
+  Future<void> _checkDeletePermission() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      print('🔍 Checking delete permission for user: ${user.uid}');
+      print('🔍 Community ID: ${widget.community.id}');
+      final canDelete = await _communityService.canDeleteCommunity(widget.community.id, user.uid);
+      print('🔍 Can delete community: $canDelete');
+      setState(() {
+        _canDeleteCommunity = canDelete;
+      });
+    } else {
+      print('🔍 No user logged in');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -31,10 +55,34 @@ class _CommunityPostsScreenState extends State<CommunityPostsScreen> {
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.white),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.info_outline),
-            onPressed: _showPostsInfo,
-            tooltip: 'Posts Info',
+          // Always show the menu for testing - remove this condition later
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert),
+            onSelected: _handleMenuAction,
+            itemBuilder: (context) => [
+              if (_canDeleteCommunity)
+                const PopupMenuItem(
+                  value: 'delete',
+                  child: Row(
+                    children: [
+                      Icon(Icons.delete, color: Colors.red),
+                      SizedBox(width: 8),
+                      Text('Delete Community'),
+                    ],
+                  ),
+                )
+              else
+                const PopupMenuItem(
+                  value: 'info',
+                  child: Row(
+                    children: [
+                      Icon(Icons.info_outline),
+                      SizedBox(width: 8),
+                      Text('Community Info'),
+                    ],
+                  ),
+                ),
+            ],
           ),
         ],
       ),
@@ -560,6 +608,195 @@ class _CommunityPostsScreenState extends State<CommunityPostsScreen> {
         ],
       ),
     );
+  }
+
+  void _handleMenuAction(String action) {
+    if (action == 'delete') {
+      _showDeleteConfirmation();
+    } else if (action == 'info') {
+      _showPostsInfo();
+    }
+  }
+
+  void _showDeleteConfirmation() {
+    final reasonController = TextEditingController();
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text(
+          'Delete Community',
+          style: TextStyle(color: Colors.red),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Are you sure you want to delete "${widget.community.name}"?',
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Please provide a reason for deletion:',
+              style: TextStyle(fontWeight: FontWeight.w500),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: reasonController,
+              maxLines: 3,
+              decoration: const InputDecoration(
+                hintText: 'Enter reason for deletion...',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.red.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.red.withOpacity(0.3)),
+              ),
+              child: const Text(
+                '⚠️ This action cannot be undone. All posts, comments, and member data will be permanently deleted.',
+                style: TextStyle(
+                  color: Colors.red,
+                  fontSize: 12,
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: reasonController.text.trim().isEmpty 
+                ? null 
+                : () => _deleteCommunity(reasonController.text.trim()),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Delete Community'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _deleteCommunity(String reason) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    try {
+      // Show loading dialog
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const AlertDialog(
+          content: Row(
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(width: 16),
+              Text('Deleting community...'),
+            ],
+          ),
+        ),
+      );
+
+      // Get all community members before deletion
+      final membersQuery = await _communityService.firestore
+          .collection('community_members')
+          .where('communityId', isEqualTo: widget.community.id)
+          .where('status', isEqualTo: 'active')
+          .get();
+
+      final memberIds = membersQuery.docs
+          .map((doc) => doc.data()['userId'] as String)
+          .toList();
+
+      // Delete the community
+      await _communityService.deleteCommunity(widget.community.id, user.uid);
+
+      // Send push notifications to all members
+      await _sendDeletionNotifications(memberIds, reason);
+
+      // Close loading dialog
+      if (mounted) Navigator.pop(context);
+
+      // Show success message and navigate back
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('✅ Community "${widget.community.name}" deleted successfully'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        
+        // Navigate back to community list
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      // Close loading dialog
+      if (mounted) Navigator.pop(context);
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Error deleting community: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _sendDeletionNotifications(List<String> memberIds, String reason) async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+
+      // Get user data for notification
+      final userDoc = await _communityService.firestore
+          .collection('users')
+          .doc(user.uid)
+          .get();
+      final userData = userDoc.data();
+      final userName = '${userData?['firstName'] ?? ''} ${userData?['lastName'] ?? ''}'.trim();
+
+      final notificationData = {
+        'title': 'Community Deleted',
+        'body': 'The community "${widget.community.name}" has been deleted by $userName. Reason: $reason',
+        'data': {
+          'type': 'community_deleted',
+          'communityId': widget.community.id,
+          'communityName': widget.community.name,
+          'reason': reason,
+          'deletedBy': userName,
+        },
+        'timestamp': DateTime.now().millisecondsSinceEpoch,
+      };
+
+      // Send notifications to all members (excluding the deleter)
+      final targetMembers = memberIds.where((id) => id != user.uid).toList();
+      
+      for (final memberId in targetMembers) {
+        await NotificationService.sendNotificationToUser(
+          memberId,
+          notificationData['title'] as String,
+          notificationData['body'] as String,
+          notificationData['data'] as Map<String, dynamic>,
+        );
+      }
+
+      print('✅ Sent deletion notifications to ${targetMembers.length} members');
+    } catch (e) {
+      print('❌ Error sending deletion notifications: $e');
+    }
   }
 
   void _showPostsInfo() {

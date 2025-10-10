@@ -536,6 +536,70 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen>
                   ),
                 ),
                 
+                const SizedBox(height: 16),
+                
+                // Back to Sign Up button
+                SizedBox(
+                  width: double.infinity,
+                  height: 56,
+                  child: OutlinedButton.icon(
+                    onPressed: _isUploading ? null : () async {
+                      // Show confirmation dialog
+                      final shouldSignOut = await showDialog<bool>(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          title: const Text('Go Back to Sign Up?'),
+                          content: const Text(
+                            'This will sign you out and take you back to the sign up page. Any progress will be lost.',
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(context, false),
+                              child: const Text('Cancel'),
+                            ),
+                            ElevatedButton(
+                              onPressed: () => Navigator.pop(context, true),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.red,
+                                foregroundColor: Colors.white,
+                              ),
+                              child: const Text('Sign Out'),
+                            ),
+                          ],
+                        ),
+                      );
+                      
+                      if (shouldSignOut == true && mounted) {
+                        // Sign out the user
+                        await FirebaseAuth.instance.signOut();
+                        
+                        // Navigate to sign up screen
+                        if (mounted) {
+                          Navigator.of(context).pushNamedAndRemoveUntil(
+                            '/signup',
+                            (route) => false,
+                          );
+                        }
+                      }
+                    },
+                    icon: const Icon(Icons.arrow_back),
+                    label: const Text(
+                      'Back to Sign Up',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.grey.shade700,
+                      side: BorderSide(color: Colors.grey.shade300, width: 1.5),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                ),
+                
                 const SizedBox(height: 20),
                 
                 // Info text
