@@ -19,6 +19,7 @@ class ReportArticle {
   final int commentCount;
   final Timestamp createdAt;
   final String? bannerImageUrl;
+  final String? imageUrl;
 
   ReportArticle({
     required this.id,
@@ -39,6 +40,7 @@ class ReportArticle {
     required this.commentCount,
     required this.createdAt,
     this.bannerImageUrl,
+    this.imageUrl,
   });
 
   factory ReportArticle.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
@@ -62,6 +64,7 @@ class ReportArticle {
       commentCount: data['commentCount'] ?? 0,
       createdAt: data['createdAt'] ?? Timestamp.now(),
       bannerImageUrl: data['bannerImageUrl'],
+      imageUrl: data['imageUrl'],
     );
   }
 
@@ -84,6 +87,7 @@ class ReportArticle {
       'commentCount': commentCount,
       'createdAt': createdAt,
       'bannerImageUrl': bannerImageUrl,
+      'imageUrl': imageUrl,
     };
   }
 }

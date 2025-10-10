@@ -57,6 +57,9 @@ class Concern {
   final String authorId;
   final String authorName;
   final String authorEmail;
+  final String? authorRole;
+  final String? authorPhone;
+  final String? authorLocation;
   final ConcernCategory category;
   final ConcernType type;
   final ConcernPriority priority;
@@ -69,8 +72,7 @@ class Concern {
   final String? assignedOfficerId;
   final String? assignedOfficerName;
   final List<String> tags;
-  final List<String> relatedBudgetIds;
-  final List<String> relatedTenderIds;
+  final String? location;
   final String? communityId;
   final int engagementScore;
   final bool isFlaggedByCitizens;
@@ -79,6 +81,7 @@ class Concern {
   final String? relatedBudgetId;
   final String? relatedTenderId;
   final String? relatedCommunityId;
+  final Map<String, dynamic> escalationHistory;
   final bool isAnonymous;
   final bool isPublic;
   final int upvotes;
@@ -95,6 +98,9 @@ class Concern {
     required this.authorId,
     required this.authorName,
     required this.authorEmail,
+    this.authorRole,
+    this.authorPhone,
+    this.authorLocation,
     required this.category,
     required this.type,
     this.priority = ConcernPriority.medium,
@@ -107,8 +113,7 @@ class Concern {
     this.assignedOfficerId,
     this.assignedOfficerName,
     this.tags = const [],
-    this.relatedBudgetIds = const [],
-    this.relatedTenderIds = const [],
+    this.location,
     this.communityId,
     this.engagementScore = 0,
     this.isFlaggedByCitizens = false,
@@ -117,6 +122,7 @@ class Concern {
     this.relatedBudgetId,
     this.relatedTenderId,
     this.relatedCommunityId,
+    this.escalationHistory = const {},
     this.isAnonymous = false,
     this.isPublic = true,
     this.upvotes = 0,
@@ -135,6 +141,9 @@ class Concern {
       'authorId': authorId,
       'authorName': authorName,
       'authorEmail': authorEmail,
+      'authorRole': authorRole,
+      'authorPhone': authorPhone,
+      'authorLocation': authorLocation,
       'category': category.name,
       'type': type.name,
       'priority': priority.name,
@@ -147,8 +156,7 @@ class Concern {
       'assignedOfficerId': assignedOfficerId,
       'assignedOfficerName': assignedOfficerName,
       'tags': tags,
-      'relatedBudgetIds': relatedBudgetIds,
-      'relatedTenderIds': relatedTenderIds,
+      'location': location,
       'communityId': communityId,
       'engagementScore': engagementScore,
       'isFlaggedByCitizens': isFlaggedByCitizens,
@@ -157,6 +165,7 @@ class Concern {
       'relatedBudgetId': relatedBudgetId,
       'relatedTenderId': relatedTenderId,
       'relatedCommunityId': relatedCommunityId,
+      'escalationHistory': escalationHistory,
       'isAnonymous': isAnonymous,
       'isPublic': isPublic,
       'upvotes': upvotes,
@@ -177,6 +186,9 @@ class Concern {
       authorId: data['authorId'] ?? '',
       authorName: data['authorName'] ?? '',
       authorEmail: data['authorEmail'] ?? '',
+      authorRole: data['authorRole'],
+      authorPhone: data['authorPhone'],
+      authorLocation: data['authorLocation'],
       category: ConcernCategory.values.firstWhere(
         (e) => e.name == data['category'],
         orElse: () => ConcernCategory.other,
@@ -210,8 +222,7 @@ class Concern {
       assignedOfficerId: data['assignedOfficerId'],
       assignedOfficerName: data['assignedOfficerName'],
       tags: List<String>.from(data['tags'] ?? []),
-      relatedBudgetIds: List<String>.from(data['relatedBudgetIds'] ?? []),
-      relatedTenderIds: List<String>.from(data['relatedTenderIds'] ?? []),
+      location: data['location'],
       communityId: data['communityId'],
       engagementScore: data['engagementScore'] ?? 0,
       isFlaggedByCitizens: data['isFlaggedByCitizens'] ?? false,
@@ -224,6 +235,7 @@ class Concern {
       relatedBudgetId: data['relatedBudgetId'],
       relatedTenderId: data['relatedTenderId'],
       relatedCommunityId: data['relatedCommunityId'],
+      escalationHistory: Map<String, dynamic>.from(data['escalationHistory'] ?? {}),
       isAnonymous: data['isAnonymous'] ?? false,
       isPublic: data['isPublic'] ?? true,
       upvotes: data['upvotes'] ?? 0,
@@ -244,6 +256,9 @@ class Concern {
     String? authorId,
     String? authorName,
     String? authorEmail,
+    String? authorRole,
+    String? authorPhone,
+    String? authorLocation,
     ConcernCategory? category,
     ConcernType? type,
     ConcernPriority? priority,
@@ -256,8 +271,7 @@ class Concern {
     String? assignedOfficerId,
     String? assignedOfficerName,
     List<String>? tags,
-    List<String>? relatedBudgetIds,
-    List<String>? relatedTenderIds,
+    String? location,
     String? communityId,
     int? engagementScore,
     bool? isFlaggedByCitizens,
@@ -266,6 +280,7 @@ class Concern {
     String? relatedBudgetId,
     String? relatedTenderId,
     String? relatedCommunityId,
+    Map<String, dynamic>? escalationHistory,
     bool? isAnonymous,
     bool? isPublic,
     int? upvotes,
@@ -282,6 +297,9 @@ class Concern {
       authorId: authorId ?? this.authorId,
       authorName: authorName ?? this.authorName,
       authorEmail: authorEmail ?? this.authorEmail,
+      authorRole: authorRole ?? this.authorRole,
+      authorPhone: authorPhone ?? this.authorPhone,
+      authorLocation: authorLocation ?? this.authorLocation,
       category: category ?? this.category,
       type: type ?? this.type,
       priority: priority ?? this.priority,
@@ -294,8 +312,7 @@ class Concern {
       assignedOfficerId: assignedOfficerId ?? this.assignedOfficerId,
       assignedOfficerName: assignedOfficerName ?? this.assignedOfficerName,
       tags: tags ?? this.tags,
-      relatedBudgetIds: relatedBudgetIds ?? this.relatedBudgetIds,
-      relatedTenderIds: relatedTenderIds ?? this.relatedTenderIds,
+      location: location ?? this.location,
       communityId: communityId ?? this.communityId,
       engagementScore: engagementScore ?? this.engagementScore,
       isFlaggedByCitizens: isFlaggedByCitizens ?? this.isFlaggedByCitizens,
@@ -304,6 +321,7 @@ class Concern {
       relatedBudgetId: relatedBudgetId ?? this.relatedBudgetId,
       relatedTenderId: relatedTenderId ?? this.relatedTenderId,
       relatedCommunityId: relatedCommunityId ?? this.relatedCommunityId,
+      escalationHistory: escalationHistory ?? this.escalationHistory,
       isAnonymous: isAnonymous ?? this.isAnonymous,
       isPublic: isPublic ?? this.isPublic,
       upvotes: upvotes ?? this.upvotes,

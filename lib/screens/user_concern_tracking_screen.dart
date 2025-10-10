@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/concern_models.dart';
-import '../services/concern_management_service.dart';
+import '../services/concern_service.dart';
 
 class UserConcernTrackingScreen extends StatefulWidget {
   const UserConcernTrackingScreen({super.key});
@@ -14,6 +14,7 @@ class _UserConcernTrackingScreenState extends State<UserConcernTrackingScreen>
     with TickerProviderStateMixin {
   late TabController _tabController;
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  final ConcernService _concernService = ConcernService();
   String? _currentUserId;
 
   @override
@@ -156,9 +157,8 @@ class _UserConcernTrackingScreenState extends State<UserConcernTrackingScreen>
   }
 
   Stream<List<Concern>> _getUserConcerns() {
-    return ConcernManagementService.getConcernsByFilter(
-      ConcernFilter(assignedOfficerId: _currentUserId),
-    );
+    // Use a simpler approach that doesn't require composite indexes
+    return _concernService.getUserConcernsSimple(_currentUserId!);
   }
 
   Stream<List<Concern>> _getUserConcernsByStatus(List<ConcernStatus> statuses) {

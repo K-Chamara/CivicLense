@@ -179,62 +179,88 @@ class _PublicTenderViewerScreenState extends State<PublicTenderViewerScreen> {
           ),
           const SizedBox(height: 16),
           
-          // Filter Row
+          // Filter Row - Use single row with proper constraints
           Row(
             children: [
               Expanded(
-                child: DropdownButtonFormField<String>(
-                  value: _selectedCategory,
-                  decoration: InputDecoration(
-                    labelText: 'Category',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
-                    ),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(
+                    minWidth: 0,
+                    maxWidth: double.infinity,
                   ),
-                  items: _categories.map((category) {
-                    return DropdownMenuItem<String>(
-                      value: category,
-                      child: Text(category),
-                    );
-                  }).toList(),
-                  onChanged: (value) {
-                    setState(() {
-                      _selectedCategory = value!;
-                    });
-                    _filterTenders();
-                  },
+                  child: DropdownButtonFormField<String>(
+                    value: _selectedCategory,
+                    decoration: InputDecoration(
+                      labelText: 'Category',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
+                      isDense: true,
+                      labelStyle: const TextStyle(fontSize: 11),
+                    ),
+                    style: const TextStyle(fontSize: 11),
+                    items: _categories.map((category) {
+                      return DropdownMenuItem<String>(
+                        value: category,
+                        child: Text(
+                          category,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontSize: 11),
+                        ),
+                      );
+                    }).toList(),
+                    onChanged: (value) {
+                      setState(() {
+                        _selectedCategory = value!;
+                      });
+                      _filterTenders();
+                    },
+                  ),
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 4),
               Expanded(
-                child: DropdownButtonFormField<String>(
-                  value: _selectedStatus,
-                  decoration: InputDecoration(
-                    labelText: 'Status',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
-                    ),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(
+                    minWidth: 0,
+                    maxWidth: double.infinity,
                   ),
-                  items: _statuses.map((status) {
-                    return DropdownMenuItem<String>(
-                      value: status,
-                      child: Text(status),
-                    );
-                  }).toList(),
-                  onChanged: (value) {
-                    setState(() {
-                      _selectedStatus = value!;
-                    });
-                    _filterTenders();
-                  },
+                  child: DropdownButtonFormField<String>(
+                    value: _selectedStatus,
+                    decoration: InputDecoration(
+                      labelText: 'Status',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
+                      isDense: true,
+                      labelStyle: const TextStyle(fontSize: 11),
+                    ),
+                    style: const TextStyle(fontSize: 11),
+                    items: _statuses.map((status) {
+                      return DropdownMenuItem<String>(
+                        value: status,
+                        child: Text(
+                          status,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontSize: 11),
+                        ),
+                      );
+                    }).toList(),
+                    onChanged: (value) {
+                      setState(() {
+                        _selectedStatus = value!;
+                      });
+                      _filterTenders();
+                    },
+                  ),
                 ),
               ),
             ],

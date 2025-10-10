@@ -5,6 +5,7 @@ import '../services/concern_management_service.dart';
 import '../services/notification_service.dart';
 import 'concern_detail_screen.dart';
 import 'public_tender_viewer_screen.dart';
+import '../l10n/app_localizations.dart';
 
 class ConcernManagementScreen extends StatefulWidget {
   const ConcernManagementScreen({super.key});
@@ -48,7 +49,7 @@ class _ConcernManagementScreenState extends State<ConcernManagementScreen>
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
       appBar: AppBar(
-        title: const Text('Concern Management'),
+        title: Text(AppLocalizations.of(context)!.concernManagement),
         backgroundColor: Colors.purple,
         foregroundColor: Colors.white,
         elevation: 0,
@@ -57,11 +58,11 @@ class _ConcernManagementScreenState extends State<ConcernManagementScreen>
           indicatorColor: Colors.white,
           labelColor: Colors.white,
           unselectedLabelColor: Colors.white70,
-          tabs: const [
-            Tab(text: 'All', icon: Icon(Icons.list)),
-            Tab(text: 'Pending', icon: Icon(Icons.pending)),
-            Tab(text: 'Under Review', icon: Icon(Icons.search)),
-            Tab(text: 'Priority', icon: Icon(Icons.priority_high)),
+          tabs: [
+            Tab(text: AppLocalizations.of(context)!.all, icon: const Icon(Icons.list)),
+            Tab(text: AppLocalizations.of(context)!.pending, icon: const Icon(Icons.pending)),
+            Tab(text: AppLocalizations.of(context)!.underReview, icon: const Icon(Icons.search)),
+            Tab(text: AppLocalizations.of(context)!.priority, icon: const Icon(Icons.priority_high)),
           ],
         ),
       ),
@@ -247,32 +248,32 @@ class _ConcernManagementScreenState extends State<ConcernManagementScreen>
     switch (status) {
       case ConcernStatus.pending:
         color = Colors.orange;
-        text = 'Pending';
+        text = AppLocalizations.of(context)!.pending;
         icon = Icons.pending;
         break;
       case ConcernStatus.underReview:
         color = Colors.blue;
-        text = 'Under Review';
+        text = AppLocalizations.of(context)!.underReview;
         icon = Icons.search;
         break;
       case ConcernStatus.inProgress:
         color = Colors.purple;
-        text = 'In Progress';
+        text = AppLocalizations.of(context)!.inProgress;
         icon = Icons.work;
         break;
       case ConcernStatus.resolved:
         color = Colors.green;
-        text = 'Resolved';
+        text = AppLocalizations.of(context)!.resolved;
         icon = Icons.check_circle;
         break;
       case ConcernStatus.dismissed:
         color = Colors.grey;
-        text = 'Dismissed';
+        text = AppLocalizations.of(context)!.dismissed;
         icon = Icons.cancel;
         break;
       case ConcernStatus.escalated:
         color = Colors.red;
-        text = 'Escalated';
+        text = AppLocalizations.of(context)!.escalated;
         icon = Icons.priority_high;
         break;
     }
@@ -381,22 +382,22 @@ class _ConcernManagementScreenState extends State<ConcernManagementScreen>
             break;
         }
       },
-      items: const [
+      items: [
         BottomNavigationBarItem(
-          icon: Icon(Icons.home),
-          label: 'Home',
+          icon: const Icon(Icons.home),
+          label: AppLocalizations.of(context)!.home,
         ),
         BottomNavigationBarItem(
-          icon: Icon(Icons.account_balance),
-          label: 'Budget',
+          icon: const Icon(Icons.account_balance),
+          label: AppLocalizations.of(context)!.budget,
         ),
         BottomNavigationBarItem(
-          icon: Icon(Icons.shopping_cart),
-          label: 'Tenders',
+          icon: const Icon(Icons.shopping_cart),
+          label: AppLocalizations.of(context)!.tenders,
         ),
         BottomNavigationBarItem(
-          icon: Icon(Icons.dashboard),
-          label: 'Dashboard',
+          icon: const Icon(Icons.dashboard),
+          label: AppLocalizations.of(context)!.dashboard,
         ),
       ],
     );
