@@ -176,31 +176,55 @@ class _LoginScreenState extends State<LoginScreen> {
           try {
             await AuthService().signInWithEmailAndPassword(email, password);
             await _saveCredentials();
+            
+            // Show success message
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('✅ Login successful! Redirecting...'),
+                  backgroundColor: Colors.green,
+                  duration: Duration(seconds: 2),
+                ),
+              );
+            }
+            
             Navigator.of(context).pushReplacement(
               MaterialPageRoute(
                 builder: (context) => const AuthWrapper(),
               ),
             );
           } catch (e) {
-            // Handle email verification error for regular users
-            if (e is FirebaseAuthException && e.code == 'email-not-verified') {
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Please verify your email before signing in. Check your inbox for the verification link.'),
-                    backgroundColor: Colors.red,
-                  ),
-                );
+            // Handle all login errors
+            String message = 'Login failed. Please try again.';
+            if (e is FirebaseAuthException) {
+              switch (e.code) {
+                case 'user-not-found':
+                  message = 'No user found with this email address.';
+                  break;
+                case 'wrong-password':
+                  message = 'Incorrect password.';
+                  break;
+                case 'invalid-email':
+                  message = 'Please enter a valid email address.';
+                  break;
+                case 'user-disabled':
+                  message = 'This account has been disabled.';
+                  break;
+                case 'too-many-requests':
+                  message = 'Too many failed attempts. Please try again later.';
+                  break;
+                default:
+                  message = 'Login error: ${e.message}';
               }
-            } else {
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Login failed: ${e.toString()}'),
-                    backgroundColor: Colors.red,
-                  ),
-                );
-              }
+            }
+            
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(message),
+                  backgroundColor: Colors.red,
+                ),
+              );
             }
           }
         }

@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../utils/onboarding_utils.dart';
 import '../utils/create_admin.dart';
+import '../main.dart'; // Import AuthWrapper from main.dart
 import 'enhanced_onboarding_screen.dart';
 import 'login_screen.dart';
 import 'common_home_screen.dart';
@@ -311,54 +312,6 @@ class _SplashScreenState extends State<SplashScreen>
           ),
         ),
       ),
-    );
-  }
-}
-
-class AuthWrapper extends StatelessWidget {
-  const AuthWrapper({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return StreamBuilder<User?>(
-      stream: FirebaseAuth.instance.authStateChanges(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Scaffold(
-            body: Center(
-              child: CircularProgressIndicator(),
-            ),
-          );
-        }
-
-        if (snapshot.hasData && snapshot.data != null) {
-          // User is signed in, check their role and show appropriate dashboard
-          return FutureBuilder<UserRole?>(
-            future: AuthService().getUserRole(snapshot.data!.uid),
-            builder: (context, roleSnapshot) {
-              if (roleSnapshot.connectionState == ConnectionState.waiting) {
-                return const Scaffold(
-                  body: Center(
-                    child: CircularProgressIndicator(),
-                  ),
-                );
-              }
-
-              final userRole = roleSnapshot.data;
-              
-              if (userRole != null) {
-                // Route all users to the common home page first
-                return const CommonHomeScreen();
-              } else {
-                return const CommonHomeScreen();
-              }
-            },
-          );
-        }
-
-        // User is not signed in, show login screen
-        return const LoginScreen();
-      },
     );
   }
 }

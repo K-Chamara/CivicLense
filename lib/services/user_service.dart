@@ -135,6 +135,7 @@ class UserService {
         }
         
         print('🔍 needsDocumentUpload: roleId=$roleId, userType=$userType, documents=${data['documents']}');
+        print('🔍 needsDocumentUpload: Full user data: $data');
         
         // If user is citizen, admin, or any government role, they don't need document upload
         if (roleId == 'citizen' || roleId == 'admin' || userType == 'government') {
@@ -145,6 +146,11 @@ class UserService {
         // If no documents uploaded, they need to upload (regardless of status)
         final needsUpload = data['documents'] == null || (data['documents'] as List).isEmpty;
         print('🔍 needsDocumentUpload: needsUpload=$needsUpload');
+        print('🔍 needsDocumentUpload: documents field: ${data['documents']}');
+        print('🔍 needsDocumentUpload: documents is null: ${data['documents'] == null}');
+        if (data['documents'] != null) {
+          print('🔍 needsDocumentUpload: documents is empty: ${(data['documents'] as List).isEmpty}');
+        }
         return needsUpload;
       }
       print('🔍 needsDocumentUpload: No user document found, needs upload');
@@ -173,18 +179,14 @@ class UserService {
           roleId = roleData['id'].toString().toLowerCase();
         }
         
-        // For users who have uploaded documents but not verified email yet,
-        // allow them to login to complete the verification process
-        final hasDocuments = data['documents'] != null && (data['documents'] as List).isNotEmpty;
-        if (!emailVerified && !hasDocuments) return false;
-        
         // Citizens and admins can always login with full access
         if (roleId == 'citizen' || roleId == 'admin') return true;
         
-        // ALL users with verified email can login
-        // - NGO/Contractor users can login to upload documents
-        // - Government users can login with their role
-        // - Other users get citizen-level features until approved
+        // ALL users can login to complete their registration process:
+        // - Users without documents can login to upload documents
+        // - Users with documents but no email verification can login to verify email
+        // - Users with both can login with full access
+        // This allows incomplete registrations to continue the process
         return true;
       }
       return false; // If no user document exists, they can't login

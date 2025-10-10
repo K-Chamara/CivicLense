@@ -299,4 +299,36 @@ class NotificationService {
       print('❌ Error sending budget allocation notification: $e');
     }
   }
+
+  // Send notification to specific user
+  static Future<void> sendNotificationToUser(
+    String userId,
+    String title,
+    String body,
+    Map<String, dynamic> data,
+  ) async {
+    try {
+      await _firestore.collection('notifications').add({
+        'userId': userId,
+        'title': title,
+        'body': body,
+        'type': data['type'] ?? 'general',
+        'data': data,
+        'createdAt': Timestamp.fromDate(DateTime.now()),
+        'isRead': false,
+      });
+
+      // Send push notification
+      await _sendPushNotification(
+        userId,
+        title,
+        body,
+        data.map((key, value) => MapEntry(key, value.toString())),
+      );
+
+      print('✅ Notification sent to user $userId: $title');
+    } catch (e) {
+      print('❌ Error sending notification to user: $e');
+    }
+  }
 }
