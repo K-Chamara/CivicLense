@@ -33,6 +33,7 @@ class _TenderDetailScreenState extends State<TenderDetailScreen> {
         child: Column(
           children: [
             _buildTenderHeader(),
+            _buildTenderImage(),
             _buildTenderInfo(),
             _buildBiddingSection(),
           ],
@@ -118,6 +119,60 @@ class _TenderDetailScreenState extends State<TenderDetailScreen> {
             ],
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildTenderImage() {
+    if (widget.tender['imageUrl'] == null) {
+      return const SizedBox.shrink();
+    }
+    
+    return Container(
+      width: double.infinity,
+      height: 250,
+      margin: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: Image.network(
+          widget.tender['imageUrl'],
+          fit: BoxFit.cover,
+          loadingBuilder: (context, child, loadingProgress) {
+            if (loadingProgress == null) return child;
+            return Container(
+              color: Colors.grey[200],
+              child: Center(
+                child: CircularProgressIndicator(
+                  value: loadingProgress.expectedTotalBytes != null
+                      ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                      : null,
+                ),
+              ),
+            );
+          },
+          errorBuilder: (context, error, stackTrace) {
+            return Container(
+              color: Colors.grey[200],
+              child: const Center(
+                child: Icon(
+                  Icons.broken_image,
+                  size: 64,
+                  color: Colors.grey,
+                ),
+              ),
+            );
+          },
+        ),
       ),
     );
   }
