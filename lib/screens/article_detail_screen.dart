@@ -7,6 +7,7 @@ import '../services/news_service.dart';
 import '../services/media_hub_service.dart';
 import '../services/community_service.dart';
 import '../models/report.dart';
+import '../models/community_models.dart';
 import 'edit_article_screen.dart';
 
 class ArticleDetailScreen extends StatefulWidget {
@@ -526,7 +527,7 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> with TickerPr
           width: double.maxFinite,
           height: 400,
           child: StreamBuilder(
-            stream: _communityService.getUserCommunities(),
+            stream: _communityService.getUserCommunities(FirebaseAuth.instance.currentUser?.uid ?? ''),
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
                 return const Center(child: CircularProgressIndicator());
@@ -545,7 +546,7 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> with TickerPr
                 );
               }
 
-              if (!snapshot.hasData || snapshot.data!.isEmpty) {
+              if (!snapshot.hasData || (snapshot.data as List<Community>).isEmpty) {
                 return const Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -560,7 +561,7 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> with TickerPr
                 );
               }
 
-              final communities = snapshot.data!;
+              final communities = snapshot.data as List<Community>;
               return ListView.builder(
                 itemCount: communities.length,
                 itemBuilder: (context, index) {
@@ -595,8 +596,9 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> with TickerPr
         communityId: community.id,
         newsTitle: article.title,
         newsContent: '${article.summary}\n\n${article.content}',
-        newsId: article.id,
-        authorName: article.authorName,
+        newsImageUrl: article.imageUrl,
+        sharedFrom: article.id,
+        sharedFromType: 'news',
       );
 
       if (mounted) {

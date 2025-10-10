@@ -28,6 +28,7 @@ import 'admin_approval_screen.dart';
 import 'transparency_dashboard_screen.dart';
 import 'budget_allocations_view_screen.dart';
 import 'reports_analytics_screen.dart';
+import 'community_list_screen.dart';
 
 class CommonHomeScreen extends StatefulWidget {
   const CommonHomeScreen({super.key});
@@ -397,7 +398,11 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
     // Check if user is pending approval - show pending screen first
     // Only show if user hasn't already chosen to continue with limited access
     if (userData != null && userData!['status'] == 'pending' && showPendingScreen && !hasChosenLimitedAccess) {
-      return _buildPendingApprovalScreen();
+      print('🔍 CommonHomeScreen: Showing pending approval screen');
+      print('🔍 CommonHomeScreen: User data: $userData');
+      print('🔍 CommonHomeScreen: User role: $userRole');
+      // Temporarily comment out to debug
+      // return _buildPendingApprovalScreen();
     }
 
     return Scaffold(
@@ -1675,7 +1680,7 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               const Text(
-                'High Priority Concerns',
+                'Most Supported Concerns',
                 style: TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
@@ -1695,8 +1700,7 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
           StreamBuilder<QuerySnapshot>(
             stream: FirebaseFirestore.instance
                 .collection('concerns')
-                .where('priority', isEqualTo: 'high')
-                .orderBy('createdAt', descending: true)
+                .orderBy('supportCount', descending: true)
                 .limit(3)
                 .snapshots(),
             builder: (context, snapshot) {
@@ -1719,7 +1723,72 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
     );
   }
 
+  Map<String, dynamic> _getConcernCategoryInfo(String category) {
+    switch (category.toLowerCase()) {
+      case 'infrastructure':
+        return {
+          'icon': Icons.construction,
+          'color': Colors.orange,
+        };
+      case 'environment':
+        return {
+          'icon': Icons.eco,
+          'color': Colors.green,
+        };
+      case 'health':
+        return {
+          'icon': Icons.health_and_safety,
+          'color': Colors.red,
+        };
+      case 'education':
+        return {
+          'icon': Icons.school,
+          'color': Colors.blue,
+        };
+      case 'transportation':
+        return {
+          'icon': Icons.directions_bus,
+          'color': Colors.purple,
+        };
+      case 'safety':
+        return {
+          'icon': Icons.security,
+          'color': Colors.indigo,
+        };
+      case 'utilities':
+        return {
+          'icon': Icons.power,
+          'color': Colors.amber,
+        };
+      case 'waste management':
+        return {
+          'icon': Icons.delete,
+          'color': Colors.brown,
+        };
+      case 'water':
+        return {
+          'icon': Icons.water_drop,
+          'color': Colors.cyan,
+        };
+      case 'noise':
+        return {
+          'icon': Icons.volume_up,
+          'color': Colors.pink,
+        };
+      default:
+        return {
+          'icon': Icons.report_problem,
+          'color': Colors.grey,
+        };
+    }
+  }
+
   Widget _buildConcernCard(Map<String, dynamic> concern) {
+    final category = concern['category'] ?? 'general';
+    final categoryInfo = _getConcernCategoryInfo(category);
+    final icon = categoryInfo['icon'] as IconData;
+    final color = categoryInfo['color'] as Color;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
@@ -1749,11 +1818,11 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
                   height: 80,
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(8),
-                    color: Colors.red.shade100,
+                    color: color.withOpacity(0.1),
                   ),
                   child: Icon(
-                    Icons.report_problem,
-                    color: Colors.red.shade600,
+                    icon,
+                    color: color,
                     size: 32,
                   ),
                 ),
@@ -1802,16 +1871,27 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                             decoration: BoxDecoration(
-                              color: Colors.red.shade100,
+                              color: Colors.blue.shade100,
                               borderRadius: BorderRadius.circular(12),
                             ),
-                            child: Text(
-                              'High Priority',
-                              style: TextStyle(
-                                fontSize: 10,
-                                color: Colors.red.shade700,
-                                fontWeight: FontWeight.bold,
-                              ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.thumb_up,
+                                  size: 12,
+                                  color: Colors.blue.shade700,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  '${concern['supportCount'] ?? 0}',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    color: Colors.blue.shade700,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ],
@@ -1968,7 +2048,18 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
       case 'citizen':
         return _buildCitizenActions();
       case 'journalist':
-        return _buildJournalistActions();
+        // Check if journalist is approved before showing journalist actions
+        final isApproved = userData?['status'] == 'approved';
+        return isApproved ? _buildJournalistActions() : _buildDefaultActions();
+      case 'community_leader':
+        // Community leaders use default actions (community creation is handled separately)
+        return _buildDefaultActions();
+      case 'researcher':
+        // Researchers use default actions for now
+        return _buildDefaultActions();
+      case 'ngo':
+        // NGO/Contractors use default actions (tender tracking is available to all)
+        return _buildDefaultActions();
       default:
         return _buildDefaultActions();
     }
@@ -2359,7 +2450,10 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
                   title: 'Communities',
                   onTap: () {
                     Navigator.pop(context);
-                    Navigator.pushNamed(context, '/communities');
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const CommunityListScreen()),
+                    );
                   },
                 ),
                 _buildDrawerItem(

@@ -3,421 +3,540 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../models/community_models.dart';
 
 class CommunityService {
-  final FirebaseFirestore _db = FirebaseFirestore.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
   
-  // Getter for current user ID
-  String? get currentUserId => _auth.currentUser?.uid;
+  // Getter to access firestore for external use
+  FirebaseFirestore get firestore => _firestore;
 
-  // Collection references
-  CollectionReference<Map<String, dynamic>> get _communitiesCol => 
-      _db.collection('communities');
-  CollectionReference<Map<String, dynamic>> get _communityMembersCol => 
-      _db.collection('community_members');
-  CollectionReference<Map<String, dynamic>> get _communityPostsCol => 
-      _db.collection('community_posts');
-  CollectionReference<Map<String, dynamic>> get _communityCommentsCol => 
-      _db.collection('community_comments');
-
-  /// Create a new community
-  Future<String> createCommunity(Community community) async {
+  // Create a new community
+  Future<String> createCommunity({
+    required String name,
+    required String description,
+    required List<String> categories,
+    String? imageUrl,
+    bool isPublic = true,
+    List<String> rules = const [],
+    List<String> tags = const [],
+  }) async {
     try {
-      final doc = await _communitiesCol.add(community.toFirestore());
+      final user = _auth.currentUser;
+      if (user == null) throw Exception('User not authenticated');
+
+      // Get user data for creator name
+      final userDoc = await _firestore.collection('users').doc(user.uid).get();
+      final userData = userDoc.data();
+      final creatorName = '${userData?['firstName'] ?? ''} ${userData?['lastName'] ?? ''}'.trim();
+
+      final communityData = {
+        'name': name,
+        'description': description,
+        'categories': categories,
+        'imageUrl': imageUrl,
+        'createdBy': user.uid,
+        'createdByName': creatorName,
+        'createdAt': FieldValue.serverTimestamp(),
+        'memberCount': 1,
+        'isActive': true,
+        'rules': rules,
+        'tags': tags,
+        'privacy': isPublic ? 'public' : 'private',
+        'coverImageUrl': null,
+      };
+
+      final docRef = await _firestore.collection('communities').add(communityData);
       
-      // Add creator as admin member
-      await _communityMembersCol.doc(doc.id).collection('members').doc(_auth.currentUser!.uid).set({
-        'userId': _auth.currentUser!.uid,
-        'communityId': doc.id,
+      // Add creator as first member
+      await _firestore.collection('community_members').add({
+        'userId': user.uid,
+        'communityId': docRef.id,
         'role': 'admin',
         'status': 'active',
-        'joinedAt': Timestamp.now(),
+        'joinedAt': FieldValue.serverTimestamp(),
       });
-
-      // Update member count
-      await _communitiesCol.doc(doc.id).update({'memberCount': 1});
       
-      return doc.id;
+      print('✅ Community created successfully: ${docRef.id}');
+      return docRef.id;
     } catch (e) {
-      print('Error creating community: $e');
-      throw Exception('Failed to create community: $e');
+      print('❌ Error creating community: $e');
+      rethrow;
     }
   }
 
-  /// Get all active communities
-  Stream<List<Community>> getCommunities({
-    String? category,
-    String? searchQuery,
-  }) {
-    // Use a simpler query to avoid index requirements
-    Query<Map<String, dynamic>> query = _communitiesCol
-        .where('isActive', isEqualTo: true);
+  // Get all communities
+  Stream<List<Community>> getCommunities() {
+    return _firestore
+        .collection('communities')
+        .where('isActive', isEqualTo: true)
+        .snapshots()
+        .map((snapshot) {
+          final communities = snapshot.docs.map((doc) => Community.fromFirestore(doc)).toList();
+          // Sort by creation date in descending order (newest first)
+          communities.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+          return communities;
+        });
+  }
 
-    return query.snapshots().map((snapshot) {
-      final communities = snapshot.docs
-          .map((doc) => Community.fromFirestore(doc))
-          .toList();
-
-      // Apply filters in memory to avoid complex Firebase queries
-      var filteredCommunities = communities;
-
-      // Filter by category
-      if (category != null && category.isNotEmpty && category != 'All') {
-        filteredCommunities = filteredCommunities
-            .where((community) => community.category == category)
-            .toList();
-      }
-
-      // Filter by search query
-      if (searchQuery != null && searchQuery.trim().isNotEmpty) {
-        final search = searchQuery.toLowerCase();
-        filteredCommunities = filteredCommunities.where((community) {
-          return community.name.toLowerCase().contains(search) ||
-                 community.description.toLowerCase().contains(search) ||
-                 community.tags.any((tag) => tag.toLowerCase().contains(search));
-        }).toList();
-      }
-
-      // Sort by creation date (newest first)
-      filteredCommunities.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-
-      return filteredCommunities;
+  // Get user's joined communities
+  Stream<List<Community>> getUserCommunities(String userId) {
+    return _firestore
+        .collection('community_members')
+        .where('userId', isEqualTo: userId)
+        .where('status', isEqualTo: 'active')
+        .snapshots()
+        .asyncMap((memberSnapshot) async {
+      final communityIds = memberSnapshot.docs.map((doc) => doc.data()['communityId'] as String).toList();
+      
+      if (communityIds.isEmpty) return <Community>[];
+      
+      final communitySnapshot = await _firestore
+          .collection('communities')
+          .where(FieldPath.documentId, whereIn: communityIds)
+          .get();
+      
+      return communitySnapshot.docs.map((doc) => Community.fromFirestore(doc)).toList();
     });
   }
 
-  /// Get a specific community
-  Future<Community?> getCommunity(String communityId) async {
-    try {
-      final doc = await _communitiesCol.doc(communityId).get();
-      if (doc.exists) {
-        return Community.fromFirestore(doc);
-      }
-      return null;
-    } catch (e) {
-      print('Error getting community: $e');
-      throw Exception('Failed to get community: $e');
-    }
+  // Get communities created by user
+  Stream<List<Community>> getUserCreatedCommunities(String userId) {
+    return _firestore
+        .collection('communities')
+        .where('createdBy', isEqualTo: userId)
+        .orderBy('createdAt', descending: true)
+        .snapshots()
+        .map((snapshot) => snapshot.docs.map((doc) => Community.fromFirestore(doc)).toList());
   }
 
-  /// Update community
-  Future<void> updateCommunity(Community community) async {
+  // Join a community
+  Future<bool> joinCommunity(String communityId) async {
     try {
-      await _communitiesCol.doc(community.id).update(community.toFirestore());
-    } catch (e) {
-      print('Error updating community: $e');
-      throw Exception('Failed to update community: $e');
-    }
-  }
+      final user = _auth.currentUser;
+      if (user == null) throw Exception('User not authenticated');
 
-  /// Delete community (admin only)
-  Future<void> deleteCommunity(String communityId) async {
-    try {
-      // Delete community
-      await _communitiesCol.doc(communityId).delete();
-      
-      // Delete all members
-      final membersSnapshot = await _communityMembersCol
-          .doc(communityId)
-          .collection('members')
-          .get();
-      
-      for (var doc in membersSnapshot.docs) {
-        await doc.reference.delete();
-      }
-
-      // Delete all posts
-      final postsSnapshot = await _communityPostsCol
-          .doc(communityId)
-          .collection('posts')
-          .get();
-      
-      for (var doc in postsSnapshot.docs) {
-        await doc.reference.delete();
-      }
-    } catch (e) {
-      print('Error deleting community: $e');
-      throw Exception('Failed to delete community: $e');
-    }
-  }
-
-  /// Join a community
-  Future<void> joinCommunity(String communityId) async {
-    try {
-      final userId = _auth.currentUser!.uid;
-      
-      // Check if already a member
-      final memberDoc = await _communityMembersCol
-          .doc(communityId)
-          .collection('members')
-          .doc(userId)
+      // Check if user is already a member
+      final existingMember = await _firestore
+          .collection('community_members')
+          .where('userId', isEqualTo: user.uid)
+          .where('communityId', isEqualTo: communityId)
           .get();
 
-      if (memberDoc.exists) {
-        throw Exception('Already a member of this community');
+      if (existingMember.docs.isNotEmpty) {
+        return true; // Already a member
       }
 
-      // Add member
-      await _communityMembersCol
-          .doc(communityId)
-          .collection('members')
-          .doc(userId)
-          .set({
-        'userId': userId,
+      // Add user to members collection
+      await _firestore.collection('community_members').add({
+        'userId': user.uid,
         'communityId': communityId,
         'role': 'member',
         'status': 'active',
-        'joinedAt': Timestamp.now(),
+        'joinedAt': FieldValue.serverTimestamp(),
       });
 
-      // Update member count
-      await _communitiesCol.doc(communityId).update({
+      // Increment member count
+      await _firestore.collection('communities').doc(communityId).update({
         'memberCount': FieldValue.increment(1),
       });
-    } catch (e) {
-      print('Error joining community: $e');
-      throw Exception('Failed to join community: $e');
-    }
-  }
 
-  /// Leave a community
-  Future<void> leaveCommunity(String communityId) async {
-    try {
-      final userId = _auth.currentUser!.uid;
-      
-      // Remove member
-      await _communityMembersCol
-          .doc(communityId)
-          .collection('members')
-          .doc(userId)
-          .delete();
-
-      // Update member count
-      await _communitiesCol.doc(communityId).update({
-        'memberCount': FieldValue.increment(-1),
-      });
+      print('✅ Successfully joined community: $communityId');
+      return true;
     } catch (e) {
-      print('Error leaving community: $e');
-      throw Exception('Failed to leave community: $e');
-    }
-  }
-
-  /// Check if user is a member of a community
-  Future<bool> isUserMember(String communityId) async {
-    try {
-      final userId = _auth.currentUser!.uid;
-      final memberDoc = await _communityMembersCol
-          .doc(communityId)
-          .collection('members')
-          .doc(userId)
-          .get();
-      
-      return memberDoc.exists;
-    } catch (e) {
-      print('Error checking membership: $e');
+      print('❌ Error joining community: $e');
       return false;
     }
   }
 
-  /// Get community members
-  Stream<List<CommunityMember>> getCommunityMembers(String communityId) {
-    return _communityMembersCol
-        .doc(communityId)
-        .collection('members')
+  // Leave a community
+  Future<bool> leaveCommunity(String communityId) async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) throw Exception('User not authenticated');
+
+      // Remove from members collection
+      final memberQuery = await _firestore
+          .collection('community_members')
+          .where('userId', isEqualTo: user.uid)
+          .where('communityId', isEqualTo: communityId)
+          .get();
+
+      for (var doc in memberQuery.docs) {
+        await doc.reference.delete();
+      }
+
+      // Decrement member count
+      await _firestore.collection('communities').doc(communityId).update({
+        'memberCount': FieldValue.increment(-1),
+      });
+
+      print('✅ Successfully left community: $communityId');
+      return true;
+    } catch (e) {
+      print('❌ Error leaving community: $e');
+      return false;
+    }
+  }
+
+  // Check if user is member of community
+  Future<bool> isUserMember(String communityId, String userId) async {
+    try {
+      final memberQuery = await _firestore
+          .collection('community_members')
+          .where('userId', isEqualTo: userId)
+          .where('communityId', isEqualTo: communityId)
+          .where('status', isEqualTo: 'active')
+          .get();
+
+      return memberQuery.docs.isNotEmpty;
+    } catch (e) {
+      print('❌ Error checking membership: $e');
+      return false;
+    }
+  }
+
+  // Get community by ID
+  Future<Community?> getCommunity(String communityId) async {
+    try {
+      final doc = await _firestore.collection('communities').doc(communityId).get();
+      if (!doc.exists) return null;
+
+      return Community.fromFirestore(doc);
+    } catch (e) {
+      print('❌ Error getting community: $e');
+      return null;
+    }
+  }
+
+  // Create a post in community
+  Future<String> createCommunityPost({
+    required String communityId,
+    required String title,
+    required String content,
+    List<String> images = const [],
+    List<String> tags = const [],
+  }) async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) throw Exception('User not authenticated');
+
+      // Get user data for author name
+      final userDoc = await _firestore.collection('users').doc(user.uid).get();
+      final userData = userDoc.data();
+      final authorName = '${userData?['firstName'] ?? ''} ${userData?['lastName'] ?? ''}'.trim();
+
+      final postData = {
+        'communityId': communityId,
+        'title': title,
+        'content': content,
+        'authorId': user.uid,
+        'authorName': authorName,
+        'createdAt': FieldValue.serverTimestamp(),
+        'likes': 0,
+        'comments': 0,
+        'images': images,
+        'tags': tags,
+        'isPinned': false,
+        'isReported': false,
+        'reportReason': '',
+        'status': 'active',
+        'sharedFrom': null,
+        'sharedFromType': null,
+      };
+
+      final docRef = await _firestore.collection('community_posts').add(postData);
+      
+      // Increment post count in community
+      await _firestore.collection('communities').doc(communityId).update({
+        // Note: We'll need to add a postCount field to the Community model
+      });
+
+      print('✅ Community post created successfully: ${docRef.id}');
+      return docRef.id;
+    } catch (e) {
+      print('❌ Error creating community post: $e');
+      rethrow;
+    }
+  }
+
+  // Get posts for a community
+  Stream<List<CommunityPost>> getCommunityPosts(String communityId) {
+    return _firestore
+        .collection('community_posts')
+        .where('communityId', isEqualTo: communityId)
         .where('status', isEqualTo: 'active')
         .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => CommunityMember.fromFirestore(doc))
-            .toList());
+        .map((snapshot) {
+          final posts = snapshot.docs.map((doc) => CommunityPost.fromFirestore(doc)).toList();
+          // Sort by creation date in descending order (newest first)
+          posts.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+          return posts;
+        });
   }
 
-  /// Create a new post in a community
-  Future<String> createPost(CommunityPost post) async {
-    try {
-      final doc = await _communityPostsCol
-          .doc(post.communityId)
-          .collection('posts')
-          .add(post.toFirestore());
-      
-      return doc.id;
-    } catch (e) {
-      print('Error creating post: $e');
-      throw Exception('Failed to create post: $e');
-    }
-  }
-
-  /// Get posts for a community
-  Stream<List<CommunityPost>> getCommunityPosts(String communityId) {
-    return _communityPostsCol
-        .doc(communityId)
-        .collection('posts')
-        .orderBy('createdAt', descending: true)
-        .snapshots()
-        .map((snapshot) => snapshot.docs
-            .where((doc) => doc.data()['status'] == 'active')
-            .map((doc) => CommunityPost.fromFirestore(doc))
-            .toList());
-  }
-
-  /// Like a post
+  // Like a post
   Future<void> likePost(String communityId, String postId) async {
     try {
-      await _communityPostsCol
-          .doc(communityId)
-          .collection('posts')
-          .doc(postId)
-          .update({
-        'likes': FieldValue.increment(1),
-      });
+      final user = _auth.currentUser;
+      if (user == null) throw Exception('User not authenticated');
+
+      // Check if user already liked this post
+      final likeQuery = await _firestore
+          .collection('post_likes')
+          .where('userId', isEqualTo: user.uid)
+          .where('postId', isEqualTo: postId)
+          .get();
+
+      if (likeQuery.docs.isNotEmpty) {
+        // User already liked, remove like
+        for (var doc in likeQuery.docs) {
+          await doc.reference.delete();
+        }
+        // Decrement likes count
+        await _firestore.collection('community_posts').doc(postId).update({
+          'likes': FieldValue.increment(-1),
+        });
+      } else {
+        // Add like
+        await _firestore.collection('post_likes').add({
+          'userId': user.uid,
+          'postId': postId,
+          'communityId': communityId,
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+        // Increment likes count
+        await _firestore.collection('community_posts').doc(postId).update({
+          'likes': FieldValue.increment(1),
+        });
+      }
     } catch (e) {
-      print('Error liking post: $e');
-      throw Exception('Failed to like post: $e');
+      print('❌ Error liking post: $e');
+      rethrow;
     }
   }
 
-  /// Delete a post (admin/creator only)
-  Future<void> deletePost(String communityId, String postId) async {
-    try {
-      await _communityPostsCol
-          .doc(communityId)
-          .collection('posts')
-          .doc(postId)
-          .update({
-        'status': 'deleted',
-      });
-    } catch (e) {
-      print('Error deleting post: $e');
-      throw Exception('Failed to delete post: $e');
-    }
-  }
-
-  /// Add a comment to a post
-  Future<String> addComment(String communityId, String postId, CommunityComment comment) async {
-    try {
-      final doc = await _communityCommentsCol
-          .doc(communityId)
-          .collection('posts')
-          .doc(postId)
-          .collection('comments')
-          .add(comment.toFirestore());
-      
-      // Update comment count
-      await _communityPostsCol
-          .doc(communityId)
-          .collection('posts')
-          .doc(postId)
-          .update({
-        'comments': FieldValue.increment(1),
-      });
-      
-      return doc.id;
-    } catch (e) {
-      print('Error adding comment: $e');
-      throw Exception('Failed to add comment: $e');
-    }
-  }
-
-  /// Get comments for a post
+  // Get comments for a post
   Stream<List<CommunityComment>> getPostComments(String communityId, String postId) {
-    return _communityCommentsCol
-        .doc(communityId)
-        .collection('posts')
-        .doc(postId)
-        .collection('comments')
+    return _firestore
+        .collection('community_comments')
+        .where('postId', isEqualTo: postId)
         .where('status', isEqualTo: 'active')
         .orderBy('createdAt', descending: false)
         .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => CommunityComment.fromFirestore(doc))
-            .toList());
+        .map((snapshot) => snapshot.docs.map((doc) => CommunityComment.fromFirestore(doc)).toList());
   }
 
-  /// Delete a comment (admin/creator only)
-  Future<void> deleteComment(String communityId, String postId, String commentId) async {
+  // Create a comment
+  Future<String> createComment({
+    required String postId,
+    required String content,
+  }) async {
     try {
-      await _communityCommentsCol
-          .doc(communityId)
-          .collection('posts')
-          .doc(postId)
-          .collection('comments')
-          .doc(commentId)
-          .update({
-        'status': 'deleted',
+      final user = _auth.currentUser;
+      if (user == null) throw Exception('User not authenticated');
+
+      // Get user data for author name
+      final userDoc = await _firestore.collection('users').doc(user.uid).get();
+      final userData = userDoc.data();
+      final authorName = '${userData?['firstName'] ?? ''} ${userData?['lastName'] ?? ''}'.trim();
+
+      final commentData = {
+        'postId': postId,
+        'content': content,
+        'authorId': user.uid,
+        'authorName': authorName,
+        'createdAt': FieldValue.serverTimestamp(),
+        'likes': 0,
+        'isReported': false,
+        'status': 'active',
+      };
+
+      final docRef = await _firestore.collection('community_comments').add(commentData);
+      
+      // Increment comments count
+      await _firestore.collection('community_posts').doc(postId).update({
+        'comments': FieldValue.increment(1),
       });
+
+      print('✅ Comment created successfully: ${docRef.id}');
+      return docRef.id;
     } catch (e) {
-      print('Error deleting comment: $e');
-      throw Exception('Failed to delete comment: $e');
+      print('❌ Error creating comment: $e');
+      rethrow;
     }
   }
 
-  /// Share news article to community
+  // Search communities
+  Stream<List<Community>> searchCommunities(String query) {
+    if (query.isEmpty) {
+      return getCommunities();
+    }
+
+    return _firestore
+        .collection('communities')
+        .where('isActive', isEqualTo: true)
+        .snapshots()
+        .map((snapshot) {
+      final communities = snapshot.docs.map((doc) => Community.fromFirestore(doc)).toList();
+      return communities.where((community) {
+        return community.name.toLowerCase().contains(query.toLowerCase()) ||
+               community.description.toLowerCase().contains(query.toLowerCase()) ||
+               community.categories.any((category) => 
+                 category.toLowerCase().contains(query.toLowerCase()));
+      }).toList();
+    });
+  }
+
+  // Share news to community (for the article detail screen)
   Future<String> shareNewsToCommunity({
     required String communityId,
     required String newsTitle,
     required String newsContent,
-    required String newsId,
-    required String authorName,
+    String? newsImageUrl,
+    required String sharedFrom,
+    required String sharedFromType,
   }) async {
     try {
-      final post = CommunityPost(
-        id: '',
-        communityId: communityId,
-        title: '📰 $newsTitle',
-        content: newsContent,
-        authorId: _auth.currentUser!.uid,
-        authorName: authorName,
-        createdAt: DateTime.now(),
-        likes: 0,
-        comments: 0,
-        images: [],
-        tags: ['news', 'shared'],
-        isPinned: false,
-        isReported: false,
-        reportReason: '',
-        status: 'active',
-        sharedFrom: newsId,
-        sharedFromType: 'news',
-      );
+      final user = _auth.currentUser;
+      if (user == null) throw Exception('User not authenticated');
 
-      return await createPost(post);
+      // Get user data for author name
+      final userDoc = await _firestore.collection('users').doc(user.uid).get();
+      final userData = userDoc.data();
+      final authorName = '${userData?['firstName'] ?? ''} ${userData?['lastName'] ?? ''}'.trim();
+
+      final postData = {
+        'communityId': communityId,
+        'title': 'Shared: $newsTitle',
+        'content': newsContent,
+        'authorId': user.uid,
+        'authorName': authorName,
+        'createdAt': FieldValue.serverTimestamp(),
+        'likes': 0,
+        'comments': 0,
+        'images': newsImageUrl != null ? [newsImageUrl] : [],
+        'tags': ['shared', 'news'],
+        'isPinned': false,
+        'isReported': false,
+        'reportReason': '',
+        'status': 'active',
+        'sharedFrom': sharedFrom,
+        'sharedFromType': sharedFromType,
+      };
+
+      final docRef = await _firestore.collection('community_posts').add(postData);
+      
+      print('✅ News shared to community successfully: ${docRef.id}');
+      return docRef.id;
     } catch (e) {
-      print('Error sharing news to community: $e');
-      throw Exception('Failed to share news to community: $e');
+      print('❌ Error sharing news to community: $e');
+      rethrow;
     }
   }
 
-  /// Get user's communities
-  Stream<List<Community>> getUserCommunities() {
-    final userId = _auth.currentUser!.uid;
-    print('🔍 Getting communities for user: $userId');
-    
-    // Use a simpler approach: get all communities and check membership for each
-    return _communitiesCol
-        .where('isActive', isEqualTo: true)
-        .snapshots()
-        .asyncMap((snapshot) async {
-      print('📋 Found ${snapshot.docs.length} active communities');
-      final userCommunities = <Community>[];
-      
-      // Check each community to see if user is a member
-      for (var doc in snapshot.docs) {
-        final communityId = doc.id;
-        print('🔍 Checking membership in community: $communityId');
-        
-        final memberDoc = await _communityMembersCol
-            .doc(communityId)
-            .collection('members')
-            .doc(userId)
-            .get();
-        
-        print('👤 Member doc exists: ${memberDoc.exists}');
-        if (memberDoc.exists) {
-          final community = Community.fromFirestore(doc);
-          userCommunities.add(community);
-          print('✅ Added community: ${community.name}');
-        }
+  // Get community categories
+  List<String> getCategories() {
+    return CommunityCategory.categories;
+  }
+
+  // Get category icons
+  Map<String, String> getCategoryIcons() {
+    return CommunityCategory.categoryIcons;
+  }
+
+  // Delete community (only for community leaders and anti-corruption officers)
+  Future<void> deleteCommunity(String communityId, String userId) async {
+    try {
+      // First check if user has permission to delete
+      final userDoc = await _firestore.collection('users').doc(userId).get();
+      if (!userDoc.exists) {
+        throw Exception('User not found');
       }
+
+      final userData = userDoc.data()!;
+      final userRole = userData['roleId'] ?? '';
+      final userType = userData['userType'] ?? '';
+
+      // Only community leaders and anti-corruption officers can delete communities
+      if (userRole != 'community_leader' && userRole != 'anticorruption_officer') {
+        throw Exception('Insufficient permissions to delete community');
+      }
+
+      // Get community details to check if user is the creator
+      final communityDoc = await _firestore.collection('communities').doc(communityId).get();
+      if (!communityDoc.exists) {
+        throw Exception('Community not found');
+      }
+
+      final communityData = communityDoc.data()!;
+      final createdBy = communityData['createdBy'] ?? '';
+
+      // Anti-corruption officers can delete any community, but community leaders can only delete their own
+      if (userRole == 'community_leader' && createdBy != userId) {
+        throw Exception('You can only delete communities you created');
+      }
+
+      // Delete all community posts first
+      final postsQuery = await _firestore
+          .collection('community_posts')
+          .where('communityId', isEqualTo: communityId)
+          .get();
+
+      final batch = _firestore.batch();
       
-      print('🎉 User is member of ${userCommunities.length} communities');
-      return userCommunities;
-    });
+      // Delete all posts
+      for (final doc in postsQuery.docs) {
+        batch.delete(doc.reference);
+      }
+
+      // Delete all community members
+      final membersQuery = await _firestore
+          .collection('community_members')
+          .where('communityId', isEqualTo: communityId)
+          .get();
+
+      for (final doc in membersQuery.docs) {
+        batch.delete(doc.reference);
+      }
+
+      // Delete the community itself
+      batch.delete(_firestore.collection('communities').doc(communityId));
+
+      await batch.commit();
+      
+      print('✅ Community deleted successfully: $communityId');
+    } catch (e) {
+      print('❌ Error deleting community: $e');
+      rethrow;
+    }
+  }
+
+  // Check if user can delete a specific community
+  Future<bool> canDeleteCommunity(String communityId, String userId) async {
+    try {
+      final userDoc = await _firestore.collection('users').doc(userId).get();
+      if (!userDoc.exists) return false;
+
+      final userData = userDoc.data()!;
+      final userRole = userData['roleId'] ?? '';
+      final userType = userData['userType'] ?? '';
+
+      // Anti-corruption officers can delete any community
+      if (userRole == 'anticorruption_officer') return true;
+
+      // Community leaders can only delete communities they created
+      if (userRole == 'community_leader') {
+        final communityDoc = await _firestore.collection('communities').doc(communityId).get();
+        if (!communityDoc.exists) return false;
+        
+        final communityData = communityDoc.data()!;
+        final createdBy = communityData['createdBy'] ?? '';
+        return createdBy == userId;
+      }
+
+      return false;
+    } catch (e) {
+      print('❌ Error checking delete permissions: $e');
+      return false;
+    }
   }
 }

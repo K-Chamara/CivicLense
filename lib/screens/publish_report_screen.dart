@@ -39,12 +39,17 @@ class _PublishReportScreenState extends State<PublishReportScreen> with TickerPr
   bool _isSubmitting = false;
   File? _selectedImage;
   String? _bannerImageUrl;
+  
+  // Image URL from upload
   String? _imageUrl;
   bool _isUploadingImage = false;
+  bool _canPublish = false;
+  bool _isCheckingPermission = true;
 
   @override
   void initState() {
     super.initState();
+    _checkJournalistPermission();
     _formAnimationController = AnimationController(
       duration: const Duration(milliseconds: 600),
       vsync: this,
@@ -81,6 +86,117 @@ class _PublishReportScreenState extends State<PublishReportScreen> with TickerPr
     super.dispose();
   }
 
+  Future<void> _checkJournalistPermission() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        setState(() {
+          _canPublish = false;
+          _isCheckingPermission = false;
+        });
+        return;
+      }
+
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+
+      if (userDoc.exists) {
+        final userData = userDoc.data()!;
+        final roleId = userData['role'] is Map 
+            ? userData['role']['id'] 
+            : userData['role'];
+        final status = userData['status'] ?? 'pending';
+
+        print('🔍 Checking article publish permission:');
+        print('🔍 - roleId: $roleId');
+        print('🔍 - status: $status');
+
+        // Only approved journalists can publish articles
+        final canPublish = roleId == 'journalist' && status == 'approved';
+
+        print('🔍 - canPublish: $canPublish');
+
+        setState(() {
+          _canPublish = canPublish;
+          _isCheckingPermission = false;
+        });
+
+        // If user doesn't have permission, show a dialog and go back
+        if (!canPublish) {
+          if (mounted) {
+            await showDialog(
+              context: context,
+              barrierDismissible: false,
+              builder: (context) => AlertDialog(
+                title: const Row(
+                  children: [
+                    Icon(Icons.lock, color: Colors.orange),
+                    SizedBox(width: 8),
+                    Text('Permission Required'),
+                  ],
+                ),
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (roleId != 'journalist')
+                      const Text(
+                        'Only users with the Journalist role can publish articles.',
+                        style: TextStyle(fontSize: 14),
+                      )
+                    else if (status != 'approved')
+                      const Text(
+                        'Your journalist account is pending approval by the admin. Once approved, you will be able to publish articles.',
+                        style: TextStyle(fontSize: 14),
+                      ),
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.blue.withOpacity(0.3)),
+                      ),
+                      child: const Text(
+                        'ℹ️ You can still use all citizen features until your account is approved.',
+                        style: TextStyle(
+                          color: Colors.blue,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      Navigator.pop(context); // Go back to previous screen
+                    },
+                    child: const Text('OK'),
+                  ),
+                ],
+              ),
+            );
+          }
+        }
+      } else {
+        setState(() {
+          _canPublish = false;
+          _isCheckingPermission = false;
+        });
+      }
+    } catch (e) {
+      print('Error checking journalist permission: $e');
+      setState(() {
+        _canPublish = false;
+        _isCheckingPermission = false;
+      });
+    }
+  }
+
   final List<String> _categories = <String>[
     'Politics', 'Economy', 'Health', 'Education', 'Infrastructure', 'Environment', 'Justice'
   ];
@@ -106,6 +222,7 @@ class _PublishReportScreenState extends State<PublishReportScreen> with TickerPr
           final imageUrl = await CloudinaryService.uploadFile(_selectedImage!);
           setState(() {
             _bannerImageUrl = imageUrl;
+            _imageUrl = imageUrl;
             _isUploadingImage = false;
           });
           
@@ -130,6 +247,7 @@ class _PublishReportScreenState extends State<PublishReportScreen> with TickerPr
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed to pick image: $e')),
+          SnackBar(content: Text('Error picking image: $e')),
         );
       }
     }
@@ -302,6 +420,24 @@ class _PublishReportScreenState extends State<PublishReportScreen> with TickerPr
 
   @override
   Widget build(BuildContext context) {
+    // Show loading indicator while checking permission
+    if (_isCheckingPermission) {
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
+    // If no permission, show empty container (user will be redirected by dialog)
+    if (!_canPublish) {
+      return const Scaffold(
+        body: Center(
+          child: Text('Checking permissions...'),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
       appBar: AppBar(
@@ -528,128 +664,6 @@ class _PublishReportScreenState extends State<PublishReportScreen> with TickerPr
             ),
           );
         },
-      ),
-    );
-  }
-
-  Widget _buildImageUploadSection() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.grey[50],
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey[300]!),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (_bannerImageUrl != null) ...[
-            // Show uploaded image
-            Container(
-              width: double.infinity,
-              height: 200,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(8),
-                image: DecorationImage(
-                  image: NetworkImage(_bannerImageUrl!),
-                  fit: BoxFit.cover,
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    'Image uploaded successfully',
-                    style: TextStyle(
-                      color: Colors.green[700],
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-                IconButton(
-                  onPressed: _removeImage,
-                  icon: const Icon(Icons.delete, color: Colors.red),
-                  tooltip: 'Remove image',
-                ),
-              ],
-            ),
-          ] else if (_isUploadingImage) ...[
-            // Show uploading state
-            Container(
-              width: double.infinity,
-              height: 200,
-              decoration: BoxDecoration(
-                color: Colors.grey[100],
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.grey[300]!),
-              ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const CircularProgressIndicator(),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Uploading image...',
-                    style: TextStyle(
-                      color: Colors.grey[600],
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ] else ...[
-            // Show upload button
-            InkWell(
-              onTap: _pickImage,
-              borderRadius: BorderRadius.circular(8),
-              child: Container(
-                width: double.infinity,
-                height: 120,
-                decoration: BoxDecoration(
-                  color: Colors.grey[100],
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: Colors.grey[300]!,
-                    style: BorderStyle.solid,
-                    width: 2,
-                  ),
-                ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.add_photo_alternate,
-                      size: 48,
-                      color: Colors.grey[600],
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Tap to add banner image',
-                      style: TextStyle(
-                        color: Colors.grey[600],
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Recommended: 800x400px',
-                      style: TextStyle(
-                        color: Colors.grey[500],
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ],
       ),
     );
   }

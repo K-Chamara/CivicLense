@@ -48,19 +48,8 @@ class AuthService {
         }
       }
 
-      // Check if email is verified (skip for admin users)
-      final userData = userDoc.exists ? userDoc.data()! : null;
-      final isAdmin = userData != null && 
-                     userData['role'] != null && 
-                     UserRole.fromMap(userData['role']).userType == UserType.admin;
-      
-      if (!userCredential.user!.emailVerified && !isAdmin) {
-        throw FirebaseAuthException(
-          code: 'email-not-verified',
-          message: 'Please verify your email before signing in.',
-        );
-      }
-
+      // DON'T throw email verification error here - let AuthWrapper handle incomplete registrations
+      // This allows users with incomplete registrations to continue the process
       return userCredential;
     } catch (e) {
       rethrow;

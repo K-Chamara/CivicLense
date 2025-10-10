@@ -5,7 +5,7 @@ class Community {
   final String id;
   final String name;
   final String description;
-  final String category;
+  final List<String> categories;
   final String createdBy;
   final String createdByName;
   final DateTime createdAt;
@@ -21,7 +21,7 @@ class Community {
     required this.id,
     required this.name,
     required this.description,
-    required this.category,
+    required this.categories,
     required this.createdBy,
     required this.createdByName,
     required this.createdAt,
@@ -40,7 +40,7 @@ class Community {
       id: doc.id,
       name: data['name'] ?? '',
       description: data['description'] ?? '',
-      category: data['category'] ?? 'General',
+      categories: List<String>.from(data['categories'] ?? (data['category'] != null ? [data['category']] : ['General'])),
       createdBy: data['createdBy'] ?? '',
       createdByName: data['createdByName'] ?? '',
       createdAt: _parseDateTime(data['createdAt']),
@@ -58,7 +58,7 @@ class Community {
     return {
       'name': name,
       'description': description,
-      'category': category,
+      'categories': categories,
       'createdBy': createdBy,
       'createdByName': createdByName,
       'createdAt': Timestamp.fromDate(createdAt),
@@ -76,7 +76,7 @@ class Community {
     String? id,
     String? name,
     String? description,
-    String? category,
+    List<String>? categories,
     String? createdBy,
     String? createdByName,
     DateTime? createdAt,
@@ -92,7 +92,7 @@ class Community {
       id: id ?? this.id,
       name: name ?? this.name,
       description: description ?? this.description,
-      category: category ?? this.category,
+      categories: categories ?? this.categories,
       createdBy: createdBy ?? this.createdBy,
       createdByName: createdByName ?? this.createdByName,
       createdAt: createdAt ?? this.createdAt,
