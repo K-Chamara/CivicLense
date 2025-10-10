@@ -486,6 +486,20 @@ class _NewsFeedScreenState extends State<NewsFeedScreen> with TickerProviderStat
                                         ),
                                       ],
                                     ),
+                                    if (a.bannerImageUrl != null) ...[
+                                      const SizedBox(height: 12),
+                                      Container(
+                                        width: double.infinity,
+                                        height: 200,
+                                        decoration: BoxDecoration(
+                                          borderRadius: BorderRadius.circular(12),
+                                          image: DecorationImage(
+                                            image: NetworkImage(a.bannerImageUrl!),
+                                            fit: BoxFit.cover,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
                                     const SizedBox(height: 12),
                                     Text(
                                       a.summary, 
