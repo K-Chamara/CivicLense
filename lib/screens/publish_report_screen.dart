@@ -246,7 +246,6 @@ class _PublishReportScreenState extends State<PublishReportScreen> with TickerPr
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to pick image: $e')),
           SnackBar(content: Text('Error picking image: $e')),
         );
       }
@@ -664,6 +663,103 @@ class _PublishReportScreenState extends State<PublishReportScreen> with TickerPr
             ),
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildImageUploadSection() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey[300]!),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (_selectedImage != null || _bannerImageUrl != null) ...[
+            Container(
+              width: double.infinity,
+              height: 200,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(8),
+                image: DecorationImage(
+                  image: _bannerImageUrl != null 
+                    ? NetworkImage(_bannerImageUrl!) 
+                    : FileImage(_selectedImage!) as ImageProvider,
+                  fit: BoxFit.cover,
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _isUploadingImage ? null : _pickImage,
+                    icon: _isUploadingImage 
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.edit),
+                    label: Text(_isUploadingImage ? 'Uploading...' : 'Change Image'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                OutlinedButton.icon(
+                  onPressed: _removeImage,
+                  icon: const Icon(Icons.delete),
+                  label: const Text('Remove'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.red,
+                    side: const BorderSide(color: Colors.red),
+                  ),
+                ),
+              ],
+            ),
+          ] else ...[
+            InkWell(
+              onTap: _isUploadingImage ? null : _pickImage,
+              child: Container(
+                width: double.infinity,
+                height: 120,
+                decoration: BoxDecoration(
+                  color: Colors.grey[100],
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: Colors.grey[300]!,
+                    style: BorderStyle.solid,
+                    width: 2,
+                  ),
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    _isUploadingImage 
+                      ? const CircularProgressIndicator()
+                      : Icon(
+                          Icons.add_photo_alternate,
+                          size: 48,
+                          color: Colors.grey[600],
+                        ),
+                    const SizedBox(height: 8),
+                    Text(
+                      _isUploadingImage ? 'Uploading...' : 'Tap to add image',
+                      style: TextStyle(
+                        color: Colors.grey[600],
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }
