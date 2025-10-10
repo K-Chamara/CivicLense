@@ -18,6 +18,7 @@ class ReportArticle {
   final int likeCount;
   final int commentCount;
   final Timestamp createdAt;
+  final String? bannerImageUrl;
   final String? imageUrl;
 
   ReportArticle({
@@ -38,6 +39,7 @@ class ReportArticle {
     required this.likeCount,
     required this.commentCount,
     required this.createdAt,
+    this.bannerImageUrl,
     this.imageUrl,
   });
 
@@ -61,6 +63,7 @@ class ReportArticle {
       likeCount: data['likeCount'] ?? 0,
       commentCount: data['commentCount'] ?? 0,
       createdAt: data['createdAt'] ?? Timestamp.now(),
+      bannerImageUrl: data['bannerImageUrl'],
       imageUrl: data['imageUrl'],
     );
   }
@@ -83,6 +86,7 @@ class ReportArticle {
       'likeCount': likeCount,
       'commentCount': commentCount,
       'createdAt': createdAt,
+      'bannerImageUrl': bannerImageUrl,
       'imageUrl': imageUrl,
     };
   }

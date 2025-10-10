@@ -87,6 +87,15 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> with TickerPr
   @override
   Widget build(BuildContext context) {
     final String articleId = ModalRoute.of(context)?.settings.arguments as String? ?? '';
+    
+    // Debug: Print current user info
+    final currentUser = FirebaseAuth.instance.currentUser;
+    print('=== AUTHENTICATION DEBUG ===');
+    print('Current User: ${currentUser?.uid}');
+    print('User Email: ${currentUser?.email}');
+    print('User Display Name: ${currentUser?.displayName}');
+    print('============================');
+    
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.surfaceContainerLowest,
       appBar: AppBar(
@@ -96,16 +105,63 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> with TickerPr
         elevation: 0,
         centerTitle: true,
         actions: [
+          // Debug button to test authentication
+          IconButton(
+            icon: const Icon(Icons.info),
+            onPressed: () {
+              final currentUser = FirebaseAuth.instance.currentUser;
+              showDialog(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: const Text('Authentication Info'),
+                  content: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('User ID: ${currentUser?.uid ?? 'Not logged in'}'),
+                      Text('Email: ${currentUser?.email ?? 'No email'}'),
+                      Text('Display Name: ${currentUser?.displayName ?? 'No name'}'),
+                    ],
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('OK'),
+                    ),
+                  ],
+                ),
+              );
+            },
+            tooltip: 'Auth Info',
+          ),
           StreamBuilder<ReportArticle?>(
             stream: _news.streamArticle(articleId),
             builder: (context, snapshot) {
               if (!snapshot.hasData) return const SizedBox.shrink();
               final article = snapshot.data!;
               final currentUserId = FirebaseAuth.instance.currentUser?.uid;
-              final isAuthor = currentUserId != null && article.authorUid == currentUserId;
               
-              if (!isAuthor) return const SizedBox.shrink();
+              // Debug: Print authentication info
+              print('=== EDIT BUTTON DEBUG ===');
+              print('Current User ID: $currentUserId');
+              print('Article Author UID: ${article.authorUid}');
+              print('Article Title: ${article.title}');
+              print('User authenticated: ${currentUserId != null && currentUserId.isNotEmpty}');
+              print('Is Author: ${currentUserId != null && currentUserId.isNotEmpty && article.authorUid == currentUserId}');
+              print('========================');
               
+              // Only show edit button if user is authenticated and is the author
+              if (currentUserId == null || currentUserId.isEmpty) {
+                print('❌ No authenticated user - hiding edit button');
+                return const SizedBox.shrink();
+              }
+              
+              if (article.authorUid != currentUserId) {
+                print('❌ User is not the author - hiding edit button');
+                return const SizedBox.shrink();
+              }
+              
+              print('✅ Showing edit button for author');
               return IconButton(
                 icon: const Icon(Icons.edit),
                 onPressed: () => _showEditOptions(article),
@@ -144,6 +200,24 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> with TickerPr
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // Banner image as header
+                      if (a.bannerImageUrl != null) ...[
+                        Container(
+                          width: double.infinity,
+                          height: 250,
+                          decoration: BoxDecoration(
+                            borderRadius: const BorderRadius.only(
+                              bottomLeft: Radius.circular(20),
+                              bottomRight: Radius.circular(20),
+                            ),
+                            image: DecorationImage(
+                              image: NetworkImage(a.bannerImageUrl!),
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                      ],
                       // Header section container (no shadow; bordered)
                       Container(
                         width: double.infinity,
@@ -548,6 +622,39 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> with TickerPr
   }
 
   void _showEditOptions(ReportArticle article) {
+    // Double-check authorization before showing options
+    final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+    
+    print('=== EDIT OPTIONS DEBUG ===');
+    print('Current User ID: $currentUserId');
+    print('Article Author UID: ${article.authorUid}');
+    print('Article Title: ${article.title}');
+    print('========================');
+    
+    if (currentUserId == null || currentUserId.isEmpty) {
+      print('❌ No authenticated user in edit options');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('You must be signed in to edit articles'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+    
+    if (article.authorUid != currentUserId) {
+      print('❌ User is not the author in edit options');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('You are not authorized to edit this article'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+    
+    print('✅ Showing edit options for author');
+    
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.white,

@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'dart:io';
+import 'package:image_picker/image_picker.dart';
 import '../models/report.dart';
 import '../services/news_service.dart';
+import '../services/cloudinary_image_service.dart';
 
 class EditArticleScreen extends StatefulWidget {
   final String articleId;
@@ -16,6 +19,7 @@ class EditArticleScreen extends StatefulWidget {
 class _EditArticleScreenState extends State<EditArticleScreen> {
   final _formKey = GlobalKey<FormState>();
   final _newsService = NewsService();
+  final _cloudinaryService = CloudinaryImageService();
 
   final _titleController = TextEditingController();
   final _abstractController = TextEditingController();
@@ -27,10 +31,63 @@ class _EditArticleScreenState extends State<EditArticleScreen> {
   String _category = '';
   bool _isSubmitting = false;
   bool _isLoading = true;
+  File? _selectedImage;
+  String? _bannerImageUrl;
+  bool _isUploadingImage = false;
 
   final List<String> _categories = <String>[
     'Politics', 'Economy', 'Health', 'Education', 'Infrastructure', 'Environment', 'Justice'
   ];
+
+  Future<void> _pickImage() async {
+    try {
+      final XFile? image = await _cloudinaryService.pickImage();
+      if (image != null) {
+        setState(() {
+          _selectedImage = File(image.path);
+          _isUploadingImage = true;
+        });
+        
+        // Automatically upload the image
+        try {
+          final imageUrl = await _cloudinaryService.uploadImage(_selectedImage!);
+          setState(() {
+            _bannerImageUrl = imageUrl;
+            _isUploadingImage = false;
+          });
+          
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Image uploaded successfully')),
+            );
+          }
+        } catch (uploadError) {
+          setState(() {
+            _isUploadingImage = false;
+            _selectedImage = null;
+          });
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Failed to upload image: $uploadError')),
+            );
+          }
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to pick image: $e')),
+        );
+      }
+    }
+  }
+
+  void _removeImage() {
+    setState(() {
+      _selectedImage = null;
+      _bannerImageUrl = null;
+    });
+  }
 
   @override
   void initState() {
@@ -61,6 +118,7 @@ class _EditArticleScreenState extends State<EditArticleScreen> {
         _hashtagsController.text = article.hashtags.join(', ');
         setState(() {
           _category = article.category;
+          _bannerImageUrl = article.bannerImageUrl;
           _isLoading = false;
         });
       } else {
@@ -107,6 +165,7 @@ class _EditArticleScreenState extends State<EditArticleScreen> {
             .map((h) => h.trim())
             .where((h) => h.isNotEmpty)
             .toList(),
+        bannerImageUrl: _bannerImageUrl,
       );
 
       if (!mounted) return;
@@ -194,6 +253,10 @@ class _EditArticleScreenState extends State<EditArticleScreen> {
                             const Text('Title', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                             const SizedBox(height: 6),
                             _buildTextField(_titleController, 'Enter title', validator: (v) => v!.isEmpty ? 'Required' : null),
+                            const SizedBox(height: 16),
+                            const Text('Banner Image', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                            const SizedBox(height: 6),
+                            _buildImageUploadSection(),
                             const SizedBox(height: 12),
                             const Text('Abstract / Introduction', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                             const SizedBox(height: 6),
@@ -300,6 +363,128 @@ class _EditArticleScreenState extends State<EditArticleScreen> {
             ),
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildImageUploadSection() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey[300]!),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (_bannerImageUrl != null) ...[
+            // Show uploaded image
+            Container(
+              width: double.infinity,
+              height: 200,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(8),
+                image: DecorationImage(
+                  image: NetworkImage(_bannerImageUrl!),
+                  fit: BoxFit.cover,
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Current banner image',
+                    style: TextStyle(
+                      color: Colors.green[700],
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  onPressed: _removeImage,
+                  icon: const Icon(Icons.delete, color: Colors.red),
+                  tooltip: 'Remove image',
+                ),
+              ],
+            ),
+          ] else if (_isUploadingImage) ...[
+            // Show uploading state
+            Container(
+              width: double.infinity,
+              height: 200,
+              decoration: BoxDecoration(
+                color: Colors.grey[100],
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.grey[300]!),
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const CircularProgressIndicator(),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Uploading image...',
+                    style: TextStyle(
+                      color: Colors.grey[600],
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ] else ...[
+            // Show upload button
+            InkWell(
+              onTap: _pickImage,
+              borderRadius: BorderRadius.circular(8),
+              child: Container(
+                width: double.infinity,
+                height: 120,
+                decoration: BoxDecoration(
+                  color: Colors.grey[100],
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: Colors.grey[300]!,
+                    style: BorderStyle.solid,
+                    width: 2,
+                  ),
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.add_photo_alternate,
+                      size: 48,
+                      color: Colors.grey[600],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Tap to add banner image',
+                      style: TextStyle(
+                        color: Colors.grey[600],
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Recommended: 800x400px',
+                      style: TextStyle(
+                        color: Colors.grey[500],
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }

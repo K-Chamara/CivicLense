@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'dart:io';
+import 'package:image_picker/image_picker.dart';
+import '../models/report.dart';
+import '../services/news_service.dart';
+import '../services/cloudinary_image_service.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import '../models/report.dart';
@@ -17,6 +22,7 @@ class PublishReportScreen extends StatefulWidget {
 class _PublishReportScreenState extends State<PublishReportScreen> with TickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
   final _newsService = NewsService();
+  final _cloudinaryService = CloudinaryImageService();
   
   late AnimationController _formAnimationController;
   late AnimationController _buttonAnimationController;
@@ -36,6 +42,8 @@ class _PublishReportScreenState extends State<PublishReportScreen> with TickerPr
   bool _isBreaking = false;
   bool _isVerified = false;
   bool _isSubmitting = false;
+  File? _selectedImage;
+  String? _bannerImageUrl;
   
   // Image upload variables
   File? _selectedImage;
@@ -87,6 +95,37 @@ class _PublishReportScreenState extends State<PublishReportScreen> with TickerPr
 
   Future<void> _pickImage() async {
     try {
+      final XFile? image = await _cloudinaryService.pickImage();
+      if (image != null) {
+        setState(() {
+          _selectedImage = File(image.path);
+          _isUploadingImage = true;
+        });
+        
+        // Automatically upload the image
+        try {
+          final imageUrl = await _cloudinaryService.uploadImage(_selectedImage!);
+          setState(() {
+            _bannerImageUrl = imageUrl;
+            _isUploadingImage = false;
+          });
+          
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Image uploaded successfully')),
+            );
+          }
+        } catch (uploadError) {
+          setState(() {
+            _isUploadingImage = false;
+            _selectedImage = null;
+          });
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Failed to upload image: $uploadError')),
+            );
+          }
+        }
       final ImagePicker picker = ImagePicker();
       final XFile? image = await picker.pickImage(
         source: ImageSource.gallery,
@@ -104,6 +143,12 @@ class _PublishReportScreenState extends State<PublishReportScreen> with TickerPr
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to pick image: $e')),
+        );
+      }
+    }
+  }
+
           SnackBar(content: Text('Error picking image: $e')),
         );
       }
@@ -149,6 +194,7 @@ class _PublishReportScreenState extends State<PublishReportScreen> with TickerPr
   void _removeImage() {
     setState(() {
       _selectedImage = null;
+      _bannerImageUrl = null;
       _imageUrl = null;
     });
   }
@@ -253,6 +299,7 @@ class _PublishReportScreenState extends State<PublishReportScreen> with TickerPr
         likeCount: 0,
         commentCount: 0,
         createdAt: Timestamp.now(),
+        bannerImageUrl: _bannerImageUrl,
         imageUrl: _imageUrl,
       );
 
@@ -322,6 +369,10 @@ class _PublishReportScreenState extends State<PublishReportScreen> with TickerPr
               const Text('Title', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
               const SizedBox(height: 6),
               _buildTextField(_titleController, 'Enter title', validator: (v) => v!.isEmpty ? 'Required' : null),
+              const SizedBox(height: 16),
+              const Text('Banner Image', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              const SizedBox(height: 6),
+              _buildImageUploadSection(),
               const SizedBox(height: 12),
               const Text('Author Information', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
               const SizedBox(height: 6),
@@ -499,6 +550,128 @@ class _PublishReportScreenState extends State<PublishReportScreen> with TickerPr
             ),
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildImageUploadSection() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey[300]!),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (_bannerImageUrl != null) ...[
+            // Show uploaded image
+            Container(
+              width: double.infinity,
+              height: 200,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(8),
+                image: DecorationImage(
+                  image: NetworkImage(_bannerImageUrl!),
+                  fit: BoxFit.cover,
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Image uploaded successfully',
+                    style: TextStyle(
+                      color: Colors.green[700],
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  onPressed: _removeImage,
+                  icon: const Icon(Icons.delete, color: Colors.red),
+                  tooltip: 'Remove image',
+                ),
+              ],
+            ),
+          ] else if (_isUploadingImage) ...[
+            // Show uploading state
+            Container(
+              width: double.infinity,
+              height: 200,
+              decoration: BoxDecoration(
+                color: Colors.grey[100],
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.grey[300]!),
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const CircularProgressIndicator(),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Uploading image...',
+                    style: TextStyle(
+                      color: Colors.grey[600],
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ] else ...[
+            // Show upload button
+            InkWell(
+              onTap: _pickImage,
+              borderRadius: BorderRadius.circular(8),
+              child: Container(
+                width: double.infinity,
+                height: 120,
+                decoration: BoxDecoration(
+                  color: Colors.grey[100],
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: Colors.grey[300]!,
+                    style: BorderStyle.solid,
+                    width: 2,
+                  ),
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.add_photo_alternate,
+                      size: 48,
+                      color: Colors.grey[600],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Tap to add banner image',
+                      style: TextStyle(
+                        color: Colors.grey[600],
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Recommended: 800x400px',
+                      style: TextStyle(
+                        color: Colors.grey[500],
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }

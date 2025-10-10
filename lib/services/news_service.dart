@@ -34,12 +34,20 @@ class NewsService {
     return q.snapshots().map((snap) {
       final items = snap.docs.map((d) => ReportArticle.fromDoc(d)).toList();
       if (searchQuery == null || searchQuery.trim().isEmpty) return items;
-      final s = searchQuery.toLowerCase();
+      final s = searchQuery.toLowerCase().trim();
       return items.where((a) {
-        return a.title.toLowerCase().contains(s) ||
+        // Check title, summary, and content
+        if (a.title.toLowerCase().contains(s) ||
             a.summary.toLowerCase().contains(s) ||
-            a.content.toLowerCase().contains(s) ||
-            a.hashtags.any((h) => h.toLowerCase().contains(s));
+            a.content.toLowerCase().contains(s)) {
+          return true;
+        }
+        
+        // Check hashtags - handle both with and without # prefix
+        final searchTerm = s.startsWith('#') ? s.substring(1) : s;
+        return a.hashtags.any((h) => 
+          h.toLowerCase().contains(searchTerm) ||
+          h.toLowerCase().contains(s));
       }).toList();
     });
   }
@@ -190,6 +198,7 @@ class NewsService {
     required String references,
     required String category,
     required List<String> hashtags,
+    String? bannerImageUrl,
   }) async {
     final uid = _auth.currentUser?.uid ?? '';
     if (uid.isEmpty) {
@@ -206,7 +215,7 @@ class NewsService {
       throw Exception('You can only edit your own articles');
     }
 
-    await _articlesCol.doc(articleId).update({
+    final updateData = {
       'title': title,
       'summary': summary,
       'content': content,
@@ -215,7 +224,13 @@ class NewsService {
       'category': category,
       'hashtags': hashtags,
       'updatedAt': FieldValue.serverTimestamp(),
-    });
+    };
+    
+    if (bannerImageUrl != null) {
+      updateData['bannerImageUrl'] = bannerImageUrl;
+    }
+    
+    await _articlesCol.doc(articleId).update(updateData);
   }
 
   /// Toggle breaking news status (only by author)
