@@ -12,6 +12,7 @@ import 'concern_management_screen.dart';
 import 'public_concerns_screen.dart';
 import 'user_concern_tracking_screen.dart';
 import 'settings_screen.dart';
+import 'about_screen.dart';
 import 'public_tender_viewer_screen.dart';
 import 'admin_dashboard_screen.dart';
 import 'finance_officer_dashboard_screen.dart';
@@ -435,7 +436,15 @@ class _EnhancedDashboardScreenState extends State<EnhancedDashboardScreen>
                 _buildDrawerItem(
                   icon: Icons.info,
                   title: 'About',
-                  onTap: () => _showFeatureComingSoon('About'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const AboutScreen(),
+                      ),
+                    );
+                  },
                 ),
               ],
             ),

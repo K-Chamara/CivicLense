@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
 import '../utils/onboarding_utils.dart';
 import 'welcome_screen.dart';
+import 'login_screen.dart';
 
 class EnhancedOnboardingScreen extends StatefulWidget {
   const EnhancedOnboardingScreen({super.key});
@@ -222,7 +223,7 @@ class _EnhancedOnboardingScreenState extends State<EnhancedOnboardingScreen>
     if (mounted) {
       Navigator.of(context).pushReplacement(
         PageRouteBuilder(
-          pageBuilder: (context, animation, secondaryAnimation) => const WelcomeScreen(),
+          pageBuilder: (context, animation, secondaryAnimation) => const LoginScreen(),
           transitionDuration: const Duration(milliseconds: 800),
           transitionsBuilder: (context, animation, secondaryAnimation, child) {
             return FadeTransition(

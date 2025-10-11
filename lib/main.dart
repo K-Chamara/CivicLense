@@ -197,10 +197,17 @@ class AuthWrapper extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    print('🔄 AuthWrapper: build() called');
     return StreamBuilder<User?>(
       stream: FirebaseAuth.instance.authStateChanges(),
       builder: (context, snapshot) {
+        print('🔄 AuthWrapper: StreamBuilder builder called');
+        print('🔄 Connection state: ${snapshot.connectionState}');
+        print('🔄 Has data: ${snapshot.hasData}');
+        print('🔄 Data: ${snapshot.data}');
+        
         if (snapshot.connectionState == ConnectionState.waiting) {
+          print('⏳ AuthWrapper: Waiting for auth state...');
           return const Scaffold(
             body: Center(
               child: CircularProgressIndicator(),
@@ -209,8 +216,8 @@ class AuthWrapper extends StatelessWidget {
         }
 
         if (snapshot.hasData && snapshot.data != null) {
-          print('🔍 AuthWrapper: User is signed in: ${snapshot.data!.uid}');
-          print('🔍 AuthWrapper: User email: ${snapshot.data!.email}');
+          print('✅ AuthWrapper: User is signed in: ${snapshot.data!.uid}');
+          print('✅ AuthWrapper: User email: ${snapshot.data!.email}');
           // User is signed in, check their role and document upload status
           return FutureBuilder<Map<String, dynamic>>(
             future: _checkUserStatus(snapshot.data!.uid),
@@ -320,8 +327,11 @@ class AuthWrapper extends StatelessWidget {
               return const AdminSetupScreen();
             } else {
               // Admin exists, show login screen
-              print('✅ AuthWrapper: Admin exists, showing login screen');
-              return const LoginScreen();
+              print('✅ AuthWrapper: Admin exists, returning LoginScreen widget');
+              print('✅ About to return LoginScreen()');
+              final loginScreen = const LoginScreen();
+              print('✅ LoginScreen widget created: ${loginScreen.runtimeType}');
+              return loginScreen;
             }
           },
         );

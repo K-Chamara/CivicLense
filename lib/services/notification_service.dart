@@ -1,43 +1,102 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import '../models/concern_models.dart';
-import 'concern_management_service.dart';
 
 class NotificationService {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   static final FirebaseMessaging _messaging = FirebaseMessaging.instance;
+  static final FirebaseFunctions _functions = FirebaseFunctions.instance;
 
-  // Initialize notifications
+  // Initialize notifications and save FCM token
   static Future<void> initializeNotifications() async {
-    // Request permission
-    await _messaging.requestPermission(
-      alert: true,
-      badge: true,
-      sound: true,
-    );
+    try {
+      // Request permission
+      final settings = await _messaging.requestPermission(
+        alert: true,
+        badge: true,
+        sound: true,
+        provisional: false,
+      );
 
-    // Get FCM token
-    String? token = await _messaging.getToken();
-    print('FCM Token: $token');
+      print('📱 Notification permission status: ${settings.authorizationStatus}');
 
-    // Listen for foreground messages
-    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-      print('Received foreground message: ${message.notification?.title}');
-      _showLocalNotification(message);
-    });
+      if (settings.authorizationStatus == AuthorizationStatus.authorized ||
+          settings.authorizationStatus == AuthorizationStatus.provisional) {
+        
+        // Get FCM token
+        String? token = await _messaging.getToken();
+        print('✅ FCM Token obtained: ${token?.substring(0, 20)}...');
 
-    // Listen for background messages
-    FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-      print('Message opened app: ${message.notification?.title}');
-    });
+        // Save token to user document
+        if (token != null) {
+          await saveFCMToken(token);
+        }
+
+        // Listen for token refresh
+        _messaging.onTokenRefresh.listen((newToken) {
+          print('🔄 FCM Token refreshed');
+          saveFCMToken(newToken);
+        });
+
+        // Listen for foreground messages
+        FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+          print('📥 Received foreground message: ${message.notification?.title}');
+          _showLocalNotification(message);
+        });
+
+        // Listen for background messages
+        FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+          print('📱 Message opened app: ${message.notification?.title}');
+          _handleNotificationTap(message);
+        });
+      } else {
+        print('⚠️ Notification permission denied');
+      }
+    } catch (e) {
+      print('❌ Error initializing notifications: $e');
+    }
   }
 
-  // Show local notification
+  // Save FCM token to user document
+  static Future<void> saveFCMToken(String token) async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        print('⚠️ No user logged in, cannot save FCM token');
+        return;
+      }
+
+      await _firestore.collection('users').doc(user.uid).update({
+        'fcmToken': token,
+        'tokenUpdatedAt': Timestamp.now(),
+        'lastSeen': Timestamp.now(),
+      });
+
+      print('✅ FCM token saved for user: ${user.uid}');
+    } catch (e) {
+      print('❌ Error saving FCM token: $e');
+    }
+  }
+
+  // Show local notification (you can enhance this with flutter_local_notifications)
   static void _showLocalNotification(RemoteMessage message) {
-    // This would typically use a local notification plugin
-    // For now, we'll use a simple approach with SnackBar
-    print('Local notification: ${message.notification?.title}');
+    print('🔔 Local notification: ${message.notification?.title}');
+    print('   Body: ${message.notification?.body}');
+    // TODO: Implement with flutter_local_notifications for better UX
+  }
+
+  // Handle notification tap
+  static void _handleNotificationTap(RemoteMessage message) {
+    print('👆 Notification tapped: ${message.data}');
+    // TODO: Navigate to relevant screen based on notification type
+  }
+
+  // Get notification settings (for testing)
+  static Future<NotificationSettings> getNotificationSettings() async {
+    return await _messaging.getNotificationSettings();
   }
 
   // Send notification to anti-corruption officers about new concern
@@ -115,7 +174,7 @@ class NotificationService {
     }
   }
 
-  // Send push notification
+  // Send push notification via Cloud Function
   static Future<void> _sendPushNotification(
     String userId,
     String title,
@@ -123,12 +182,40 @@ class NotificationService {
     Map<String, String> data,
   ) async {
     try {
-      // This would typically use Firebase Cloud Functions or a service
-      // For now, we'll just log it
-      print('Push notification to $userId: $title - $body');
-      print('Data: $data');
+      print('📤 Sending push notification to $userId: $title');
+      
+      // Get user's FCM token from Firestore
+      final userDoc = await _firestore.collection('users').doc(userId).get();
+      if (!userDoc.exists) {
+        print('⚠️ User document not found: $userId');
+        return;
+      }
+
+      final userData = userDoc.data();
+      final fcmToken = userData?['fcmToken'] as String?;
+
+      if (fcmToken == null || fcmToken.isEmpty) {
+        print('⚠️ No FCM token found for user: $userId');
+        return;
+      }
+
+      // Call Cloud Function to send push notification
+      final callable = _functions.httpsCallable('sendPushNotification');
+      final result = await callable.call({
+        'token': fcmToken,
+        'title': title,
+        'body': body,
+        'data': data,
+      });
+
+      if (result.data['success'] == true) {
+        print('✅ Push notification sent successfully to $userId');
+      } else {
+        print('⚠️ Push notification failed: ${result.data['error']}');
+      }
     } catch (e) {
       print('❌ Error sending push notification: $e');
+      // Don't throw - notifications are not critical for app functionality
     }
   }
 

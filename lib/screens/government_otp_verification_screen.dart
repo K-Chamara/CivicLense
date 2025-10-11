@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../services/government_auth_service.dart';
+import '../services/auth_service.dart';
 import '../models/user_role.dart';
 import '../main.dart';
 
@@ -130,11 +132,10 @@ class _GovernmentOtpVerificationScreenState extends State<GovernmentOtpVerificat
 
     try {
       if (widget.isLogin) {
-        // Login flow
-        await _authService.governmentUserLogin(
-          email: widget.email,
-          password: widget.password!,
-          emailOtp: _emailOtpController.text,
+        // Login flow - user is already authenticated, just verify OTP
+        await _authService.completeLoginWithOtp(
+          widget.email,
+          _emailOtpController.text,
         );
       } else {
         // Registration flow
@@ -153,9 +154,43 @@ class _GovernmentOtpVerificationScreenState extends State<GovernmentOtpVerificat
       // Navigate to appropriate dashboard
       _navigateToDashboard();
     } catch (e) {
+      String errorMessage = 'Verification failed. Please try again.';
+      
+      if (e is FirebaseAuthException) {
+        switch (e.code) {
+          case 'account-deactivated':
+            errorMessage = 'Your account has been deactivated. Please contact the administrator for assistance.';
+            break;
+          case 'user-disabled':
+            errorMessage = 'This account has been disabled.';
+            break;
+          case 'wrong-password':
+            errorMessage = 'Incorrect password.';
+            break;
+          case 'too-many-requests':
+            errorMessage = 'Too many failed attempts. Please try again later.';
+            break;
+          default:
+            errorMessage = e.message ?? 'Authentication error: ${e.code}';
+        }
+      } else if (e is Exception) {
+        errorMessage = e.toString().replaceAll('Exception: ', '');
+      }
+      
       setState(() {
-        _errorMessage = 'Verification failed: ${e.toString()}';
+        _errorMessage = errorMessage;
       });
+      
+      // Show snackbar for better visibility
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(errorMessage),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      }
     } finally {
       setState(() {
         _isLoading = false;
@@ -186,11 +221,30 @@ class _GovernmentOtpVerificationScreenState extends State<GovernmentOtpVerificat
   Widget build(BuildContext context) {
     return WillPopScope(
       onWillPop: () async {
+        print('🔙 OTP Screen: Back button pressed');
+        print('🔙 isLogin: ${widget.isLogin}');
+        print('🔙 mounted: $mounted');
+        
         // Handle back button press
         if (widget.isLogin) {
-          // For login, go back to login screen
-          Navigator.of(context).pushReplacementNamed('/login');
+          print('🔙 This is a login flow, signing out user...');
+          // For login, sign out the user and let AuthWrapper handle navigation
+          await AuthService().signOut();
+          print('🔙 User signed out successfully');
+          
+          // Navigate to AuthWrapper
+          if (mounted) {
+            print('🔙 Widget is still mounted, navigating to AuthWrapper...');
+            Navigator.of(context).pushAndRemoveUntil(
+              MaterialPageRoute(builder: (context) => const AuthWrapper()),
+              (route) => false,
+            );
+            print('🔙 Navigation initiated');
+          } else {
+            print('❌ Widget not mounted, cannot navigate');
+          }
         } else {
+          print('🔙 This is a registration flow, popping screen...');
           // For registration, go back to registration screen
           Navigator.of(context).pop();
         }

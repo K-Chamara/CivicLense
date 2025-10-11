@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'signup_screen.dart';
+import 'forgot_password_screen.dart';
 import '../services/auth_service.dart';
 import '../widgets/custom_button.dart';
 import '../widgets/custom_text_field.dart';
@@ -45,22 +46,33 @@ class _LoginScreenState extends State<LoginScreen> {
     final savedPassword = prefs.getString('saved_password');
     final rememberMe = prefs.getBool('remember_me') ?? false;
 
+    print('📥 Loading saved credentials...');
+    print('   Remember Me: $rememberMe');
+    print('   Saved Email: $savedEmail');
+    print('   Has Password: ${savedPassword != null}');
+
     if (rememberMe && savedEmail != null && savedPassword != null) {
+      print('✅ Loading saved credentials for: $savedEmail');
       setState(() {
         _emailController.text = savedEmail;
         _passwordController.text = savedPassword;
         _rememberMe = true;
       });
+    } else {
+      print('ℹ️ No saved credentials to load');
     }
   }
 
   Future<void> _saveCredentials() async {
     final prefs = await SharedPreferences.getInstance();
     if (_rememberMe) {
-      await prefs.setString('saved_email', _emailController.text);
+      print('💾 Saving credentials for: ${_emailController.text}');
+      await prefs.setString('saved_email', _emailController.text.trim());
       await prefs.setString('saved_password', _passwordController.text);
       await prefs.setBool('remember_me', true);
+      print('✅ Credentials saved successfully');
     } else {
+      print('🗑️ Clearing saved credentials');
       await prefs.remove('saved_email');
       await prefs.remove('saved_password');
       await prefs.setBool('remember_me', false);
@@ -77,8 +89,11 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
       final email = _emailController.text.trim();
       final password = _passwordController.text;
+      
+      print('🔐 Login attempt for: $email');
+      print('   Remember Me checked: $_rememberMe');
 
-      // First, check if this is a government user before signing in
+      // Check if this is a government user before signing in
       final userDoc = await FirebaseFirestore.instance
           .collection('users')
           .where('email', isEqualTo: email)
@@ -105,71 +120,45 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (mounted) {
         if (isGovernmentUser && userRole != null) {
-          // For government users, verify password first before sending OTP
+          // For government users, first verify credentials, then navigate to OTP verification
+          print('🔐 Government user detected, verifying credentials first...');
+          
           try {
-            await AuthService().verifyPasswordOnly(email, password);
-            // Password is correct, now redirect to OTP verification
-            Navigator.of(context).pushReplacement(
-              MaterialPageRoute(
-                builder: (context) => GovernmentOtpVerificationScreen(
-                  email: email,
-                  userRole: userRole!,
-                  isLogin: true,
-                  password: password,
+            // First verify the credentials using AuthService
+            await AuthService().signInWithEmailAndPassword(email, password);
+            print('✅ Government user credentials verified successfully');
+            
+            // Save credentials if Remember Me is checked
+            await _saveCredentials();
+            print('📱 Navigating to OTP verification screen...');
+            
+            // Navigate to OTP verification screen
+            // Use pushAndRemoveUntil to prevent AuthWrapper from interfering
+            if (mounted) {
+              Navigator.of(context).pushAndRemoveUntil(
+                MaterialPageRoute(
+                  builder: (context) => GovernmentOtpVerificationScreen(
+                    email: email,
+                    userRole: userRole!,
+                    isLogin: true,
+                    password: password,
+                  ),
                 ),
-              ),
-            );
-          } catch (e) {
-            // Password verification failed, show error
-            if (e is FirebaseAuthException) {
-              String message = 'An error occurred during login.';
-              switch (e.code) {
-                case 'user-not-found':
-                  message = 'No user found with this email address.';
-                  break;
-                case 'wrong-password':
-                  message = 'Incorrect password.';
-                  break;
-                case 'invalid-email':
-                  message = 'Please enter a valid email address.';
-                  break;
-                case 'user-disabled':
-                  message = 'This account has been disabled.';
-                  break;
-                case 'too-many-requests':
-                  message = 'Too many failed attempts. Please try again later.';
-                  break;
-                case 'email-not-verified':
-                  message = 'Please verify your email before signing in. Check your inbox for the verification link.';
-                  break;
-                case 'operation-not-allowed':
-                  message = 'Email/Password authentication is not enabled. Please enable it in Firebase Console.';
-                  break;
-                case 'network-request-failed':
-                  message = 'Network error. Please check your internet connection.';
-                  break;
-                default:
-                  message = 'Firebase Error: ${e.code} - ${e.message}';
-              }
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(message),
-                    backgroundColor: Colors.red,
-                  ),
-                );
-              }
-            } else {
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('An unexpected error occurred.'),
-                    backgroundColor: Colors.red,
-                  ),
-                );
-              }
+                (route) => false, // Remove all previous routes
+              );
             }
-            return; // Exit the function to prevent further processing
+          } catch (e) {
+            // If credentials are invalid, show error and don't navigate to OTP screen
+            print('❌ Government user credentials verification failed: $e');
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Invalid credentials: ${e.toString()}'),
+                  backgroundColor: Colors.red,
+                ),
+              );
+            }
+            return; // Don't proceed to OTP screen
           }
         } else {
           // For regular users, sign in and let AuthWrapper handle routing
@@ -209,6 +198,9 @@ class _LoginScreenState extends State<LoginScreen> {
                   break;
                 case 'user-disabled':
                   message = 'This account has been disabled.';
+                  break;
+                case 'account-deactivated':
+                  message = 'Your account has been deactivated. Please contact the administrator for assistance.';
                   break;
                 case 'too-many-requests':
                   message = 'Too many failed attempts. Please try again later.';
@@ -263,10 +255,10 @@ class _LoginScreenState extends State<LoginScreen> {
             onPressed: () async {
               Navigator.of(context).pop();
               try {
-                // First try to sign in to get the current user
-                await _auth.signInWithEmailAndPassword(
-                  email: _emailController.text.trim(),
-                  password: _passwordController.text,
+                // First try to sign in to get the current user (this will check for deactivated accounts)
+                await AuthService().signInWithEmailAndPassword(
+                  _emailController.text.trim(),
+                  _passwordController.text,
                 );
                 // Then send verification email
                 await AuthService().sendEmailVerification();
@@ -395,18 +387,43 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     const SizedBox(height: 16),
 
-                    // Remember Me Checkbox
+                    // Remember Me and Forgot Password Row
                     Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Checkbox(
-                          value: _rememberMe,
-                          onChanged: (value) {
-                            setState(() {
-                              _rememberMe = value ?? false;
-                            });
-                          },
+                        // Remember Me Checkbox
+                        Row(
+                          children: [
+                            Checkbox(
+                              value: _rememberMe,
+                              onChanged: (value) {
+                                setState(() {
+                                  _rememberMe = value ?? false;
+                                });
+                              },
+                            ),
+                            const Text('Remember me'),
+                          ],
                         ),
-                        const Text('Remember me'),
+                        
+                        // Forgot Password Link
+                        TextButton(
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const ForgotPasswordScreen(),
+                              ),
+                            );
+                          },
+                          child: Text(
+                            'Forgot Password?',
+                            style: TextStyle(
+                              color: Colors.blue.shade700,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
                       ],
                     ),
                     const SizedBox(height: 24),

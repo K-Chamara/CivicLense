@@ -215,28 +215,30 @@ class _PublicConcernsScreenState extends State<PublicConcernsScreen>
               // Support button and stats
               Row(
                 children: [
-                  ElevatedButton.icon(
-                    onPressed: () => _toggleSupport(concern.id),
-                    icon: Icon(
-                      isSupporting ? Icons.thumb_up : Icons.thumb_up_outlined,
-                      color: isSupporting ? Colors.white : Colors.blue,
-                    ),
-                    label: Text(
-                      'Support (${concern.supportCount})',
-                      style: TextStyle(
+                  Flexible(
+                    child: ElevatedButton.icon(
+                      onPressed: () => _toggleSupport(concern.id),
+                      icon: Icon(
+                        isSupporting ? Icons.thumb_up : Icons.thumb_up_outlined,
                         color: isSupporting ? Colors.white : Colors.blue,
-                        fontWeight: FontWeight.bold,
                       ),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: isSupporting ? Colors.blue : Colors.blue.shade50,
-                      elevation: isSupporting ? 2 : 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20),
+                      label: Text(
+                        'Support (${concern.supportCount})',
+                        style: TextStyle(
+                          color: isSupporting ? Colors.white : Colors.blue,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: isSupporting ? Colors.blue : Colors.blue.shade50,
+                        elevation: isSupporting ? 2 : 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(20),
+                        ),
                       ),
                     ),
                   ),
-                  const SizedBox(width: 16),
+                  const SizedBox(width: 12),
                   Icon(
                     Icons.comment,
                     size: 16,

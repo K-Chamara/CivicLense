@@ -124,6 +124,65 @@ class GovernmentAuthService {
     }
   }
 
+  // Complete login with OTP verification only (for when user is already authenticated)
+  Future<void> completeLoginWithOtp(String email, String emailOtp) async {
+    try {
+      print('🔐 Completing login with OTP for: $email');
+      
+      // Verify the OTP
+      final emailVerified = await verifyEmailOtp(emailOtp);
+      if (!emailVerified) {
+        throw Exception('Invalid OTP code');
+      }
+      
+      // Get current user (should already be signed in)
+      final user = _auth.currentUser;
+      if (user == null) {
+        throw Exception('User not authenticated');
+      }
+      
+      // Get user data to verify role and status
+      final userData = await getUserData(user.uid);
+      if (userData == null) {
+        throw Exception('User data not found');
+      }
+      
+      // Check if account is deactivated
+      final isActive = userData['isActive'] ?? true;
+      if (!isActive) {
+        // Sign out the user immediately
+        await _auth.signOut();
+        
+        // Throw a custom error for deactivated account
+        throw FirebaseAuthException(
+          code: 'account-deactivated',
+          message: 'Your account has been deactivated. Please contact the administrator for assistance.',
+        );
+      }
+      
+      final userRole = UserRole.fromMap(userData['role']);
+      if (userRole.userType != UserType.government && userRole.userType != UserType.admin) {
+        throw Exception('Access denied: Government users only');
+      }
+      
+      // Update last login timestamp and mark email as verified
+      await _firestore.collection('users').doc(user.uid).update({
+        'lastLogin': FieldValue.serverTimestamp(),
+        'emailVerified': true,
+      });
+      
+      // Clean up OTP data
+      _emailOtp = null;
+      _emailVerificationId = null;
+      _pendingUserRole = null;
+      
+      print('✅ Login completed successfully with OTP verification');
+    } catch (e) {
+      print('❌ Error completing login with OTP: $e');
+      rethrow;
+    }
+  }
+
 
   // Complete government user registration with email OTP verification
   Future<UserCredential> completeGovernmentUserRegistration({
@@ -192,6 +251,19 @@ class GovernmentAuthService {
       final userData = await getUserData(userCredential.user!.uid);
       if (userData == null) {
         throw Exception('User data not found');
+      }
+
+      // Check if account is deactivated
+      final isActive = userData['isActive'] ?? true;
+      if (!isActive) {
+        // Sign out the user immediately
+        await _auth.signOut();
+        
+        // Throw a custom error for deactivated account
+        throw FirebaseAuthException(
+          code: 'account-deactivated',
+          message: 'Your account has been deactivated. Please contact the administrator for assistance.',
+        );
       }
 
       final userRole = UserRole.fromMap(userData['role']);

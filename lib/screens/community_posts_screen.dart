@@ -17,22 +17,38 @@ class CommunityPostsScreen extends StatefulWidget {
 class _CommunityPostsScreenState extends State<CommunityPostsScreen> {
   final CommunityService _communityService = CommunityService();
   bool _canDeleteCommunity = false;
+  bool _isMember = false;
+  bool _isCreator = false;
 
   @override
   void initState() {
     super.initState();
-    _checkDeletePermission();
+    _checkPermissions();
   }
 
-  Future<void> _checkDeletePermission() async {
+  Future<void> _checkPermissions() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
-      print('🔍 Checking delete permission for user: ${user.uid}');
+      print('🔍 Checking permissions for user: ${user.uid}');
       print('🔍 Community ID: ${widget.community.id}');
+      
+      // Check delete permission
       final canDelete = await _communityService.canDeleteCommunity(widget.community.id, user.uid);
+      
+      // Check membership
+      final isMember = await _communityService.isUserMember(widget.community.id, user.uid);
+      
+      // Check if user is the creator
+      final isCreator = widget.community.createdBy == user.uid;
+      
       print('🔍 Can delete community: $canDelete');
+      print('🔍 Is member: $isMember');
+      print('🔍 Is creator: $isCreator');
+      
       setState(() {
         _canDeleteCommunity = canDelete;
+        _isMember = isMember;
+        _isCreator = isCreator;
       });
     } else {
       print('🔍 No user logged in');
@@ -55,34 +71,60 @@ class _CommunityPostsScreenState extends State<CommunityPostsScreen> {
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.white),
         actions: [
-          // Always show the menu for testing - remove this condition later
           PopupMenuButton<String>(
             icon: const Icon(Icons.more_vert),
             onSelected: _handleMenuAction,
-            itemBuilder: (context) => [
-              if (_canDeleteCommunity)
-                const PopupMenuItem(
-                  value: 'delete',
-                  child: Row(
-                    children: [
-                      Icon(Icons.delete, color: Colors.red),
-                      SizedBox(width: 8),
-                      Text('Delete Community'),
-                    ],
+            itemBuilder: (context) {
+              List<PopupMenuItem<String>> items = [];
+              
+              // Community creator (can delete AND leave)
+              if (_isCreator && _canDeleteCommunity) {
+                items.add(
+                  const PopupMenuItem(
+                    value: 'delete',
+                    child: Row(
+                      children: [
+                        Icon(Icons.delete_forever, color: Colors.red),
+                        SizedBox(width: 8),
+                        Text('Remove Community', style: TextStyle(color: Colors.red)),
+                      ],
+                    ),
                   ),
-                )
-              else
+                );
+              }
+              
+              // Show leave option if user is a member
+              if (_isMember) {
+                items.add(
+                  const PopupMenuItem(
+                    value: 'leave',
+                    child: Row(
+                      children: [
+                        Icon(Icons.exit_to_app, color: Colors.orange),
+                        SizedBox(width: 8),
+                        Text('Leave Community'),
+                      ],
+                    ),
+                  ),
+                );
+              }
+              
+              // Always show community info
+              items.add(
                 const PopupMenuItem(
                   value: 'info',
                   child: Row(
                     children: [
-                      Icon(Icons.info_outline),
+                      Icon(Icons.info_outline, color: Colors.blue),
                       SizedBox(width: 8),
                       Text('Community Info'),
                     ],
                   ),
                 ),
-            ],
+              );
+              
+              return items;
+            },
           ),
         ],
       ),
@@ -613,6 +655,8 @@ class _CommunityPostsScreenState extends State<CommunityPostsScreen> {
   void _handleMenuAction(String action) {
     if (action == 'delete') {
       _showDeleteConfirmation();
+    } else if (action == 'leave') {
+      _showLeaveConfirmation();
     } else if (action == 'info') {
       _showPostsInfo();
     }
@@ -796,6 +840,156 @@ class _CommunityPostsScreenState extends State<CommunityPostsScreen> {
       print('✅ Sent deletion notifications to ${targetMembers.length} members');
     } catch (e) {
       print('❌ Error sending deletion notifications: $e');
+    }
+  }
+
+  void _showLeaveConfirmation() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.exit_to_app, color: Colors.orange[700]),
+            const SizedBox(width: 12),
+            const Text('Leave Community'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Are you sure you want to leave "${widget.community.name}"?',
+              style: const TextStyle(fontSize: 16),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.orange[50],
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.orange[200]!),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.info_outline, color: Colors.orange[700], size: 20),
+                  const SizedBox(width: 8),
+                  const Expanded(
+                    child: Text(
+                      'You will lose access to all posts and discussions.',
+                      style: TextStyle(fontSize: 13),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => _leaveCommunity(),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.orange,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Leave Community'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _leaveCommunity() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    try {
+      // Close confirmation dialog
+      Navigator.pop(context);
+
+      // Show loading dialog
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const AlertDialog(
+          content: Row(
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(width: 16),
+              Text('Leaving community...'),
+            ],
+          ),
+        ),
+      );
+
+      // Leave the community
+      final success = await _communityService.leaveCommunity(widget.community.id);
+
+      // Close loading dialog
+      if (mounted) Navigator.pop(context);
+
+      if (success) {
+        // Show success message
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  const Icon(Icons.check_circle, color: Colors.white),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text('You have left "${widget.community.name}"'),
+                  ),
+                ],
+              ),
+              backgroundColor: Colors.green,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+
+          // Navigate back to community list
+          Navigator.pop(context);
+        }
+      } else {
+        // Show error message
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Row(
+                children: [
+                  Icon(Icons.error, color: Colors.white),
+                  SizedBox(width: 12),
+                  Text('Failed to leave community'),
+                ],
+              ),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      // Close loading dialog
+      if (mounted) Navigator.pop(context);
+
+      // Show error message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.error, color: Colors.white),
+                const SizedBox(width: 12),
+                Expanded(child: Text('Error: $e')),
+              ],
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 

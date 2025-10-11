@@ -40,8 +40,23 @@ class AuthService {
           'emailVerified': userCredential.user!.emailVerified,
         });
       } else {
+        // Check if account is deactivated
+        final userData = userDoc.data()!;
+        final isActive = userData['isActive'] ?? true;
+        
+        if (!isActive) {
+          // Sign out the user immediately
+          await _auth.signOut();
+          
+          // Throw a custom error for deactivated account
+          throw FirebaseAuthException(
+            code: 'account-deactivated',
+            message: 'Your account has been deactivated. Please contact the administrator for assistance.',
+          );
+        }
+        
         // Update email verification status if needed
-        if (userCredential.user!.emailVerified && !userDoc.data()!['emailVerified']) {
+        if (userCredential.user!.emailVerified && !userData['emailVerified']) {
           await _firestore.collection('users').doc(userCredential.user!.uid).update({
             'emailVerified': true,
           });
@@ -143,6 +158,26 @@ class AuthService {
         email: email,
         password: password,
       );
+
+      // Check if user document exists in Firestore
+      final userDoc = await _firestore.collection('users').doc(userCredential.user!.uid).get();
+      
+      if (userDoc.exists) {
+        // Check if account is deactivated
+        final userData = userDoc.data()!;
+        final isActive = userData['isActive'] ?? true;
+        
+        if (!isActive) {
+          // Sign out the user immediately
+          await _auth.signOut();
+          
+          // Throw a custom error for deactivated account
+          throw FirebaseAuthException(
+            code: 'account-deactivated',
+            message: 'Your account has been deactivated. Please contact the administrator for assistance.',
+          );
+        }
+      }
       
       // Sign out immediately after verification to prevent staying logged in
       await _auth.signOut();

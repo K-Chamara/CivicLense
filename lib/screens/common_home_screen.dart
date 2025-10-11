@@ -7,11 +7,13 @@ import '../l10n/app_localizations.dart';
 import '../services/auth_service.dart';
 import '../services/budget_service.dart';
 import '../services/news_service.dart';
+import '../services/notification_service.dart';
 import '../models/user_role.dart';
 import '../models/report.dart';
 import 'login_screen.dart';
 import 'budget_viewer_screen.dart';
 import 'settings_screen.dart';
+import 'about_screen.dart';
 import 'citizen_tender_screen.dart';
 import 'public_tender_viewer_screen.dart';
 import 'ongoing_tenders_screen.dart';
@@ -26,7 +28,6 @@ import 'anticorruption_officer_dashboard_screen.dart';
 import 'public_user_dashboard_screen.dart';
 import 'admin_approval_screen.dart';
 import 'transparency_dashboard_screen.dart';
-import 'budget_allocations_view_screen.dart';
 import 'reports_analytics_screen.dart';
 import 'community_list_screen.dart';
 
@@ -46,6 +47,13 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
   bool isLoading = true;
   bool showPendingScreen = true;
   bool hasChosenLimitedAccess = false;
+  
+  // Search functionality
+  final TextEditingController _searchController = TextEditingController();
+  List<Map<String, dynamic>> _availableServices = [];
+  List<Map<String, dynamic>> _filteredServices = [];
+  bool _showSearchResults = false;
+  final FocusNode _searchFocusNode = FocusNode();
   
   // Dashboard statistics
   int allocationsCount = 0;
@@ -72,10 +80,219 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
   void initState() {
     super.initState();
     _initializeAnimations();
-    _loadUserData();
-    _checkPendingScreenPreference();
-    _loadDashboardData();
+    _initializeData();
+    _initializeSearchServices();
+    _searchController.addListener(_onSearchChanged);
+    _searchFocusNode.addListener(_onFocusChanged);
   }
+
+  Future<void> _initializeData() async {
+    // Load user data first (critical for UI)
+    await _loadUserData();
+    
+    // Initialize push notifications after user is loaded
+    try {
+      await NotificationService.initializeNotifications();
+      print('✅ Push notifications initialized');
+    } catch (e) {
+      print('⚠️ Failed to initialize notifications: $e');
+    }
+    
+    // Load other data in parallel after user data is loaded
+    await Future.wait([
+      _checkPendingScreenPreference(),
+      _loadDashboardData(),
+    ]);
+  }
+
+  Future<void> _refreshData() async {
+    setState(() {
+      isLoading = true;
+    });
+    
+    await _loadDashboardData();
+    
+    setState(() {
+      isLoading = false;
+    });
+  }
+
+  void _initializeSearchServices() {
+    print('🔍 Initializing search services...');
+    _availableServices = [
+      {
+        'title': 'Budget Overview',
+        'icon': Icons.account_balance,
+        'description': 'View budget allocations and financial data',
+        'onTap': () {
+          Navigator.pop(context);
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const BudgetViewerScreen()),
+          );
+        },
+      },
+      {
+        'title': 'Tenders',
+        'icon': Icons.shopping_cart,
+        'description': 'Browse and participate in public tenders',
+        'onTap': () {
+          Navigator.pop(context);
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const PublicTenderViewerScreen()),
+          );
+        },
+      },
+      {
+        'title': 'News & Media',
+        'icon': Icons.article,
+        'description': 'Stay updated with latest news and media',
+        'onTap': () {
+          Navigator.pop(context);
+          Navigator.pushNamed(context, '/news');
+        },
+      },
+      {
+        'title': 'Media Hub',
+        'icon': Icons.forum,
+        'description': 'Access media resources and forums',
+        'onTap': () {
+          Navigator.pop(context);
+          Navigator.pushNamed(context, '/media-hub');
+        },
+      },
+      {
+        'title': 'Communities',
+        'icon': Icons.people,
+        'description': 'Join and manage community groups',
+        'onTap': () {
+          Navigator.pop(context);
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const CommunityListScreen()),
+          );
+        },
+      },
+      {
+        'title': 'Reports & Analytics',
+        'icon': Icons.analytics,
+        'description': 'View detailed reports and analytics',
+        'onTap': () {
+          Navigator.pop(context);
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const ReportsAnalyticsScreen()),
+          );
+        },
+      },
+      {
+        'title': 'Raise Concerns',
+        'icon': Icons.report_problem,
+        'description': 'Submit and report public concerns',
+        'onTap': () => Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const RaiseConcernScreen(),
+          ),
+        ),
+      },
+      {
+        'title': 'My Concerns',
+        'icon': Icons.track_changes,
+        'description': 'Track your submitted concerns',
+        'onTap': () => Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const UserConcernTrackingScreen(),
+          ),
+        ),
+      },
+      {
+        'title': 'View Public Concerns',
+        'icon': Icons.people_alt,
+        'description': 'Browse all public concerns',
+        'onTap': () => Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const PublicConcernsScreen(),
+          ),
+        ),
+      },
+      {
+        'title': 'Settings',
+        'icon': Icons.settings,
+        'description': 'Configure app settings and preferences',
+        'onTap': () {
+          Navigator.pop(context);
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const SettingsScreen()),
+          );
+        },
+      },
+      {
+        'title': 'About',
+        'icon': Icons.info,
+        'description': 'Learn more about CivicLense',
+        'onTap': () {
+          Navigator.pop(context);
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const AboutScreen(),
+            ),
+          );
+        },
+      },
+    ];
+    print('🔍 Search services initialized with ${_availableServices.length} services');
+  }
+
+  void _onSearchChanged() {
+    final query = _searchController.text.toLowerCase().trim();
+    print('🔍 Search query: "$query"');
+    print('🔍 Available services count: ${_availableServices.length}');
+    
+    if (query.isEmpty) {
+      setState(() {
+        _filteredServices = [];
+        _showSearchResults = false;
+      });
+      print('🔍 Search cleared, hiding results');
+    } else {
+      setState(() {
+        _filteredServices = _availableServices.where((service) {
+          final titleMatch = service['title'].toLowerCase().contains(query);
+          final descMatch = service['description'].toLowerCase().contains(query);
+          print('🔍 Checking "${service['title']}" - title: $titleMatch, desc: $descMatch');
+          return titleMatch || descMatch;
+        }).toList();
+        _showSearchResults = _filteredServices.isNotEmpty;
+      });
+      print('🔍 Filtered services count: ${_filteredServices.length}');
+      print('🔍 Show search results: $_showSearchResults');
+    }
+  }
+
+  void _onFocusChanged() {
+    if (!_searchFocusNode.hasFocus && _searchController.text.isEmpty) {
+      setState(() {
+        _showSearchResults = false;
+      });
+    }
+  }
+
+  void _selectService(Map<String, dynamic> service) {
+    print('🔍 Service selected: ${service['title']}');
+    service['onTap']();
+    _searchController.clear();
+    setState(() {
+      _showSearchResults = false;
+    });
+    _searchFocusNode.unfocus();
+  }
+
 
   void _initializeAnimations() {
     _fadeController = AnimationController(
@@ -160,6 +377,8 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
     _rotationController.dispose();
     _pulseController.dispose();
     _chartController.dispose();
+    _searchController.dispose();
+    _searchFocusNode.dispose();
     super.dispose();
   }
 
@@ -185,7 +404,7 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
     }
   }
 
-  void _checkPendingScreenPreference() async {
+  Future<void> _checkPendingScreenPreference() async {
     final prefs = await SharedPreferences.getInstance();
     final hasChosen = prefs.getBool('hasChosenLimitedAccess') ?? false;
     if (mounted) {
@@ -205,74 +424,32 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
       }
       print('User found: ${user.uid}');
 
-      // Load ALL tenders in the database
-      final tendersQuery = await FirebaseFirestore.instance
-          .collection('tenders')
-          .get();
-
-      final tenders = tendersQuery.docs.map((doc) => doc.data()).toList();
-      print('Found ${tenders.length} tenders');
-      
-      // Load ALL projects in the database
-      final projectsQuery = await FirebaseFirestore.instance
-          .collection('projects')
-          .get();
-
-      final projects = projectsQuery.docs.map((doc) => doc.data()).toList();
-      print('Found ${projects.length} projects');
-
-      // Calculate statistics (same logic as PO Dashboard)
-      activeTendersCount = tenders.length; // All tenders in DB
-      projectsCount = projects.length; // Projects should show actual projects in DB
-      
-      // TEMPORARY TEST: Force some values to see if UI updates
-      print('BEFORE calculations:');
-      print('tenders.length: ${tenders.length}');
-      print('projects.length: ${projects.length}');
-      
-      // If we have data but counts are 0, there might be an issue
-      if (tenders.length > 0 && activeTendersCount == 0) {
-        print('WARNING: Found tenders but activeTendersCount is 0');
-        activeTendersCount = tenders.length;
-      }
-      if (tenders.length > 0 && projectsCount == 0) {
-        print('WARNING: Found tenders but projectsCount is 0');
-        projectsCount = tenders.length;
-      }
-      
-      // Load allocations count using BudgetService (same as PO Dashboard)
-      try {
-        int totalBudgetItems = 0;
+      // Load data in parallel for better performance
+      final futures = await Future.wait([
+        // Load tenders count only (not all data)
+        FirebaseFirestore.instance
+            .collection('tenders')
+            .count()
+            .get(),
         
-        // Use the same method as PO Dashboard and BudgetItemsOverviewScreen
-        final categories = await _budgetService.getBudgetCategories();
-        print('Found ${categories.length} budget categories');
-        
-        for (final category in categories) {
-          try {
-            final subcategories = await _budgetService.getBudgetSubcategories(category.id);
-            print('Category ${category.id} has ${subcategories.length} subcategories');
+        // Load projects count only
+        FirebaseFirestore.instance
+            .collection('projects')
+            .count()
+            .get(),
             
-            for (final subcategory in subcategories) {
-              try {
-                final items = await _budgetService.getBudgetItems(category.id, subcategory.id);
-                print('Subcategory ${subcategory.id} has ${items.length} items');
-                totalBudgetItems += items.length;
-              } catch (e) {
-                print('Error loading items for subcategory ${subcategory.id}: $e');
-              }
-            }
-          } catch (e) {
-            print('Error loading subcategories for category ${category.id}: $e');
-          }
-        }
-        
-        allocationsCount = totalBudgetItems;
-        print('Allocations count loaded using BudgetService: $allocationsCount');
-      } catch (e) {
-        print('Error loading allocations count with BudgetService: $e');
-        allocationsCount = 0;
-      }
+        // Load budget items count efficiently
+        _getBudgetItemsCount(),
+      ]);
+
+      final tendersCount = futures[0] as AggregateQuerySnapshot;
+      final projectsCountSnapshot = futures[1] as AggregateQuerySnapshot;
+      final budgetCount = futures[2] as int;
+
+      // Update counts
+      activeTendersCount = tendersCount.count ?? 0;
+      projectsCount = projectsCountSnapshot.count ?? 0;
+      allocationsCount = budgetCount;
       
       print('Home page dashboard statistics loaded:');
       print('Allocations: $allocationsCount');
@@ -287,6 +464,62 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
       }
     } catch (e) {
       print('Error loading home page dashboard data: $e');
+      // Set fallback values
+      if (mounted) {
+        setState(() {
+          allocationsCount = 0;
+          activeTendersCount = 0;
+          projectsCount = 0;
+        });
+      }
+    }
+  }
+
+  // Optimized method to get budget items count
+  Future<int> _getBudgetItemsCount() async {
+    try {
+      int totalBudgetItems = 0;
+      
+      // Use the same method as PO Dashboard and BudgetItemsOverviewScreen
+      final categories = await _budgetService.getBudgetCategories();
+      print('Found ${categories.length} budget categories');
+      
+      // Process categories in parallel for better performance
+      final categoryFutures = categories.map((category) async {
+        try {
+          final subcategories = await _budgetService.getBudgetSubcategories(category.id);
+          print('Category ${category.id} has ${subcategories.length} subcategories');
+          
+          int categoryItems = 0;
+          // Process subcategories in parallel
+          final subcategoryFutures = subcategories.map((subcategory) async {
+            try {
+              final items = await _budgetService.getBudgetItems(category.id, subcategory.id);
+              print('Subcategory ${subcategory.id} has ${items.length} items');
+              return items.length;
+            } catch (e) {
+              print('Error loading items for subcategory ${subcategory.id}: $e');
+              return 0;
+            }
+          });
+          
+          final subcategoryCounts = await Future.wait(subcategoryFutures);
+          categoryItems = subcategoryCounts.fold(0, (sum, count) => sum + count);
+          return categoryItems;
+        } catch (e) {
+          print('Error loading subcategories for category ${category.id}: $e');
+          return 0;
+        }
+      });
+      
+      final categoryCounts = await Future.wait(categoryFutures);
+      totalBudgetItems = categoryCounts.fold(0, (sum, count) => sum + count);
+      
+      print('Allocations count loaded using BudgetService: $totalBudgetItems');
+      return totalBudgetItems;
+    } catch (e) {
+      print('Error loading allocations count with BudgetService: $e');
+      return 0;
     }
   }
 
@@ -504,48 +737,131 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
                   ],
                 ),
                 const SizedBox(height: 30),
-                // Search Bar
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.search, color: Colors.grey),
-                      const SizedBox(width: 12),
-                      const Expanded(
-                        child: TextField(
-                          decoration: InputDecoration(
-                            hintText: 'Search across services',
-                            border: InputBorder.none,
-                            hintStyle: TextStyle(color: Colors.grey),
+                    // Search Bar with Floating Results
+                    Stack(
+                      children: [
+                        // Search Bar
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.1),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.search, color: Colors.grey),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: TextField(
+                                  controller: _searchController,
+                                  focusNode: _searchFocusNode,
+                                  decoration: const InputDecoration(
+                                    hintText: 'Search across services',
+                                    border: InputBorder.none,
+                                    hintStyle: TextStyle(color: Colors.grey),
+                                  ),
+                                  onTap: () {
+                                    print('🔍 Search field tapped');
+                                    setState(() {
+                                      _showSearchResults = _searchController.text.isNotEmpty;
+                                    });
+                                  },
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Colors.blue.shade100,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Icon(
-                          Icons.qr_code_scanner,
-                          color: Colors.blue,
-                          size: 20,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+                        
+                        // Floating Search Results Dropdown
+                        if (_showSearchResults && _filteredServices.isNotEmpty)
+                          Positioned(
+                            top: 60, // Position below search bar
+                            left: 0,
+                            right: 0,
+                            child: Container(
+                              height: 200, // Fixed height to prevent overflow
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(12),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.15),
+                                    blurRadius: 12,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
+                              ),
+                              child: SingleChildScrollView(
+                                child: Column(
+                                  children: _filteredServices.map((service) {
+                                    return InkWell(
+                                      onTap: () => _selectService(service),
+                                      borderRadius: BorderRadius.circular(12),
+                                      child: Container(
+                                        padding: const EdgeInsets.all(16),
+                                        child: Row(
+                                          children: [
+                                            Container(
+                                              padding: const EdgeInsets.all(8),
+                                              decoration: BoxDecoration(
+                                                color: Colors.blue.shade50,
+                                                borderRadius: BorderRadius.circular(8),
+                                              ),
+                                              child: Icon(
+                                                service['icon'],
+                                                color: Colors.blue.shade700,
+                                                size: 20,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 12),
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(
+                                                    service['title'],
+                                                    style: const TextStyle(
+                                                      fontSize: 16,
+                                                      fontWeight: FontWeight.w600,
+                                                      color: Colors.black87,
+                                                    ),
+                                                  ),
+                                                  const SizedBox(height: 2),
+                                                  Text(
+                                                    service['description'],
+                                                    style: TextStyle(
+                                                      fontSize: 12,
+                                                      color: Colors.grey[600],
+                                                    ),
+                                                    maxLines: 1,
+                                                    overflow: TextOverflow.ellipsis,
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                            Icon(
+                                              Icons.arrow_forward_ios,
+                                              color: Colors.grey[400],
+                                              size: 16,
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    );
+                                  }).toList(),
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
               ],
             ),
           ),
@@ -597,6 +913,9 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
   }
 
   Widget _buildStatCard(String title, String value, IconData icon, Color color, String subtitle) {
+    final intValue = int.tryParse(value) ?? 0;
+    final isEmpty = intValue == 0;
+    
     return Container(
       height: 140,
       padding: const EdgeInsets.all(16),
@@ -610,6 +929,7 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
             offset: const Offset(0, 2),
           ),
         ],
+        border: isEmpty ? Border.all(color: Colors.grey.shade200, width: 1) : null,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -622,19 +942,33 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
+                  color: isEmpty ? Colors.grey.shade100 : color.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: Icon(icon, color: color, size: 18),
-              ),
-              Container(
-                padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(
-                  color: Colors.green.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(6),
+                child: Icon(
+                  icon, 
+                  color: isEmpty ? Colors.grey.shade400 : color, 
+                  size: 18
                 ),
-                child: Icon(Icons.trending_up, color: Colors.green, size: 12),
               ),
+              if (!isEmpty)
+                Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: Colors.green.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Icon(Icons.trending_up, color: Colors.green, size: 12),
+                )
+              else
+                Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Icon(Icons.hourglass_empty, color: Colors.grey.shade400, size: 12),
+                ),
             ],
           ),
           // Content area
@@ -643,30 +977,30 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
             children: [
               // Value
               Text(
-                value,
+                isEmpty ? 'No data' : value,
                 style: TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
-                  color: color,
+                  color: isEmpty ? Colors.grey.shade400 : color,
                 ),
               ),
               const SizedBox(height: 4),
               // Title
               Text(
                 title,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 13,
-                  color: Colors.grey,
+                  color: isEmpty ? Colors.grey.shade400 : Colors.grey,
                   fontWeight: FontWeight.w600,
                 ),
               ),
               const SizedBox(height: 2),
               // Subtitle
               Text(
-                subtitle,
+                isEmpty ? 'No items found' : subtitle,
                 style: TextStyle(
                   fontSize: 10,
-                  color: Colors.grey.shade600,
+                  color: isEmpty ? Colors.grey.shade400 : Colors.grey.shade600,
                 ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
@@ -1312,45 +1646,11 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
   }
 
   Widget _buildEmptyNewsCard() {
-    return Container(
-      padding: const EdgeInsets.all(32),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Icon(
-            Icons.article_outlined,
-            size: 48,
-            color: Colors.grey.shade400,
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'No news available',
-            style: TextStyle(
-              fontSize: 16,
-              color: Colors.grey.shade600,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Check back later for updates',
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey.shade500,
-            ),
-          ),
-        ],
-      ),
+    return _buildEmptyStateCard(
+      'No news available',
+      Icons.article_outlined,
+      actionText: 'Refresh',
+      onAction: _refreshData,
     );
   }
 
@@ -1968,18 +2268,33 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
 
   // Empty state widgets
   Widget _buildEmptyProjectsCard() {
-    return _buildEmptyStateCard('No projects available', Icons.work);
+    return _buildEmptyStateCard(
+      'No projects available', 
+      Icons.work,
+      actionText: 'Refresh',
+      onAction: _refreshData,
+    );
   }
 
   Widget _buildEmptyEventsCard() {
-    return _buildEmptyStateCard('No upcoming events', Icons.event);
+    return _buildEmptyStateCard(
+      'No upcoming events', 
+      Icons.event,
+      actionText: 'Refresh',
+      onAction: _refreshData,
+    );
   }
 
   Widget _buildEmptyConcernsCard() {
-    return _buildEmptyStateCard('No high priority concerns', Icons.report_problem);
+    return _buildEmptyStateCard(
+      'No high priority concerns', 
+      Icons.report_problem,
+      actionText: 'Refresh',
+      onAction: _refreshData,
+    );
   }
 
-  Widget _buildEmptyStateCard(String message, IconData icon) {
+  Widget _buildEmptyStateCard(String message, IconData icon, {String? actionText, VoidCallback? onAction}) {
     return Container(
       padding: const EdgeInsets.all(32),
       decoration: BoxDecoration(
@@ -1992,6 +2307,7 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
             offset: const Offset(0, 2),
           ),
         ],
+        border: Border.all(color: Colors.grey.shade200, width: 1),
       ),
       child: Column(
         children: [
@@ -2008,7 +2324,35 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
               color: Colors.grey.shade600,
               fontWeight: FontWeight.w500,
             ),
+            textAlign: TextAlign.center,
           ),
+          const SizedBox(height: 8),
+          Text(
+            'Check back later for updates',
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey.shade500,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          if (actionText != null && onAction != null) ...[
+            const SizedBox(height: 20),
+            ElevatedButton.icon(
+              onPressed: onAction,
+              icon: Icon(Icons.refresh, size: 16),
+              label: Text(actionText),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue.shade50,
+                foregroundColor: Colors.blue.shade700,
+                elevation: 0,
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  side: BorderSide(color: Colors.blue.shade200),
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -2380,22 +2724,6 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
                     _navigateToDashboard();
                   },
                 ),
-                // Admin-only approval option
-                if (userRole?.userType == UserType.admin) ...[
-                  _buildDrawerItem(
-                    icon: Icons.approval,
-                    title: AppLocalizations.of(context)!.userManagement,
-                    onTap: () {
-                      Navigator.pop(context);
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const AdminApprovalScreen(),
-                        ),
-                      );
-                    },
-                  ),
-                ],
                 _buildDrawerItem(
                   icon: Icons.account_balance,
                   title: 'Budget Overview',
@@ -2404,17 +2732,6 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
                     Navigator.push(
                       context,
                       MaterialPageRoute(builder: (context) => const BudgetViewerScreen()),
-                    );
-                  },
-                ),
-                _buildDrawerItem(
-                  icon: Icons.assignment,
-                  title: 'Budget Allocations',
-                  onTap: () {
-                    Navigator.pop(context);
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const BudgetAllocationsViewScreen()),
                     );
                   },
                 ),
@@ -2507,14 +2824,17 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
                 ),
                 const Divider(),
                 _buildDrawerItem(
-                  icon: Icons.help,
-                  title: 'Help & Support',
-                  onTap: () => _showFeatureComingSoon('Help & Support'),
-                ),
-                _buildDrawerItem(
                   icon: Icons.info,
                   title: 'About',
-                  onTap: () => _showFeatureComingSoon('About'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const AboutScreen(),
+                      ),
+                    );
+                  },
                 ),
                 _buildDrawerItem(
                   icon: Icons.logout,
@@ -2702,33 +3022,48 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
   }
 
   Widget _buildHomePage() {
-    return SingleChildScrollView(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Government Portal Header with Image
-          _buildGovernmentHeader(),
-          
-          // Quick Access Icons (4 horizontal squares)
-          _buildQuickAccessIcons(),
-          
-          // Services Section
-          _buildServicesSection(),
-          
-          // News Section with Images
-          _buildNewsSection(),
-          
-          // Projects Section (Awarded Tenders)
-          _buildProjectsSection(),
-          
-          // Upcoming Events Section
-          _buildUpcomingEventsSection(),
-          
-          // Concerns Section
-          _buildConcernsSection(),
-          
-          const SizedBox(height: 20),
-        ],
+    return GestureDetector(
+      onTap: () {
+        // Close search results when tapping outside
+        if (_showSearchResults) {
+          setState(() {
+            _showSearchResults = false;
+          });
+          _searchFocusNode.unfocus();
+        }
+      },
+      child: RefreshIndicator(
+        onRefresh: _refreshData,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+            // Government Portal Header with Image
+            _buildGovernmentHeader(),
+            
+            // Quick Access Icons (4 horizontal squares)
+            _buildQuickAccessIcons(),
+            
+            // Services Section
+            _buildServicesSection(),
+            
+            // News Section with Images
+            _buildNewsSection(),
+            
+            // Projects Section (Awarded Tenders)
+            _buildProjectsSection(),
+            
+            // Upcoming Events Section
+            _buildUpcomingEventsSection(),
+            
+            // Concerns Section
+            _buildConcernsSection(),
+            
+            const SizedBox(height: 20),
+          ],
+        ),
+      ),
       ),
     );
   }

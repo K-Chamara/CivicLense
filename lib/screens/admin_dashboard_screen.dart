@@ -4,11 +4,10 @@ import '../services/admin_service.dart';
 import '../services/auth_service.dart';
 import '../models/user_role.dart';
 import 'login_screen.dart';
-import 'community_list_screen.dart';
 import 'concern_management_screen.dart';
-import 'news_feed_screen.dart';
 import 'public_tender_viewer_screen.dart';
 import 'user_management_screen.dart';
+import 'about_screen.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
   const AdminDashboardScreen({super.key});
@@ -297,7 +296,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
         children: [
           // Drawer Header
           Container(
-            height: 120,
             width: double.infinity,
             decoration: BoxDecoration(
               gradient: LinearGradient(
@@ -308,35 +306,35 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
             ),
             child: SafeArea(
               child: Padding(
-                padding: const EdgeInsets.all(8),
+                padding: const EdgeInsets.all(16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     CircleAvatar(
-                      radius: 18,
+                      radius: 20,
                       backgroundColor: Colors.white.withOpacity(0.2),
                       child: const Icon(
                         Icons.admin_panel_settings,
                         color: Colors.white,
-                        size: 18,
+                        size: 20,
                       ),
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 8),
                     const Text(
                       'System Administrator',
                       style: TextStyle(
                         color: Colors.white,
-                        fontSize: 13,
+                        fontSize: 14,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    const SizedBox(height: 1),
+                    const SizedBox(height: 2),
                     const Text(
                       'Full System Access',
                       style: TextStyle(
                         color: Colors.white70,
-                        fontSize: 10,
+                        fontSize: 11,
                       ),
                     ),
                   ],
@@ -358,17 +356,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                 _buildDrawerItem(
                   icon: Icons.people,
                   title: 'User Management',
-                  onTap: () => Navigator.pop(context),
-                ),
-                _buildDrawerItem(
-                  icon: Icons.people_alt,
-                  title: 'Community Management',
                   onTap: () {
                     Navigator.pop(context);
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => const CommunityListScreen(),
+                        builder: (context) => const UserManagementScreen(),
                       ),
                     );
                   },
@@ -387,19 +380,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                   },
                 ),
                 _buildDrawerItem(
-                  icon: Icons.newspaper,
-                  title: 'News Feed Management',
-                  onTap: () {
-                    Navigator.pop(context);
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const NewsFeedScreen(),
-                      ),
-                    );
-                  },
-                ),
-                _buildDrawerItem(
                   icon: Icons.account_balance,
                   title: 'Budget Overview',
                   onTap: () {
@@ -409,7 +389,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                 ),
                 _buildDrawerItem(
                   icon: Icons.shopping_cart,
-                  title: 'Tender Management',
+                  title: 'Tenders',
                   onTap: () {
                     Navigator.pop(context);
                     Navigator.push(
@@ -418,26 +398,26 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                     );
                   },
                 ),
-                _buildDrawerItem(
-                  icon: Icons.analytics,
-                  title: 'Reports & Analytics',
-                  onTap: () => _showFeatureComingSoon('Reports & Analytics'),
-                ),
-                _buildDrawerItem(
-                  icon: Icons.settings,
-                  title: 'System Settings',
-                  onTap: () => _showFeatureComingSoon('System Settings'),
-                ),
                 const Divider(),
-                _buildDrawerItem(
-                  icon: Icons.help,
-                  title: 'Help & Support',
-                  onTap: () => _showFeatureComingSoon('Help & Support'),
-                ),
                 _buildDrawerItem(
                   icon: Icons.info,
                   title: 'About',
-                  onTap: () => _showFeatureComingSoon('About'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const AboutScreen(),
+                      ),
+                    );
+                  },
+                ),
+                const Divider(),
+                _buildDrawerItem(
+                  icon: Icons.logout,
+                  title: 'Sign Out',
+                  onTap: _signOut,
+                  isSignOut: true,
                 ),
               ],
             ),
@@ -451,6 +431,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     required IconData icon,
     required String title,
     required VoidCallback onTap,
+    bool isSignOut = false,
   }) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
@@ -461,21 +442,21 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
         leading: Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: Colors.blue.shade50,
+            color: isSignOut ? Colors.red.shade50 : Colors.blue.shade50,
             borderRadius: BorderRadius.circular(6),
           ),
           child: Icon(
             icon,
-            color: Colors.blue.shade700,
+            color: isSignOut ? Colors.red.shade700 : Colors.blue.shade700,
             size: 20,
           ),
         ),
         title: Text(
           title,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w500,
-            color: Colors.black87,
+            color: isSignOut ? Colors.red.shade700 : Colors.black87,
           ),
         ),
         onTap: onTap,
@@ -509,69 +490,42 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
           ),
         ),
         const SizedBox(height: 16),
-        GridView.count(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          crossAxisCount: 2,
-          crossAxisSpacing: 16,
-          mainAxisSpacing: 16,
-          childAspectRatio: 1.4,
+        Column(
           children: [
-            _buildManagementCard(
-              'Community Management',
-              'Manage communities and moderate content',
-              Icons.people_alt,
-              Colors.purple,
-              () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const CommunityListScreen(),
-                  ),
-                );
-              },
+            SizedBox(
+              width: double.infinity,
+              child: _buildManagementCard(
+                'User Management',
+                'Review and approve user documents',
+                Icons.people,
+                Colors.green,
+                () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const UserManagementScreen(),
+                    ),
+                  );
+                },
+              ),
             ),
-            _buildManagementCard(
-              'Concern Management',
-              'Review and manage public concerns',
-              Icons.report_problem,
-              Colors.orange,
-              () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const ConcernManagementScreen(),
-                  ),
-                );
-              },
-            ),
-            _buildManagementCard(
-              'News Feed Management',
-              'Moderate news articles and reports',
-              Icons.newspaper,
-              Colors.blue,
-              () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const NewsFeedScreen(),
-                  ),
-                );
-              },
-            ),
-            _buildManagementCard(
-              'User Management',
-              'Review and approve user documents',
-              Icons.people,
-              Colors.green,
-              () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const UserManagementScreen(),
-                  ),
-                );
-              },
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: _buildManagementCard(
+                'Concern Management',
+                'Review and manage public concerns',
+                Icons.report_problem,
+                Colors.orange,
+                () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const ConcernManagementScreen(),
+                    ),
+                  );
+                },
+              ),
             ),
           ],
         ),
@@ -611,44 +565,48 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
             onTap();
           },
           child: Padding(
-            padding: const EdgeInsets.all(12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
+            padding: const EdgeInsets.all(16),
+            child: Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.all(8),
+                  padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     color: color.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(6),
+                    borderRadius: BorderRadius.circular(8),
                   ),
                   child: Icon(
                     icon,
                     color: color,
-                    size: 20,
+                    size: 24,
                   ),
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: color,
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 2),
-                Flexible(
-                  child: Text(
-                    description,
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: Colors.grey[600],
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        title,
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: color,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        description,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey[600],
+                        ),
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
                   ),
                 ),
               ],
@@ -818,7 +776,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
             ),
             _buildStatCard(
               'Government Users',
-              _userStats.values.fold(0, (sum, count) => sum + count).toString(),
+              _users.where((user) => user['role']?['userType'] == 'government').length.toString(),
               Icons.account_balance,
               Colors.green,
             ),
@@ -1303,14 +1261,45 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
 
   Future<void> _handleUserAction(String action, Map<String, dynamic> user) async {
     try {
+      // Get current user ID
+      final currentUserId = _authService.currentUser?.uid;
+      
       switch (action) {
         case 'toggle_status':
+          // Prevent admin from deactivating their own account
+          if (user['uid'] == currentUserId) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('⚠️ You cannot deactivate your own account'),
+                  backgroundColor: Color(0xFFF57C00),
+                  duration: Duration(seconds: 3),
+                ),
+              );
+            }
+            return;
+          }
+          
           await _adminService.updateUserStatus(
             user['uid'],
             !(user['isActive'] ?? true),
           );
           break;
         case 'delete':
+          // Prevent admin from deleting their own account
+          if (user['uid'] == currentUserId) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('⚠️ You cannot delete your own account'),
+                  backgroundColor: Color(0xFFF57C00),
+                  duration: Duration(seconds: 3),
+                ),
+              );
+            }
+            return;
+          }
+          
           final confirmed = await _showDeleteConfirmation(user);
           if (confirmed) {
             await _adminService.deleteUser(user['uid']);
