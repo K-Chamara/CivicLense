@@ -1,68 +1,187 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../models/report.dart';
 
 class MediaHubService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
   
-  CollectionReference<Map<String, dynamic>> get _hubCol => _db.collection('mediaHub');
-  CollectionReference<Map<String, dynamic>> get _discussionsCol => _db.collection('mediaHubDiscussions');
+  CollectionReference<Map<String, dynamic>> get _savedArticlesCol => _db.collection('savedArticles');
 
-  Future<String> shareArticleToHub({
-    required String articleId,
+  /// Save a complete article to the Media Hub (Article Saving Module)
+  Future<String> saveArticleToHub({
+    required String originalArticleId,
     required String title,
-    required String summary,
     required String authorName,
-  }) async {
-    final doc = await _hubCol.add({
-      'articleId': articleId,
-      'title': title,
-      'summary': summary,
-      'authorName': authorName,
-      'createdAt': FieldValue.serverTimestamp(),
-    });
-    return doc.id;
-  }
-
-  Future<String> createDiscussion({
-    required String title,
+    required String authorEmail,
+    required String organization,
+    required String abstractText,
+    required String summary,
     required String content,
-    String? articleId,
-    String? articleTitle,
+    required String references,
+    required String category,
+    required List<String> hashtags,
+    required bool isBreakingNews,
+    required bool isVerified,
+    required String authorUid,
+    String? bannerImageUrl,
+    String? imageUrl,
   }) async {
     final user = _auth.currentUser;
     if (user == null) {
-      throw Exception('You must be signed in to create discussions');
+      throw Exception('You must be signed in to save articles');
     }
 
-    String userName = 'User'; // Default fallback
-    
-    if (user.displayName != null && user.displayName!.isNotEmpty) {
-      userName = user.displayName!;
-    } else if (user.email != null && user.email!.isNotEmpty) {
-      userName = user.email!.split('@').first;
+    // Check if article is already saved by this user
+    final existingQuery = await _savedArticlesCol
+        .where('originalArticleId', isEqualTo: originalArticleId)
+        .where('savedByUid', isEqualTo: user.uid)
+        .limit(1)
+        .get();
+
+    if (existingQuery.docs.isNotEmpty) {
+      throw Exception('Article is already saved in your Media Hub');
     }
 
-    final doc = await _discussionsCol.add({
+    final doc = await _savedArticlesCol.add({
+      'originalArticleId': originalArticleId,
       'title': title,
+      'authorName': authorName,
+      'authorEmail': authorEmail,
+      'organization': organization,
+      'abstractText': abstractText,
+      'summary': summary,
       'content': content,
-      'authorUid': user.uid,
-      'authorName': userName,
-      'createdAt': FieldValue.serverTimestamp(),
-      'commentCount': 0,
-      'likeCount': 0,
-      if (articleId != null) 'articleId': articleId,
-      if (articleTitle != null) 'articleTitle': articleTitle,
+      'references': references,
+      'category': category,
+      'hashtags': hashtags,
+      'isBreakingNews': isBreakingNews,
+      'isVerified': isVerified,
+      'authorUid': authorUid,
+      'bannerImageUrl': bannerImageUrl,
+      'imageUrl': imageUrl,
+      'savedByUid': user.uid,
+      'savedByEmail': user.email,
+      'savedAt': FieldValue.serverTimestamp(),
+      'originalCreatedAt': FieldValue.serverTimestamp(), // Preserve original creation time
     });
     return doc.id;
   }
 
-  /// Search articles for tagging in discussions
-  Future<List<Map<String, dynamic>>> searchArticles(String query) async {
-    if (query.trim().isEmpty) return [];
+  /// Save a complete article from ReportArticle object
+  Future<String> saveArticleFromReport(ReportArticle article) async {
+    return await saveArticleToHub(
+      originalArticleId: article.id,
+      title: article.title,
+      authorName: article.authorName,
+      authorEmail: article.authorEmail,
+      organization: article.organization,
+      abstractText: article.abstractText,
+      summary: article.summary,
+      content: article.content,
+      references: article.references,
+      category: article.category,
+      hashtags: article.hashtags,
+      isBreakingNews: article.isBreakingNews,
+      isVerified: article.isVerified,
+      authorUid: article.authorUid,
+      bannerImageUrl: article.bannerImageUrl,
+      imageUrl: article.imageUrl,
+    );
+  }
+
+  /// Stream saved articles for the current user
+  Stream<List<Map<String, dynamic>>> streamSavedArticles() {
+    final user = _auth.currentUser;
+    if (user == null) {
+      return Stream.value([]);
+    }
+
+    return _savedArticlesCol
+        .where('savedByUid', isEqualTo: user.uid)
+        .snapshots()
+        .map((s) {
+          final articles = s.docs.map((d) => {'id': d.id, ...d.data()}).toList();
+          
+          // Sort locally by savedAt (most recent first)
+          articles.sort((a, b) {
+            final savedAtA = a['savedAt'] as Timestamp?;
+            final savedAtB = b['savedAt'] as Timestamp?;
+            
+            if (savedAtA == null && savedAtB == null) return 0;
+            if (savedAtA == null) return 1;
+            if (savedAtB == null) return -1;
+            
+            return savedAtB.compareTo(savedAtA); // Descending order
+          });
+          
+          return articles;
+        });
+  }
+
+  /// Get a specific saved article
+  Future<Map<String, dynamic>?> getSavedArticle(String savedArticleId) async {
+    final doc = await _savedArticlesCol.doc(savedArticleId).get();
+    if (!doc.exists) return null;
+    return {'id': doc.id, ...doc.data()!};
+  }
+
+  /// Remove a saved article
+  Future<void> removeSavedArticle(String savedArticleId) async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      throw Exception('You must be signed in');
+    }
+
+    final doc = await _savedArticlesCol.doc(savedArticleId).get();
+    if (!doc.exists) {
+      throw Exception('Saved article not found');
+    }
+
+    final data = doc.data() as Map<String, dynamic>;
+    if (data['savedByUid'] != user.uid) {
+      throw Exception('You can only remove your own saved articles');
+    }
+
+    await _savedArticlesCol.doc(savedArticleId).delete();
+  }
+
+  /// Check if an article is saved by the current user
+  Future<bool> isArticleSaved(String originalArticleId) async {
+    final user = _auth.currentUser;
+    if (user == null) return false;
+
+    final query = await _savedArticlesCol
+        .where('originalArticleId', isEqualTo: originalArticleId)
+        .where('savedByUid', isEqualTo: user.uid)
+        .limit(1)
+        .get();
+
+    return query.docs.isNotEmpty;
+  }
+
+  /// Stream to check if an article is saved by the current user
+  Stream<bool> streamIsArticleSaved(String originalArticleId) {
+    final user = _auth.currentUser;
+    if (user == null) {
+      return Stream.value(false);
+    }
+
+    return _savedArticlesCol
+        .where('originalArticleId', isEqualTo: originalArticleId)
+        .where('savedByUid', isEqualTo: user.uid)
+        .limit(1)
+        .snapshots()
+        .map((snapshot) => snapshot.docs.isNotEmpty);
+  }
+
+  /// Search saved articles
+  Future<List<Map<String, dynamic>>> searchSavedArticles(String query) async {
+    final user = _auth.currentUser;
+    if (user == null || query.trim().isEmpty) return [];
     
-    final snapshot = await _db
-        .collection('articles')
+    final snapshot = await _savedArticlesCol
+        .where('savedByUid', isEqualTo: user.uid)
         .where('title', isGreaterThanOrEqualTo: query.trim())
         .where('title', isLessThanOrEqualTo: query.trim() + '\uf8ff')
         .limit(10)
@@ -76,124 +195,45 @@ class MediaHubService {
     }).toList();
   }
 
-  Stream<List<Map<String, dynamic>>> streamHubPosts() {
-    return _hubCol
-        .orderBy('createdAt', descending: true)
-        .snapshots()
-        .map((s) => s.docs.map((d) => {'id': d.id, ...d.data()}).toList());
-  }
-
-  Stream<List<Map<String, dynamic>>> streamDiscussions() {
-    return _discussionsCol
-        .orderBy('createdAt', descending: true)
-        .snapshots()
-        .map((s) => s.docs.map((d) => {'id': d.id, ...d.data()}).toList());
-  }
-
-  Future<void> deleteHubPost(String id) async {
-    await _hubCol.doc(id).delete();
-  }
-
-  Future<void> deleteDiscussion(String id) async {
+  /// Get count of saved articles for the current user
+  Stream<int> streamSavedArticlesCount() {
     final user = _auth.currentUser;
     if (user == null) {
-      throw Exception('You must be signed in');
+      return Stream.value(0);
     }
 
-    final doc = await _discussionsCol.doc(id).get();
-    if (!doc.exists) {
-      throw Exception('Discussion not found');
-    }
-
-    final data = doc.data() as Map<String, dynamic>;
-    if (data['authorUid'] != user.uid) {
-      throw Exception('You can only delete your own discussions');
-    }
-
-    await _discussionsCol.doc(id).delete();
+    return _savedArticlesCol
+        .where('savedByUid', isEqualTo: user.uid)
+        .snapshots()
+        .map((snap) => snap.docs.length);
   }
 
-  Future<void> addComment({
-    required String discussionId,
-    required String text,
-  }) async {
+  /// Get recent saved articles for the current user (limit 3)
+  Stream<List<Map<String, dynamic>>> streamRecentSavedArticles() {
     final user = _auth.currentUser;
     if (user == null) {
-      throw Exception('You must be signed in to comment');
+      return Stream.value([]);
     }
 
-    String userName = 'User'; // Default fallback
-    
-    if (user.displayName != null && user.displayName!.isNotEmpty) {
-      userName = user.displayName!;
-    } else if (user.email != null && user.email!.isNotEmpty) {
-      userName = user.email!.split('@').first;
-    }
-
-    final comment = {
-      'discussionId': discussionId,
-      'text': text,
-      'authorUid': user.uid,
-      'authorName': userName,
-      'createdAt': FieldValue.serverTimestamp(),
-    };
-
-    await _db.runTransaction((tx) async {
-      tx.set(_discussionsCol.doc(discussionId).collection('comments').doc(), comment);
-      tx.update(_discussionsCol.doc(discussionId), {
-        'commentCount': FieldValue.increment(1),
-      });
-    });
-  }
-
-  Stream<List<Map<String, dynamic>>> streamComments(String discussionId) {
-    return _discussionsCol
-        .doc(discussionId)
-        .collection('comments')
-        .orderBy('createdAt', descending: false)
+    return _savedArticlesCol
+        .where('savedByUid', isEqualTo: user.uid)
         .snapshots()
-        .map((s) => s.docs.map((d) => {'id': d.id, ...d.data()}).toList());
-  }
-
-  Future<void> toggleLikeDiscussion(String discussionId) async {
-    final user = _auth.currentUser;
-    if (user == null) {
-      throw Exception('You must be signed in to like');
-    }
-
-    final likeRef = _discussionsCol.doc(discussionId).collection('likes').doc(user.uid);
-    
-    await _db.runTransaction((tx) async {
-      final likeSnap = await tx.get(likeRef);
-      if (likeSnap.exists) {
-        tx.delete(likeRef);
-        tx.update(_discussionsCol.doc(discussionId), {
-          'likeCount': FieldValue.increment(-1),
+        .map((s) {
+          final articles = s.docs.map((d) => {'id': d.id, ...d.data()}).toList();
+          
+          // Sort locally by savedAt (most recent first)
+          articles.sort((a, b) {
+            final savedAtA = a['savedAt'] as Timestamp?;
+            final savedAtB = b['savedAt'] as Timestamp?;
+            
+            if (savedAtA == null && savedAtB == null) return 0;
+            if (savedAtA == null) return 1;
+            if (savedAtB == null) return -1;
+            
+            return savedAtB.compareTo(savedAtA); // Descending order
+          });
+          
+          return articles.take(3).toList();
         });
-      } else {
-        tx.set(likeRef, {
-          'userId': user.uid,
-          'createdAt': FieldValue.serverTimestamp(),
-        });
-        tx.update(_discussionsCol.doc(discussionId), {
-          'likeCount': FieldValue.increment(1),
-        });
-      }
-    });
-  }
-
-  Stream<bool> streamUserLikedDiscussion(String discussionId) {
-    final uid = _auth.currentUser?.uid;
-    if (uid == null || uid.isEmpty) {
-      return Stream<bool>.value(false);
-    }
-    return _discussionsCol
-        .doc(discussionId)
-        .collection('likes')
-        .doc(uid)
-        .snapshots()
-        .map((d) => d.exists);
   }
 }
-
-

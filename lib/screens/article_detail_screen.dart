@@ -325,22 +325,64 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> with TickerPr
                             backgroundColor: Colors.grey.withOpacity(0.06),
                             shape: StadiumBorder(side: BorderSide(color: Colors.black12)),
                           ),
-                          ActionChip(
-                            avatar: const Icon(Icons.send, size: 18),
-                            label: const Text('Media Hub'),
-                            onPressed: () async {
-                              await _hub.shareArticleToHub(
-                                articleId: a.id,
-                                title: a.title,
-                                summary: a.summary,
-                                authorName: a.authorName,
+                          StreamBuilder<bool>(
+                            stream: _hub.streamIsArticleSaved(a.id),
+                            builder: (context, savedSnap) {
+                              final isSaved = savedSnap.data ?? false;
+                              return ActionChip(
+                                avatar: Icon(
+                                  isSaved ? Icons.bookmark : Icons.bookmark_border,
+                                  size: 18,
+                                  color: isSaved ? Colors.blue : null,
+                                ),
+                                label: Text(isSaved ? 'Saved' : 'Save to Media Hub'),
+                                onPressed: () async {
+                                  if (isSaved) {
+                                    // Article is already saved, show message
+                                    if (mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(
+                                          content: Text('Article is already saved in your Media Hub'),
+                                          backgroundColor: Colors.blue,
+                                        ),
+                                      );
+                                    }
+                                  } else {
+                                    // Save the article
+                                    try {
+                                      await _hub.saveArticleFromReport(a);
+                                      if (mounted) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          const SnackBar(
+                                            content: Text('Article saved to Media Hub'),
+                                            backgroundColor: Colors.green,
+                                          ),
+                                        );
+                                      }
+                                    } catch (e) {
+                                      if (mounted) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(
+                                            content: Text('Error saving article: $e'),
+                                            backgroundColor: Colors.red,
+                                          ),
+                                        );
+                                      }
+                                    }
+                                  }
+                                },
+                                backgroundColor: isSaved 
+                                    ? Colors.blue.withOpacity(0.1)
+                                    : Colors.grey.withOpacity(0.06),
+                                shape: StadiumBorder(
+                                  side: BorderSide(
+                                    color: isSaved 
+                                        ? Colors.blue.withOpacity(0.3)
+                                        : Colors.black12,
+                                  ),
+                                ),
                               );
-                              if (mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Shared to Media Hub')));
-                              }
                             },
-                            backgroundColor: Colors.grey.withOpacity(0.06),
-                            shape: StadiumBorder(side: BorderSide(color: Colors.black12)),
                           ),
                           ActionChip(
                             avatar: const Icon(Icons.people, size: 18),

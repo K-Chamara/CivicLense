@@ -124,27 +124,174 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _buildJournalistDashboard() {
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildDashboardCard(
-          'Publish Reports',
-          'Create and publish investigative reports',
-          Icons.article,
-          Colors.green,
-          onTap: () => Navigator.pushNamed(context, '/publish'),
+        // Header Section
+        Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Colors.teal.shade600, Colors.teal.shade400],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.teal.withOpacity(0.3),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.article,
+                  color: Colors.white,
+                  size: 28,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Media & Journalism Hub',
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Professional tools for investigative reporting',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.white.withOpacity(0.9),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
-        _buildDashboardCard(
-          'Media Hub',
-          'Access media resources and tools',
-          Icons.media_bluetooth_on,
-          Colors.purple,
-          onTap: () => Navigator.pushNamed(context, '/media-hub'),
+        const SizedBox(height: 24),
+
+        // Quick Stats Section
+        _buildJournalistStats(),
+        const SizedBox(height: 24),
+
+        // Main Tools Section
+        const Text(
+          'Core Tools',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: Colors.black87,
+          ),
         ),
-        _buildDashboardCard(
-          'News Feed',
-          'Curate and manage news content',
-          Icons.feed,
-          Colors.blue,
-          onTap: () => Navigator.pushNamed(context, '/news'),
+        const SizedBox(height: 16),
+        
+        // Primary Tools Grid
+        Row(
+          children: [
+            Expanded(
+              child: _buildJournalistToolCard(
+                'Publish Article',
+                'Create and publish investigative reports',
+                Icons.edit_document,
+                Colors.green,
+                () => Navigator.pushNamed(context, '/publish'),
+                isPrimary: true,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _buildJournalistToolCard(
+                'Media Hub',
+                'Save and organize articles',
+                Icons.bookmark,
+                Colors.purple,
+                () => Navigator.pushNamed(context, '/media-hub'),
+                isPrimary: true,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        
+        Row(
+          children: [
+            Expanded(
+              child: _buildJournalistToolCard(
+                'News Feed',
+                'Browse latest articles',
+                Icons.feed,
+                Colors.blue,
+                () => Navigator.pushNamed(context, '/news'),
+                isPrimary: true,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _buildJournalistToolCard(
+                'Tender Watch',
+                'Monitor government tenders',
+                Icons.shopping_cart,
+                Colors.orange,
+                () => Navigator.pushNamed(context, '/tender-management'),
+                isPrimary: true,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 24),
+
+        // Additional Resources Section
+        const Text(
+          'Resources & Tools',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: Colors.black87,
+          ),
+        ),
+        const SizedBox(height: 16),
+        
+        _buildJournalistResourceCard(
+          'Research Database',
+          'Access public records and data',
+          Icons.search,
+          Colors.indigo,
+          () => _showComingSoon('Research Database'),
+        ),
+        const SizedBox(height: 12),
+        
+        _buildJournalistResourceCard(
+          'Fact Checking Tools',
+          'Verify information and sources',
+          Icons.verified_user,
+          Colors.red,
+          () => _showComingSoon('Fact Checking Tools'),
+        ),
+        const SizedBox(height: 12),
+        
+        _buildJournalistResourceCard(
+          'Source Management',
+          'Organize contacts and sources',
+          Icons.contacts,
+          Colors.brown,
+          () => _showComingSoon('Source Management'),
         ),
       ],
     );
@@ -358,6 +505,234 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
           );
         },
+      ),
+    );
+  }
+
+  // Journalist-specific helper methods
+  Widget _buildJournalistStats() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Your Activity',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: Colors.black87,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: _buildStatItem('Articles Published', '12', Icons.article, Colors.green),
+              ),
+              Expanded(
+                child: _buildStatItem('Articles Saved', '28', Icons.bookmark, Colors.purple),
+              ),
+              Expanded(
+                child: _buildStatItem('Sources Tracked', '45', Icons.contacts, Colors.blue),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatItem(String label, String value, IconData icon, Color color) {
+    return Column(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(icon, color: color, size: 20),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: color,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            color: Colors.grey.shade600,
+          ),
+          textAlign: TextAlign.center,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildJournalistToolCard(String title, String description, IconData icon, Color color, VoidCallback onTap, {bool isPrimary = false}) {
+    return Container(
+      height: isPrimary ? 120 : 100,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: color.withOpacity(0.1),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+        border: isPrimary ? Border.all(color: color.withOpacity(0.2), width: 1) : null,
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(icon, color: color, size: 20),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: isPrimary ? 14 : 13,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Expanded(
+                  child: Text(
+                    description,
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Colors.grey.shade600,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildJournalistResourceCard(String title, String description, IconData icon, Color color, VoidCallback onTap) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(icon, color: color, size: 20),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        description,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    'Coming Soon',
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: Colors.grey.shade600,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showComingSoon(String feature) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('$feature - Coming Soon!'),
+        backgroundColor: Colors.teal,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),
     );
   }

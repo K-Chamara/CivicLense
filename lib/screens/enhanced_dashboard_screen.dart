@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
+import '../services/news_service.dart';
+import '../services/media_hub_service.dart';
 import '../models/user_role.dart';
+import '../models/report.dart';
 import 'login_screen.dart';
 import 'budget_viewer_screen.dart';
 import 'citizen_tender_screen.dart';
@@ -17,6 +20,7 @@ import 'anticorruption_officer_dashboard_screen.dart';
 import 'public_user_dashboard_screen.dart';
 import 'budget_allocations_view_screen.dart';
 import 'reports_analytics_screen.dart';
+import 'article_detail_screen.dart';
 
 class EnhancedDashboardScreen extends StatefulWidget {
   const EnhancedDashboardScreen({super.key});
@@ -28,6 +32,8 @@ class EnhancedDashboardScreen extends StatefulWidget {
 class _EnhancedDashboardScreenState extends State<EnhancedDashboardScreen>
     with TickerProviderStateMixin {
   final AuthService _authService = AuthService();
+  final NewsService _newsService = NewsService();
+  final MediaHubService _mediaHubService = MediaHubService();
   UserRole? userRole;
   Map<String, dynamic>? userData;
   bool isLoading = true;
@@ -142,32 +148,36 @@ class _EnhancedDashboardScreenState extends State<EnhancedDashboardScreen>
                   const SizedBox(height: 16),
                 ],
                 
-                // Welcome Section
-                _buildWelcomeSection(),
-                const SizedBox(height: 24),
+                // For journalists, only show journalist-specific content
+                if (userRole?.id == 'journalist') ...[
+                  _buildJournalistContent(),
+                ] else ...[
+                  // Welcome Section
+                  _buildWelcomeSection(),
+                  const SizedBox(height: 24),
+                  // Quick Stats Cards
+                  _buildQuickStatsCards(),
+                  const SizedBox(height: 24),
 
-                // Quick Stats Cards
-                _buildQuickStatsCards(),
-                const SizedBox(height: 24),
+                  // Tender & Budget Overview
+                  _buildTenderBudgetOverview(),
+                  const SizedBox(height: 24),
 
-                // Tender & Budget Overview
-                _buildTenderBudgetOverview(),
-                const SizedBox(height: 24),
+                  // Budget Allocations Section
+                  _buildBudgetAllocationsSection(),
+                  const SizedBox(height: 24),
 
-                // Budget Allocations Section
-                _buildBudgetAllocationsSection(),
-                const SizedBox(height: 24),
+                  // Role-specific Quick Actions
+                  _buildQuickActions(),
+                  const SizedBox(height: 24),
 
-                // Role-specific Quick Actions
-                _buildQuickActions(),
-                const SizedBox(height: 24),
+                  // Recent Activities
+                  _buildRecentActivities(),
+                  const SizedBox(height: 24),
 
-                // Recent Activities
-                _buildRecentActivities(),
-                const SizedBox(height: 24),
-
-                // Role-specific Content
-                _buildRoleSpecificContent(),
+                  // Role-specific Content
+                  _buildRoleSpecificContent(),
+                ],
               ],
             ),
           ),
@@ -1420,29 +1430,259 @@ class _EnhancedDashboardScreenState extends State<EnhancedDashboardScreen>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Journalist Tools',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-            color: Colors.black87,
+        // Enhanced Media & Journalism Hub Section
+        Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                const Color(0xFF1E3A8A), // Deep blue
+                const Color(0xFF3B82F6), // Blue
+                const Color(0xFF06B6D4), // Cyan
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              stops: const [0.0, 0.5, 1.0],
+            ),
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF1E3A8A).withOpacity(0.25),
+                blurRadius: 20,
+                offset: const Offset(0, 8),
+                spreadRadius: 0,
+              ),
+              BoxShadow(
+                color: const Color(0xFF06B6D4).withOpacity(0.15),
+                blurRadius: 40,
+                offset: const Offset(0, 16),
+                spreadRadius: -10,
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: Colors.white.withOpacity(0.25),
+                    width: 1.5,
+                  ),
+                ),
+                child: const Icon(
+                  Icons.article_outlined,
+                  color: Colors.white,
+                  size: 32,
+                ),
+              ),
+              const SizedBox(width: 20),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Welcome back, ${userData?['name'] ?? 'Journalist'}',
+                      style: const TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                        letterSpacing: -0.5,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    const Text(
+                      'Media & Journalism Hub',
+                      style: TextStyle(
+                        fontSize: 18,
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Your professional workspace for investigative reporting',
+                      style: TextStyle(
+                        fontSize: 15,
+                        color: Colors.white.withOpacity(0.9),
+                        fontWeight: FontWeight.w400,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: Colors.white.withOpacity(0.2),
+                    width: 1,
+                  ),
+                ),
+                child: const Icon(
+                  Icons.trending_up,
+                  color: Colors.white,
+                  size: 20,
+                ),
+              ),
+            ],
           ),
         ),
-        const SizedBox(height: 16),
-        _buildFeatureCard(
-          'Publish Reports',
-          'Create and publish investigative reports',
-          Icons.article,
-          Colors.green,
-          () => Navigator.pushNamed(context, '/publish'),
+        const SizedBox(height: 28),
+
+        // Quick Stats Section
+        _buildJournalistStats(),
+        const SizedBox(height: 28),
+
+        // Main Tools Section
+        Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFF3B82F6).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(
+                Icons.build_outlined,
+                color: Color(0xFF3B82F6),
+                size: 20,
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Text(
+              'Core Tools',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF1F2937),
+                letterSpacing: -0.3,
+              ),
+            ),
+          ],
         ),
-        _buildFeatureCard(
-          'Media Hub',
-          'Access media resources and tools',
-          Icons.media_bluetooth_on,
-          Colors.purple,
-          () => Navigator.pushNamed(context, '/media-hub'),
+        const SizedBox(height: 18),
+        
+        // Primary Tools Grid
+        Row(
+          children: [
+            Expanded(
+              child: _buildJournalistToolCard(
+                'Publish Article',
+                'Create and publish investigative reports',
+                Icons.edit_document,
+                const Color(0xFF10B981), // Emerald
+                () => Navigator.pushNamed(context, '/publish'),
+                isPrimary: true,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _buildJournalistToolCard(
+                'Media Hub',
+                'Save and organize articles',
+                Icons.bookmark_add,
+                const Color(0xFF8B5CF6), // Purple
+                () => Navigator.pushNamed(context, '/media-hub'),
+                isPrimary: true,
+              ),
+            ),
+          ],
         ),
+        const SizedBox(height: 14),
+        
+        Row(
+          children: [
+            Expanded(
+              child: _buildJournalistToolCard(
+                'News Feed',
+                'Browse latest articles',
+                Icons.feed,
+                const Color(0xFF3B82F6), // Blue
+                () => Navigator.pushNamed(context, '/news'),
+                isPrimary: true,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _buildJournalistToolCard(
+                'Tender Watch',
+                'Monitor government tenders',
+                Icons.shopping_cart,
+                const Color(0xFFF59E0B), // Amber
+                () => Navigator.pushNamed(context, '/tender-management'),
+                isPrimary: true,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 28),
+
+        // Recent Articles Section
+        Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFF10B981).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(
+                Icons.article_outlined,
+                color: Color(0xFF10B981),
+                size: 20,
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Text(
+              'Recent Articles',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF1F2937),
+                letterSpacing: -0.3,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 18),
+        _buildRecentArticlesSection(),
+        const SizedBox(height: 28),
+
+        // Recent Saved Articles Section
+        Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFF8B5CF6).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(
+                Icons.bookmark_outline,
+                color: Color(0xFF8B5CF6),
+                size: 20,
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Text(
+              'Recent Saved Articles',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF1F2937),
+                letterSpacing: -0.3,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 18),
+        _buildRecentSavedArticlesSection(),
       ],
     );
   }
@@ -2451,6 +2691,479 @@ class _EnhancedDashboardScreenState extends State<EnhancedDashboardScreen>
       context,
       MaterialPageRoute(builder: (context) => dashboard),
     );
+  }
+
+  Widget _buildJournalistStats() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.08),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+            spreadRadius: 0,
+          ),
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+            spreadRadius: 0,
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF3B82F6).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(
+                  Icons.analytics_outlined,
+                  color: Color(0xFF3B82F6),
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Text(
+                'Your Activity',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF1F2937),
+                  letterSpacing: -0.3,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
+          Row(
+            children: [
+              Expanded(
+                child: StreamBuilder<int>(
+                  stream: _newsService.streamUserArticleCount(),
+                  builder: (context, snapshot) {
+                    final count = snapshot.data ?? 0;
+                    return _buildStatItem(
+                      'Articles Published', 
+                      count.toString(), 
+                      Icons.edit_document,
+                      const Color(0xFF10B981), // Emerald
+                      const Color(0xFFECFDF5), // Light emerald
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: StreamBuilder<int>(
+                  stream: _mediaHubService.streamSavedArticlesCount(),
+                  builder: (context, snapshot) {
+                    final count = snapshot.data ?? 0;
+                    return _buildStatItem(
+                      'Articles Saved', 
+                      count.toString(), 
+                      Icons.bookmark_add,
+                      const Color(0xFF8B5CF6), // Purple
+                      const Color(0xFFF3E8FF), // Light purple
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatItem(String label, String value, IconData icon, Color color, [Color? backgroundColor]) {
+    final bgColor = backgroundColor ?? color.withOpacity(0.1);
+    
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: color.withOpacity(0.2),
+          width: 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: color.withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+            spreadRadius: 0,
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(
+                  icon,
+                  color: color,
+                  size: 22,
+                ),
+              ),
+              const Spacer(),
+              Text(
+                value,
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  color: color,
+                  letterSpacing: -0.5,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 15,
+              color: Colors.grey.shade700,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.2,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildJournalistToolCard(String title, String description, IconData icon, Color color, VoidCallback onTap, {bool isPrimary = false}) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.08),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+            spreadRadius: 0,
+          ),
+          BoxShadow(
+            color: color.withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+            spreadRadius: 0,
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: onTap,
+          child: Container(
+            padding: const EdgeInsets.all(18),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: color.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: color.withOpacity(0.2),
+                          width: 1,
+                        ),
+                      ),
+                      child: Icon(icon, color: color, size: 26),
+                    ),
+                    const Spacer(),
+                    Icon(
+                      Icons.arrow_forward_ios,
+                      color: color.withOpacity(0.6),
+                      size: 16,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF1F2937),
+                    letterSpacing: -0.3,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  description,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey.shade600,
+                    fontWeight: FontWeight.w500,
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRecentArticlesSection() {
+    return StreamBuilder<List<ReportArticle>>(
+      stream: _newsService.streamRecentUserArticles(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        
+        if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          return Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade50,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.grey.shade200),
+            ),
+            child: const Center(
+              child: Text(
+                'No articles published yet',
+                style: TextStyle(color: Colors.grey),
+              ),
+            ),
+          );
+        }
+
+        return Column(
+          children: snapshot.data!.map((article) => _buildArticleCard(article)).toList(),
+        );
+      },
+    );
+  }
+
+  Widget _buildRecentSavedArticlesSection() {
+    return StreamBuilder<List<Map<String, dynamic>>>(
+      stream: _mediaHubService.streamRecentSavedArticles(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        
+        if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          return Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade50,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.grey.shade200),
+            ),
+            child: const Center(
+              child: Text(
+                'No saved articles yet',
+                style: TextStyle(color: Colors.grey),
+              ),
+            ),
+          );
+        }
+
+        return Column(
+          children: snapshot.data!.map((article) => _buildSavedArticleCard(article)).toList(),
+        );
+      },
+    );
+  }
+
+  Widget _buildArticleCard(ReportArticle article) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: () => Navigator.pushNamed(
+            context,
+            '/article',
+            arguments: article.id,
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Container(
+                  width: 60,
+                  height: 60,
+                  decoration: BoxDecoration(
+                    color: Colors.green.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.article, color: Colors.green),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        article.title,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Published ${_formatDate(article.createdAt)}',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSavedArticleCard(Map<String, dynamic> article) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: () => Navigator.pushNamed(
+            context,
+            '/article',
+            arguments: article['id'],
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Container(
+                  width: 60,
+                  height: 60,
+                  decoration: BoxDecoration(
+                    color: Colors.purple.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.bookmark, color: Colors.purple),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        article['title'] ?? 'Untitled',
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Saved ${_formatDate(article['savedAt'])}',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _formatDate(dynamic date) {
+    if (date == null) return 'Unknown';
+    
+    try {
+      DateTime dateTime;
+      if (date is DateTime) {
+        dateTime = date;
+      } else if (date.toString().contains('Timestamp')) {
+        // Handle Firestore Timestamp
+        dateTime = DateTime.fromMillisecondsSinceEpoch(date.millisecondsSinceEpoch);
+      } else {
+        dateTime = DateTime.parse(date.toString());
+      }
+      
+      final now = DateTime.now();
+      final difference = now.difference(dateTime);
+      
+      if (difference.inDays > 0) {
+        return '${difference.inDays} day${difference.inDays == 1 ? '' : 's'} ago';
+      } else if (difference.inHours > 0) {
+        return '${difference.inHours} hour${difference.inHours == 1 ? '' : 's'} ago';
+      } else if (difference.inMinutes > 0) {
+        return '${difference.inMinutes} minute${difference.inMinutes == 1 ? '' : 's'} ago';
+      } else {
+        return 'Just now';
+      }
+    } catch (e) {
+      return 'Unknown';
+    }
   }
 
 }
