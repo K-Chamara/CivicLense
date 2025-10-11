@@ -14,12 +14,15 @@ class UserManagementScreen extends StatefulWidget {
 class _UserManagementScreenState extends State<UserManagementScreen> {
   final UserService _userService = UserService();
   String _selectedFilter = 'pending';
-  bool _isLoading = false;
+  bool _isLoading = true;
   
   // Statistics counts
   int _pendingCount = 0;
   int _approvedCount = 0;
   int _rejectedCount = 0;
+  
+  // User data
+  List<Map<String, dynamic>> _allUsers = [];
 
   final List<String> _statusFilters = [
     'all',
@@ -27,6 +30,84 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     'approved',
     'rejected',
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    if (!mounted) return;
+    
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      // Load all users using the same approach as admin dashboard
+      final querySnapshot = await FirebaseFirestore.instance.collection('users').get();
+      final users = querySnapshot.docs.map((doc) {
+        final data = doc.data();
+        data['uid'] = doc.id;
+        return data;
+      }).toList();
+      
+      // Filter out government users (they're auto-approved by admin)
+      // Only show public users who need approval
+      final publicUsers = users.where((user) {
+        final role = user['role'];
+        if (role is Map) {
+          final userType = role['userType']?.toString().toLowerCase();
+          // Only show public users (exclude government and admin users)
+          return userType == 'public';
+        }
+        return false; // Exclude users without proper role data
+      }).toList();
+      
+      // Calculate statistics for public users only
+      int pendingCount = 0;
+      int approvedCount = 0;
+      int rejectedCount = 0;
+      
+      for (final user in publicUsers) {
+        final status = user['status'] ?? 'pending';
+        switch (status) {
+          case 'pending':
+            pendingCount++;
+            break;
+          case 'approved':
+            approvedCount++;
+            break;
+          case 'rejected':
+            rejectedCount++;
+            break;
+        }
+      }
+      
+      if (mounted) {
+        setState(() {
+          _allUsers = publicUsers;
+          _pendingCount = pendingCount;
+          _approvedCount = approvedCount;
+          _rejectedCount = rejectedCount;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error loading users: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -80,66 +161,58 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
           ),
         ],
       ),
-      body: Column(
-        children: [
-          // Statistics Cards
-          _buildStatisticsCards(),
-          
-          // Users List
-          Expanded(
-            child: _selectedFilter == 'all' 
-                ? _buildAllUsersList()
-                : _buildUsersByStatusList(_selectedFilter),
-          ),
-        ],
+      body: SingleChildScrollView(
+        child: Column(
+          children: [
+            // Statistics Cards
+            _buildStatisticsCards(),
+            
+            // Users List
+            SizedBox(
+              height: MediaQuery.of(context).size.height - 200, // Fixed height to prevent overflow
+              child: _isLoading 
+                  ? const Center(child: CircularProgressIndicator())
+                  : _buildUsersList(),
+            ),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildStatisticsCards() {
-    return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('users')
-          .snapshots(),
-      builder: (context, snapshot) {
-        if (snapshot.hasData) {
-          _updateCounts(snapshot.data!.docs);
-        }
-        
-        return Container(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              Expanded(
-                child: _buildStatCard(
-                  'Pending',
-                  Icons.pending_actions,
-                  Colors.orange,
-                  _pendingCount,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _buildStatCard(
-                  'Approved',
-                  Icons.check_circle,
-                  Colors.green,
-                  _approvedCount,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _buildStatCard(
-                  'Rejected',
-                  Icons.cancel,
-                  Colors.red,
-                  _rejectedCount,
-                ),
-              ),
-            ],
+    return Container(
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        children: [
+          Expanded(
+            child: _buildStatCard(
+              'Pending',
+              Icons.pending_actions,
+              Colors.orange,
+              _pendingCount,
+            ),
           ),
-        );
-      },
+          const SizedBox(width: 12),
+          Expanded(
+            child: _buildStatCard(
+              'Approved',
+              Icons.check_circle,
+              Colors.green,
+              _approvedCount,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: _buildStatCard(
+              'Rejected',
+              Icons.cancel,
+              Colors.red,
+              _rejectedCount,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -183,92 +256,58 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     );
   }
 
-  Widget _buildAllUsersList() {
-    return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('users')
-          .orderBy('createdAt', descending: true)
-          .snapshots(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-
-        if (snapshot.hasError) {
-          return Center(
-            child: Text('Error: ${snapshot.error}'),
-          );
-        }
-
-        final users = snapshot.data?.docs ?? [];
-        
-        if (users.isEmpty) {
-          return const Center(
-            child: Text('No users found'),
-          );
-        }
-
-        return ListView.builder(
-          padding: const EdgeInsets.all(16),
-          itemCount: users.length,
-          itemBuilder: (context, index) {
-            final userDoc = users[index];
-            final userData = userDoc.data() as Map<String, dynamic>;
-            return _buildUserCard(userDoc.id, userData);
-          },
-        );
-      },
-    );
-  }
-
-  Widget _buildUsersByStatusList(String status) {
-    return StreamBuilder<QuerySnapshot>(
-      stream: _userService.getUsersByStatus(status),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-
-        if (snapshot.hasError) {
-          return Center(
-            child: Text('Error: ${snapshot.error}'),
-          );
-        }
-
-        final users = snapshot.data?.docs ?? [];
-        
-        if (users.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.people_outline,
-                  size: 64,
-                  color: Colors.grey.shade400,
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'No ${status} users found',
-                  style: TextStyle(
-                    fontSize: 18,
-                    color: Colors.grey.shade600,
-                  ),
-                ),
-              ],
+  Widget _buildUsersList() {
+    // Filter users based on selected filter
+    List<Map<String, dynamic>> filteredUsers;
+    
+    if (_selectedFilter == 'all') {
+      filteredUsers = _allUsers;
+    } else {
+      filteredUsers = _allUsers.where((user) => (user['status'] ?? 'pending') == _selectedFilter).toList();
+    }
+    
+    // Sort by createdAt (newest first)
+    filteredUsers.sort((a, b) {
+      final aCreatedAt = a['createdAt'] as Timestamp?;
+      final bCreatedAt = b['createdAt'] as Timestamp?;
+      
+      if (aCreatedAt == null && bCreatedAt == null) return 0;
+      if (aCreatedAt == null) return 1;
+      if (bCreatedAt == null) return -1;
+      
+      return bCreatedAt.compareTo(aCreatedAt);
+    });
+    
+    if (filteredUsers.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.people_outline,
+              size: 64,
+              color: Colors.grey.shade400,
             ),
-          );
-        }
+            const SizedBox(height: 16),
+            Text(
+              'No ${_selectedFilter == 'all' ? '' : _selectedFilter} users found',
+              style: TextStyle(
+                fontSize: 18,
+                color: Colors.grey.shade600,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
 
-        return ListView.builder(
-          padding: const EdgeInsets.all(16),
-          itemCount: users.length,
-          itemBuilder: (context, index) {
-            final userDoc = users[index];
-            final userData = userDoc.data() as Map<String, dynamic>;
-            return _buildUserCard(userDoc.id, userData);
-          },
-        );
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: filteredUsers.length,
+      itemBuilder: (context, index) {
+        final userData = filteredUsers[index];
+        final userId = userData['uid'] as String;
+        return _buildUserCard(userId, userData);
       },
     );
   }
@@ -606,36 +645,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     }
   }
 
-  void _updateCounts(List<QueryDocumentSnapshot> docs) {
-    int pending = 0;
-    int approved = 0;
-    int rejected = 0;
-    
-    for (final doc in docs) {
-      final data = doc.data() as Map<String, dynamic>;
-      final status = data['status'] ?? 'pending';
-      
-      switch (status) {
-        case 'pending':
-          pending++;
-          break;
-        case 'approved':
-          approved++;
-          break;
-        case 'rejected':
-          rejected++;
-          break;
-      }
-    }
-    
-    if (mounted) {
-      setState(() {
-        _pendingCount = pending;
-        _approvedCount = approved;
-        _rejectedCount = rejected;
-      });
-    }
-  }
+  // Removed _updateCounts method as it's now handled in _buildStatisticsCards
 
   String _formatDate(DateTime date) {
     return '${date.day}/${date.month}/${date.year}';

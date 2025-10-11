@@ -45,6 +45,8 @@ dependencies:
   path: ^1.9.0
   http: ^1.1.0
   
+  # Google Gemini AI for smart concern analysis
+  google_generative_ai: ^0.4.6
 
   
   # Shared preferences for "Remember me" functionality

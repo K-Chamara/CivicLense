@@ -25,6 +25,18 @@ enum SentimentScore {
   veryPositive
 }
 
+class SentimentAnalysisResult {
+  final double score;
+  final double magnitude;
+  final SentimentScore sentimentScore;
+  
+  SentimentAnalysisResult({
+    required this.score,
+    required this.magnitude,
+    required this.sentimentScore,
+  });
+}
+
 enum CommunityType {
   budget,
   tender,

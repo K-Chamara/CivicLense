@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'dart:io';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/concern_models.dart';
 import '../services/concern_service.dart';
 import '../services/auth_service.dart';
-import '../services/sentiment_service.dart';
+import '../services/smart_priority_service.dart';
+import '../services/gemini_ai_service.dart';
 import '../l10n/app_localizations.dart';
+import 'dart:async';
 
 class RaiseConcernScreen extends StatefulWidget {
   final String? relatedBudgetId;
@@ -48,6 +51,18 @@ class _RaiseConcernScreenState extends State<RaiseConcernScreen> {
   SentimentAnalysisResult? _sentimentResult;
   bool _isAnalyzingSentiment = false;
   
+  // AI Analysis
+  SmartAnalysisResult? _aiAnalysisResult;
+  bool _isAnalyzingWithAI = false;
+  
+  // Gemini AI Features
+  CategorySuggestion? _categorySuggestion;
+  bool _isSuggestingCategory = false;
+  QualityCheck? _qualityCheck;
+  bool _isCheckingQuality = false;
+  GeminiAnalysisResult? _geminiAnalysis;
+  Timer? _descriptionDebounce;
+  
   // Engagement meter
   double _engagementScore = 0.0;
   
@@ -63,6 +78,7 @@ class _RaiseConcernScreenState extends State<RaiseConcernScreen> {
   void initState() {
     super.initState();
     _initializeForm();
+    _setupGeminiListeners();
   }
 
   void _initializeForm() {
@@ -80,8 +96,23 @@ class _RaiseConcernScreenState extends State<RaiseConcernScreen> {
     }
   }
 
+  void _setupGeminiListeners() {
+    // Listen to description changes for real-time AI analysis
+    _descriptionController.addListener(() {
+      // Debounce to avoid too many API calls
+      _descriptionDebounce?.cancel();
+      _descriptionDebounce = Timer(const Duration(seconds: 2), () {
+        if (_descriptionController.text.length >= 50) {
+          _suggestCategoryWithGemini();
+          _checkQualityWithGemini();
+        }
+      });
+    });
+  }
+
   @override
   void dispose() {
+    _descriptionDebounce?.cancel();
     _titleController.dispose();
     _descriptionController.dispose();
     _locationController.dispose();
@@ -154,11 +185,542 @@ class _RaiseConcernScreenState extends State<RaiseConcernScreen> {
   }
 
   // Engagement score calculation
-  void _calculateEngagementScore() {
-    // Mock engagement calculation based on similar concerns
+  Future<void> _calculateEngagementScore() async {
+    // Calculate real engagement based on similar concerns in database
+    try {
+      final description = _descriptionController.text.trim().toLowerCase();
+      if (description.length < 20) return;
+      
+      // Extract keywords from description
+      final keywords = description.split(' ')
+          .where((word) => word.length > 4)
+          .take(5)
+          .toList();
+      
+      if (keywords.isEmpty) return;
+      
+      // Query Firestore for similar concerns
+      final querySnapshot = await FirebaseFirestore.instance
+          .collection('concerns')
+          .orderBy('createdAt', descending: true)
+          .limit(100)
+          .get();
+      final concernsSnapshot = querySnapshot.docs
+          .map((doc) => Concern.fromFirestore(doc))
+          .toList();
+      
+      if (concernsSnapshot.isEmpty) return;
+      
+      // Find similar concerns based on keywords
+      int matchCount = 0;
+      double totalSupport = 0;
+      
+      for (var concern in concernsSnapshot) {
+        final concernText = '${concern.title} ${concern.description}'.toLowerCase();
+        int matches = keywords.where((keyword) => concernText.contains(keyword)).length;
+        
+        if (matches >= 2) {
+          matchCount++;
+          totalSupport += (concern.supportCount ?? 0).toDouble();
+        }
+      }
+      
+      if (matchCount > 0) {
+        // Calculate engagement score (0.0 to 1.0)
+        final avgSupport = totalSupport / matchCount;
+        final score = (avgSupport / 100).clamp(0.0, 1.0);
+        
+        setState(() {
+          _engagementScore = score;
+        });
+        
+        print('📊 Engagement calculated: ${(score * 100).toStringAsFixed(0)}% based on $matchCount similar concerns with $totalSupport total support');
+      }
+    } catch (e) {
+      print('⚠️ Engagement calculation failed: $e');
+      // Keep at 0 if calculation fails
+    }
+  }
+
+  // AI Analysis using Smart Priority Service
+  Future<void> _analyzeWithAI() async {
+    if (_titleController.text.trim().isEmpty || _descriptionController.text.trim().isEmpty) {
+      return;
+    }
+
     setState(() {
-      _engagementScore = 0.65; // 65% support from community
+      _isAnalyzingWithAI = true;
     });
+
+    try {
+      // Try Gemini AI first for better analysis
+      print('🧠 Using Gemini AI for analysis...');
+      final geminiResult = await GeminiAIService.analyzeConcern(
+        title: _titleController.text.trim(),
+        description: _descriptionController.text.trim(),
+        category: _selectedCategory,
+      );
+
+      setState(() {
+        _geminiAnalysis = geminiResult;
+        // Convert Gemini result to SmartAnalysisResult for compatibility
+        _aiAnalysisResult = SmartAnalysisResult(
+          sentiment: SentimentAnalysisResult(
+            score: geminiResult.sentimentScore,
+            magnitude: geminiResult.sentimentScore.abs(),
+            sentimentScore: geminiResult.sentiment,
+          ),
+          priority: PriorityAnalysisResult(
+            priority: geminiResult.priority,
+            score: geminiResult.priorityScore,
+            reasoning: geminiResult.reasoning,
+          ),
+          topics: geminiResult.topics,
+          summary: geminiResult.reasoning,
+          confidence: geminiResult.confidence,
+          analyzedAt: DateTime.now(),
+          aiModel: 'Gemini 2.0 Flash',
+        );
+      });
+
+      // Show Gemini analysis results with enhanced features
+      if (mounted) {
+        _showGeminiAnalysisResults(geminiResult);
+      }
+    } catch (e) {
+      print('⚠️ Gemini AI failed, falling back to keyword analysis: $e');
+      // Fallback to keyword-based analysis
+      try {
+        final aiResult = SmartPriorityService.analyzeConcern(
+          _titleController.text.trim(),
+          _descriptionController.text.trim(),
+          _selectedCategory,
+        );
+
+        setState(() {
+          _aiAnalysisResult = aiResult;
+        });
+
+        if (mounted) {
+          _showAIAnalysisResults(aiResult);
+        }
+      } catch (fallbackError) {
+        print('AI Analysis Error: $fallbackError');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('AI Analysis failed: $fallbackError'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+      }
+    } finally {
+      setState(() {
+        _isAnalyzingWithAI = false;
+      });
+    }
+  }
+
+  // Gemini AI Methods
+  Future<void> _suggestCategoryWithGemini() async {
+    if (_isSuggestingCategory || _titleController.text.isEmpty) return;
+    
+    setState(() => _isSuggestingCategory = true);
+    
+    try {
+      print('🎯 Gemini suggesting category...');
+      final suggestion = await GeminiAIService.suggestCategory(
+        title: _titleController.text.trim(),
+        description: _descriptionController.text.trim(),
+      );
+      
+      setState(() {
+        _categorySuggestion = suggestion;
+        _isSuggestingCategory = false;
+      });
+      
+      print('✅ Category suggested: ${suggestion.category.name} (${(suggestion.confidence * 100).toStringAsFixed(0)}%)');
+    } catch (e) {
+      print('⚠️ Category suggestion failed: $e');
+      setState(() => _isSuggestingCategory = false);
+    }
+  }
+
+  Future<void> _checkQualityWithGemini() async {
+    if (_isCheckingQuality) return;
+    
+    setState(() => _isCheckingQuality = true);
+    
+    try {
+      print('📊 Gemini checking quality...');
+      final quality = await GeminiAIService.checkQuality(
+        title: _titleController.text.trim(),
+        description: _descriptionController.text.trim(),
+      );
+      
+      setState(() {
+        _qualityCheck = quality;
+        _isCheckingQuality = false;
+      });
+      
+      print('✅ Quality score: ${(quality.qualityScore * 100).toStringAsFixed(0)}%');
+    } catch (e) {
+      print('⚠️ Quality check failed: $e');
+      setState(() => _isCheckingQuality = false);
+    }
+  }
+
+  void _acceptCategorySuggestion() {
+    if (_categorySuggestion != null) {
+      setState(() {
+        _selectedCategory = _categorySuggestion!.category;
+        _categorySuggestion = null; // Dismiss suggestion after accepting
+      });
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('✅ Category set to ${_selectedCategory.name.toUpperCase()}'),
+          backgroundColor: Colors.green,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
+  void _showGeminiAnalysisResults(GeminiAnalysisResult result) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Colors.purple.shade600, Colors.blue.shade600],
+                ),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(Icons.auto_awesome, color: Colors.white, size: 24),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('🤖 Gemini AI Analysis', style: TextStyle(fontSize: 20)),
+                  Text('Powered by Google', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                ],
+              ),
+            ),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Confidence Badge
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Colors.green.shade400, Colors.green.shade600],
+                  ),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.verified, color: Colors.white, size: 18),
+                    const SizedBox(width: 6),
+                    Text(
+                      '${(result.confidence * 100).toStringAsFixed(0)}% Confidence',
+                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
+              ),
+              
+              const SizedBox(height: 20),
+              
+              // Priority
+              _buildGeminiMetricCard(
+                'Priority Level',
+                result.priority.name.toUpperCase(),
+                _getPriorityIcon(result.priority),
+                _getPriorityColor(result.priority),
+                subtitle: 'Score: ${(result.priorityScore * 100).toStringAsFixed(0)}%',
+              ),
+              
+              const SizedBox(height: 12),
+              
+              // Sentiment
+              _buildGeminiMetricCard(
+                'Sentiment Analysis',
+                result.sentiment.name.toUpperCase(),
+                _getSentimentIcon(result.sentiment),
+                _getSentimentColor(result.sentiment),
+              ),
+              
+              const SizedBox(height: 12),
+              
+              // Urgency
+              _buildGeminiMetricCard(
+                'Urgency Level',
+                '${result.urgencyLevel}/10',
+                Icons.speed_rounded,
+                result.urgencyLevel >= 8 ? Colors.red : result.urgencyLevel >= 6 ? Colors.orange : Colors.blue,
+              ),
+              
+              if (result.estimatedResolutionDays > 0) ...[
+                const SizedBox(height: 12),
+                _buildGeminiMetricCard(
+                  'Est. Resolution Time',
+                  '${result.estimatedResolutionDays} days',
+                  Icons.calendar_today_rounded,
+                  Colors.purple,
+                ),
+              ],
+              
+              // Topics
+              if (result.topics.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                const Text('Detected Topics:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: result.topics.map((topic) => Chip(
+                    label: Text(topic.toUpperCase()),
+                    backgroundColor: Colors.blue.shade100,
+                    labelStyle: TextStyle(color: Colors.blue.shade700, fontSize: 11, fontWeight: FontWeight.w600),
+                  )).toList(),
+                ),
+              ],
+              
+              // Suggested Actions
+              if (result.suggestedActions.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                const Text('Recommended Actions:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                const SizedBox(height: 8),
+                ...result.suggestedActions.asMap().entries.map((entry) => Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        margin: const EdgeInsets.only(top: 4),
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: Colors.purple.shade100,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Text(
+                          '${entry.key + 1}',
+                          style: TextStyle(color: Colors.purple.shade700, fontWeight: FontWeight.bold, fontSize: 11),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(entry.value, style: const TextStyle(fontSize: 13)),
+                      ),
+                    ],
+                  ),
+                )),
+              ],
+              
+              // AI Reasoning
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.purple.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.purple.shade200),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.info_outline, color: Colors.purple.shade600, size: 18),
+                        const SizedBox(width: 6),
+                        Text('AI Reasoning:', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.purple.shade700)),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Text(result.reasoning, style: const TextStyle(fontSize: 13)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Got it!'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGeminiMetricCard(String label, String value, IconData icon, Color color, {String? subtitle}) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: color,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, color: Colors.white, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label, style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+                Text(value, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: color)),
+                if (subtitle != null)
+                  Text(subtitle, style: TextStyle(fontSize: 10, color: Colors.grey.shade500)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showAIAnalysisResults(SmartAnalysisResult result) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.psychology, color: Colors.purple),
+            SizedBox(width: 8),
+            Text('🤖 AI Analysis Results'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildAIAnalysisCard('Priority', _getPriorityIcon(result.priority.priority), 
+                '${result.priority.priority.name.toUpperCase()}', result.priority.reasoning),
+            SizedBox(height: 12),
+            _buildAIAnalysisCard('Sentiment', _getSentimentIcon(result.sentiment.sentimentScore), 
+                '${result.sentiment.sentimentScore.name.replaceAll(RegExp(r'([A-Z])'), ' \$1').trim()}', 
+                'Score: ${result.sentiment.score.toStringAsFixed(2)}'),
+            SizedBox(height: 12),
+            if (result.topics.isNotEmpty) ...[
+              Text('🎯 Detected Topics:', style: TextStyle(fontWeight: FontWeight.bold)),
+              SizedBox(height: 4),
+              Wrap(
+                children: result.topics.map((topic) => Chip(
+                  label: Text(topic),
+                  backgroundColor: Colors.blue.shade100,
+                )).toList(),
+              ),
+            ],
+            SizedBox(height: 12),
+            Text('📊 Confidence: ${(result.confidence * 100).round()}%', 
+                style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Close'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _applyAIRecommendations(result);
+            },
+            child: Text('Apply AI Priority'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAIAnalysisCard(String title, IconData icon, String value, String subtitle) {
+    return Container(
+      padding: EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey.shade300),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: Colors.purple, size: 20),
+          SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                Text(value, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                Text(subtitle, style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  IconData _getPriorityIcon(ConcernPriority priority) {
+    switch (priority) {
+      case ConcernPriority.critical:
+        return Icons.warning;
+      case ConcernPriority.high:
+        return Icons.priority_high;
+      case ConcernPriority.medium:
+        return Icons.remove;
+      case ConcernPriority.low:
+        return Icons.keyboard_arrow_down;
+    }
+  }
+
+  IconData _getSentimentIcon(SentimentScore sentiment) {
+    switch (sentiment) {
+      case SentimentScore.veryNegative:
+        return Icons.sentiment_very_dissatisfied;
+      case SentimentScore.negative:
+        return Icons.sentiment_dissatisfied;
+      case SentimentScore.neutral:
+        return Icons.sentiment_neutral;
+      case SentimentScore.positive:
+        return Icons.sentiment_satisfied;
+      case SentimentScore.veryPositive:
+        return Icons.sentiment_very_satisfied;
+    }
+  }
+
+  void _applyAIRecommendations(SmartAnalysisResult result) {
+    // The AI recommendations are already applied when creating the concern
+    // This method can be used for additional actions if needed
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('✅ AI Priority: ${result.priority.priority.name.toUpperCase()} applied'),
+        backgroundColor: Colors.green,
+      ),
+    );
   }
 
   Future<void> _submitConcern() async {
@@ -207,6 +769,21 @@ class _RaiseConcernScreenState extends State<RaiseConcernScreen> {
         }
       }
 
+      // Apply AI Analysis if available
+      ConcernPriority finalPriority = ConcernPriority.medium;
+      SentimentScore? finalSentiment;
+      double? finalSentimentMagnitude;
+      List<String> aiTopics = [];
+      double aiConfidence = 0.0;
+      
+      if (_aiAnalysisResult != null) {
+        finalPriority = _aiAnalysisResult!.priority.priority;
+        finalSentiment = _aiAnalysisResult!.sentiment.sentimentScore;
+        finalSentimentMagnitude = _aiAnalysisResult!.sentiment.magnitude;
+        aiTopics = _aiAnalysisResult!.topics;
+        aiConfidence = _aiAnalysisResult!.confidence;
+      }
+
       final concern = Concern(
         id: '',
         title: _titleController.text.trim(),
@@ -219,22 +796,34 @@ class _RaiseConcernScreenState extends State<RaiseConcernScreen> {
         authorLocation: _isAnonymous ? null : userLocation,
         category: _selectedCategory,
         type: _selectedType,
-        location: _locationController.text.trim().isEmpty ? null : _locationController.text.trim(),
-        // Priority will be auto-determined by system
+        priority: finalPriority, // AI-determined priority
         status: ConcernStatus.pending,
         createdAt: DateTime.now(),
         relatedBudgetId: widget.relatedBudgetId,
         relatedTenderId: widget.relatedTenderId,
         relatedCommunityId: widget.relatedCommunityId,
-        tags: [],
+        tags: aiTopics, // AI-detected topics as tags
         isAnonymous: _isAnonymous,
         isPublic: _isPublic,
+        sentimentScore: finalSentiment,
+        sentimentMagnitude: finalSentimentMagnitude,
+        location: _locationController.text.trim().isEmpty ? null : _locationController.text.trim(),
         metadata: {
           'location': _locationController.text.trim(),
-          'sentimentScore': _sentimentResult?.sentimentScore.name,
-          'sentimentMagnitude': _sentimentResult?.magnitude,
+          'sentimentScore': finalSentiment?.name,
+          'sentimentMagnitude': finalSentimentMagnitude,
           'engagementScore': _engagementScore,
           'attachmentCount': _attachedFiles.length,
+          // AI Analysis Results
+          'aiAnalysis': {
+            'model': 'SmartKeyword v1.0',
+            'confidence': aiConfidence,
+            'analyzedAt': DateTime.now().toIso8601String(),
+            'topics': aiTopics,
+            'priorityScore': _aiAnalysisResult?.priority.score,
+            'sentimentScore': _aiAnalysisResult?.sentiment.score,
+            'reasoning': _aiAnalysisResult?.priority.reasoning,
+          },
           // Enhanced user tracking information
           'userRole': userRole,
           'userPhone': _isAnonymous ? 'hidden' : userPhone,
@@ -351,11 +940,27 @@ class _RaiseConcernScreenState extends State<RaiseConcernScreen> {
 
                             // Category/Type Dropdown
                             _buildDropdownSection(),
-                            const SizedBox(height: 16),
+                            const SizedBox(height: 8),
+                            
+                            // Gemini Category Suggestion Chip
+                            if (_categorySuggestion != null && _categorySuggestion!.confidence > 0.7)
+                              _buildCategorySuggestionChip(),
+                            if (_categorySuggestion != null && _categorySuggestion!.confidence > 0.7)
+                              const SizedBox(height: 8),
+
+                            const SizedBox(height: 8),
 
                             // Description Box
                             _buildDescriptionSection(),
-                            const SizedBox(height: 16),
+                            const SizedBox(height: 8),
+                            
+                            // Gemini Quality Indicator
+                            if (_qualityCheck != null)
+                              _buildQualityIndicator(),
+                            if (_qualityCheck != null)
+                              const SizedBox(height: 8),
+                            
+                            const SizedBox(height: 8),
 
                             // Sentiment Preview
                             if (_sentimentResult != null) _buildSentimentPreview(),
@@ -701,6 +1306,100 @@ class _RaiseConcernScreenState extends State<RaiseConcernScreen> {
             alignLabelWithHint: true,
           ),
         ),
+        const SizedBox(height: 16),
+        
+        // AI Analysis Button
+        if (_titleController.text.isNotEmpty && _descriptionController.text.length >= 20) ...[
+          Container(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: _isAnalyzingWithAI ? null : _analyzeWithAI,
+              icon: _isAnalyzingWithAI 
+                  ? SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
+                    )
+                  : Icon(Icons.psychology, color: Colors.white),
+              label: Text(
+                _isAnalyzingWithAI 
+                    ? 'AI Analyzing...' 
+                    : _aiAnalysisResult != null 
+                        ? '🤖 Re-analyze with AI' 
+                        : '🤖 Analyze with AI',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                ),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _aiAnalysisResult != null 
+                    ? Colors.green.shade600 
+                    : Colors.purple.shade600,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                elevation: 4,
+              ),
+            ),
+          ),
+          
+          // AI Analysis Results Preview
+          if (_aiAnalysisResult != null) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.green.shade50,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.green.shade200),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.check_circle, color: Colors.green.shade600, size: 20),
+                      SizedBox(width: 8),
+                      Text(
+                        'AI Analysis Complete',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.green.shade700,
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 8),
+                  Text(
+                    'Priority: ${_aiAnalysisResult!.priority.priority.name.toUpperCase()}',
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  Text(
+                    'Sentiment: ${_aiAnalysisResult!.sentiment.sentimentScore.name.replaceAll(RegExp(r'([A-Z])'), ' \$1').trim()}',
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  if (_aiAnalysisResult!.topics.isNotEmpty) ...[
+                    SizedBox(height: 4),
+                    Text(
+                      'Topics: ${_aiAnalysisResult!.topics.join(', ')}',
+                      style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                    ),
+                  ],
+                  Text(
+                    'Confidence: ${(_aiAnalysisResult!.confidence * 100).round()}%',
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
       ],
     );
   }
@@ -1161,20 +1860,19 @@ class _RaiseConcernScreenState extends State<RaiseConcernScreen> {
     }
   }
 
-  IconData _getSentimentIcon(SentimentScore sentiment) {
-    switch (sentiment) {
-      case SentimentScore.veryPositive:
-        return Icons.sentiment_very_satisfied;
-      case SentimentScore.positive:
-        return Icons.sentiment_satisfied;
-      case SentimentScore.neutral:
-        return Icons.sentiment_neutral;
-      case SentimentScore.negative:
-        return Icons.sentiment_dissatisfied;
-      case SentimentScore.veryNegative:
-        return Icons.sentiment_very_dissatisfied;
+  Color _getPriorityColor(ConcernPriority priority) {
+    switch (priority) {
+      case ConcernPriority.critical:
+        return Colors.red.shade700;
+      case ConcernPriority.high:
+        return Colors.orange.shade700;
+      case ConcernPriority.medium:
+        return Colors.blue.shade700;
+      case ConcernPriority.low:
+        return Colors.green.shade700;
     }
   }
+
 
   String _getSentimentDisplayName(SentimentScore sentiment) {
     switch (sentiment) {
@@ -1276,6 +1974,291 @@ class _RaiseConcernScreenState extends State<RaiseConcernScreen> {
         return 'Question or request for information';
       case ConcernType.feedback:
         return 'General feedback or opinion';
+    }
+  }
+
+  // Gemini UI Components
+  Widget _buildCategorySuggestionChip() {
+    if (_categorySuggestion == null) return const SizedBox.shrink();
+    
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Colors.purple.shade50, Colors.blue.shade50],
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.purple.shade300, width: 2),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.purple.withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Colors.purple.shade600, Colors.blue.shade600],
+                  ),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.auto_awesome, color: Colors.white, size: 20),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      '🎯 AI Suggests Category',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF1A3C73)),
+                    ),
+                    Text(
+                      '${((_categorySuggestion!.confidence) * 100).toStringAsFixed(0)}% Confidence',
+                      style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          
+          const SizedBox(height: 12),
+          
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  _getCategoryIcon(_categorySuggestion!.category),
+                  color: _getCategoryColor(_categorySuggestion!.category),
+                  size: 24,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _categorySuggestion!.category.name.toUpperCase(),
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 18,
+                          color: _getCategoryColor(_categorySuggestion!.category),
+                        ),
+                      ),
+                      if (_categorySuggestion!.reasoning.isNotEmpty)
+                        Text(
+                          _categorySuggestion!.reasoning,
+                          style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          
+          const SizedBox(height: 12),
+          
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              TextButton(
+                onPressed: () {
+                  setState(() => _categorySuggestion = null);
+                },
+                child: const Text('Dismiss'),
+              ),
+              const SizedBox(width: 8),
+              ElevatedButton.icon(
+                onPressed: _acceptCategorySuggestion,
+                icon: const Icon(Icons.check, size: 18),
+                label: const Text('Use This'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.purple.shade600,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQualityIndicator() {
+    if (_qualityCheck == null) return const SizedBox.shrink();
+    
+    final quality = _qualityCheck!;
+    final percentage = (quality.qualityScore * 100).toInt();
+    
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Colors.green.shade50, Colors.teal.shade50],
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.green.shade300, width: 2),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.assessment, color: Colors.green.shade700, size: 24),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Concern Quality',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                    ),
+                    Text(
+                      '$percentage% Complete',
+                      style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: quality.isSubmittable ? Colors.green : Colors.orange,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  quality.isSubmittable ? '✓ Good' : '⚠ Needs Work',
+                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+                ),
+              ),
+            ],
+          ),
+          
+          const SizedBox(height: 12),
+          
+          // Progress Bar
+          ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: LinearProgressIndicator(
+              value: quality.qualityScore,
+              minHeight: 8,
+              backgroundColor: Colors.grey.shade200,
+              valueColor: AlwaysStoppedAnimation(
+                percentage >= 80 ? Colors.green : percentage >= 60 ? Colors.orange : Colors.red,
+              ),
+            ),
+          ),
+          
+          // Strengths
+          if (quality.strengths.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            ...quality.strengths.map((strength) => Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: Row(
+                children: [
+                  Icon(Icons.check_circle, color: Colors.green.shade600, size: 16),
+                  const SizedBox(width: 8),
+                  Expanded(child: Text(strength, style: const TextStyle(fontSize: 13))),
+                ],
+              ),
+            )),
+          ],
+          
+          // Suggestions for improvement
+          if (quality.suggestions.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.orange.shade50,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: Colors.orange.shade200),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.lightbulb_outline, color: Colors.orange.shade700, size: 18),
+                      const SizedBox(width: 6),
+                      Text('Suggestions:', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.orange.shade700)),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  ...quality.suggestions.map((suggestion) => Padding(
+                    padding: const EdgeInsets.only(bottom: 4),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('•', style: TextStyle(color: Colors.orange.shade700, fontSize: 16)),
+                        const SizedBox(width: 8),
+                        Expanded(child: Text(suggestion, style: const TextStyle(fontSize: 12))),
+                      ],
+                    ),
+                  )),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  IconData _getCategoryIcon(ConcernCategory category) {
+    switch (category) {
+      case ConcernCategory.corruption:
+        return Icons.gavel_rounded;
+      case ConcernCategory.budget:
+        return Icons.account_balance_wallet_rounded;
+      case ConcernCategory.tender:
+        return Icons.assignment_rounded;
+      case ConcernCategory.community:
+        return Icons.people_rounded;
+      case ConcernCategory.system:
+        return Icons.settings_rounded;
+      case ConcernCategory.transparency:
+        return Icons.visibility_rounded;
+      case ConcernCategory.other:
+        return Icons.category_rounded;
+    }
+  }
+
+  Color _getCategoryColor(ConcernCategory category) {
+    switch (category) {
+      case ConcernCategory.corruption:
+        return Colors.red.shade600;
+      case ConcernCategory.budget:
+        return Colors.green.shade600;
+      case ConcernCategory.tender:
+        return Colors.blue.shade600;
+      case ConcernCategory.community:
+        return Colors.purple.shade600;
+      case ConcernCategory.system:
+        return Colors.deepOrange.shade600;
+      case ConcernCategory.transparency:
+        return Colors.cyan.shade600;
+      case ConcernCategory.other:
+        return Colors.grey.shade600;
     }
   }
 

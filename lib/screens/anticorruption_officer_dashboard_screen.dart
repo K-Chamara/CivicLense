@@ -6,8 +6,9 @@ import '../models/user_role.dart';
 import '../models/concern_models.dart';
 import 'login_screen.dart';
 import 'concern_management_screen.dart';
-import 'user_concern_tracking_screen.dart';
-import 'public_tender_viewer_screen.dart';
+import 'enhanced_concern_management_screen.dart';
+import 'enhanced_concern_detail_screen.dart';
+import 'community_management_officer_screen.dart';
 
 class AntiCorruptionOfficerDashboardScreen extends StatefulWidget {
   const AntiCorruptionOfficerDashboardScreen({super.key});
@@ -152,10 +153,7 @@ class _AntiCorruptionOfficerDashboardScreenState extends State<AntiCorruptionOff
             Navigator.pushNamed(context, '/budget-viewer');
             break;
           case 2:
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const PublicTenderViewerScreen()),
-            );
+            _showFeatureComingSoon('Tender Viewer');
             break;
           case 3:
             // Already on dashboard
@@ -332,7 +330,7 @@ class _AntiCorruptionOfficerDashboardScreenState extends State<AntiCorruptionOff
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'Anti-corruption Management Tools',
+          'Management Tools',
           style: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.bold,
@@ -348,39 +346,11 @@ class _AntiCorruptionOfficerDashboardScreenState extends State<AntiCorruptionOff
           () => _navigateToConcernManagement(),
         ),
         _buildFeatureCard(
-          'Investigation Tools',
-          'Tools for corruption investigations and evidence collection',
-          Icons.search,
-          Colors.orange,
-          () => _showFeatureComingSoon('Investigation Tools'),
-        ),
-        _buildFeatureCard(
-          'Compliance Monitoring',
-          'Monitor compliance with anti-corruption policies',
-          Icons.security,
-          Colors.purple,
-          () => _showFeatureComingSoon('Compliance Monitoring'),
-        ),
-        _buildFeatureCard(
-          'Reporting System',
-          'Generate anti-corruption reports and analytics',
-          Icons.assessment,
+          'Community Management',
+          'Monitor communities, moderate content, and manage violations',
+          Icons.people,
           Colors.blue,
-          () => _showFeatureComingSoon('Reporting System'),
-        ),
-        _buildFeatureCard(
-          'Case Management',
-          'Manage investigation cases and track progress',
-          Icons.folder,
-          Colors.teal,
-          () => _showFeatureComingSoon('Case Management'),
-        ),
-        _buildFeatureCard(
-          'Whistleblower Portal',
-          'Secure portal for whistleblower reports',
-          Icons.security,
-          Colors.indigo,
-          () => _showFeatureComingSoon('Whistleblower Portal'),
+          () => _navigateToCommunityManagement(),
         ),
       ],
     );
@@ -579,7 +549,16 @@ class _AntiCorruptionOfficerDashboardScreenState extends State<AntiCorruptionOff
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => const ConcernManagementScreen(),
+        builder: (context) => const EnhancedConcernManagementScreen(),
+      ),
+    );
+  }
+
+  void _navigateToCommunityManagement() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const CommunityManagementOfficerScreen(),
       ),
     );
   }
@@ -704,7 +683,7 @@ class _AntiCorruptionOfficerDashboardScreenState extends State<AntiCorruptionOff
                     Navigator.pop(context);
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (context) => const ConcernManagementScreen()),
+                      MaterialPageRoute(builder: (context) => const EnhancedConcernManagementScreen()),
                     );
                   },
                 ),
@@ -713,10 +692,7 @@ class _AntiCorruptionOfficerDashboardScreenState extends State<AntiCorruptionOff
                   title: 'Tenders',
                   onTap: () {
                     Navigator.pop(context);
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const PublicTenderViewerScreen()),
-                    );
+                    _showFeatureComingSoon('Tender Viewer');
                   },
                 ),
                 _buildDrawerItem(

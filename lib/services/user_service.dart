@@ -86,7 +86,6 @@ class UserService {
     return _firestore
         .collection('users')
         .where('status', isEqualTo: 'pending')
-        .orderBy('uploadedAt', descending: true)
         .snapshots();
   }
 
@@ -95,7 +94,6 @@ class UserService {
     return _firestore
         .collection('users')
         .where('status', isEqualTo: status)
-        .orderBy('uploadedAt', descending: true)
         .snapshots();
   }
 

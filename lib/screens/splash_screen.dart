@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:permission_handler/permission_handler.dart';
+import '../services/notification_service.dart';
 import '../utils/onboarding_utils.dart';
 import '../utils/create_admin.dart';
 import '../main.dart'; // Import AuthWrapper from main.dart
@@ -132,8 +134,37 @@ class _SplashScreenState extends State<SplashScreen>
     _navigateToNextScreen();
   }
 
+  /// Request permissions silently during splash screen
+  Future<void> _requestPermissionsSilently() async {
+    try {
+      print('📱 SplashScreen: Requesting permissions silently...');
+      
+      // Request notification permission
+      final notificationStatus = await Permission.notification.request();
+      print('📱 Notification permission: $notificationStatus');
+      
+      if (notificationStatus.isGranted) {
+        // Initialize FCM if notification permission granted
+        await NotificationService.initializeNotifications();
+        print('✅ FCM initialized during splash');
+      }
+      
+      // Request storage permission
+      final storageStatus = await Permission.storage.request();
+      print('📁 Storage permission: $storageStatus');
+      
+      print('✅ Permissions requested during splash screen');
+    } catch (e) {
+      print('⚠️ Error requesting permissions: $e');
+      // Don't block the app flow if permission request fails
+    }
+  }
+
   void _navigateToNextScreen() async {
     print('🚀 SplashScreen: Starting navigation logic...');
+    
+    // Request permissions during splash screen (seamless)
+    await _requestPermissionsSilently();
     
     // ALWAYS check if admin exists first - this is critical for app functionality
     print('🔍 SplashScreen: Checking admin existence...');

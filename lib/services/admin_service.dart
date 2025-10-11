@@ -129,6 +129,7 @@ class AdminService {
           'isGovernmentUser': true,
           'securityLevel': 'high',
           'otpEnabled': true,
+          'status': 'approved', // Government users created by admin are auto-approved
           'createdAt': FieldValue.serverTimestamp(),
           'createdBy': currentAdminUser?.uid,
         };
