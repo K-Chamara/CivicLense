@@ -11,7 +11,6 @@ import 'finance_officer_dashboard_screen.dart';
 import 'procurement_officer_dashboard_screen.dart';
 import 'anticorruption_officer_dashboard_screen.dart';
 import 'public_user_dashboard_screen.dart';
-import '../l10n/app_localizations.dart';
 
 class PublicTenderViewerScreen extends StatefulWidget {
   const PublicTenderViewerScreen({super.key});
@@ -126,7 +125,7 @@ class _PublicTenderViewerScreenState extends State<PublicTenderViewerScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
       appBar: AppBar(
-        title: Text(AppLocalizations.of(context)!.publicTenders),
+        title: const Text('Public Tenders'),
         backgroundColor: Colors.blue,
         foregroundColor: Colors.white,
         elevation: 0,
@@ -134,7 +133,7 @@ class _PublicTenderViewerScreenState extends State<PublicTenderViewerScreen> {
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _loadTenders,
-            tooltip: AppLocalizations.of(context)!.refresh,
+            tooltip: 'Refresh',
           ),
         ],
       ),
@@ -163,7 +162,7 @@ class _PublicTenderViewerScreenState extends State<PublicTenderViewerScreen> {
           // Search Bar
           TextField(
             decoration: InputDecoration(
-              hintText: AppLocalizations.of(context)!.searchTenders,
+              hintText: 'Search tenders...',
               prefixIcon: const Icon(Icons.search),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
@@ -193,7 +192,7 @@ class _PublicTenderViewerScreenState extends State<PublicTenderViewerScreen> {
                   child: DropdownButtonFormField<String>(
                     value: _selectedCategory,
                     decoration: InputDecoration(
-                      labelText: AppLocalizations.of(context)!.category,
+                      labelText: 'Category',
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8),
                       ),
@@ -204,14 +203,15 @@ class _PublicTenderViewerScreenState extends State<PublicTenderViewerScreen> {
                       isDense: true,
                       labelStyle: const TextStyle(fontSize: 11),
                     ),
-                    style: const TextStyle(fontSize: 11),
+                    style: const TextStyle(fontSize: 11, color: Colors.black),
+                    dropdownColor: Colors.white,
                     items: _categories.map((category) {
                       return DropdownMenuItem<String>(
                         value: category,
                         child: Text(
                           category,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(fontSize: 11),
+                          style: const TextStyle(fontSize: 11, color: Colors.black),
                         ),
                       );
                     }).toList(),
@@ -234,7 +234,7 @@ class _PublicTenderViewerScreenState extends State<PublicTenderViewerScreen> {
                   child: DropdownButtonFormField<String>(
                     value: _selectedStatus,
                     decoration: InputDecoration(
-                      labelText: AppLocalizations.of(context)!.status,
+                      labelText: 'Status',
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8),
                       ),
@@ -245,14 +245,15 @@ class _PublicTenderViewerScreenState extends State<PublicTenderViewerScreen> {
                       isDense: true,
                       labelStyle: const TextStyle(fontSize: 11),
                     ),
-                    style: const TextStyle(fontSize: 11),
+                    style: const TextStyle(fontSize: 11, color: Colors.black),
+                    dropdownColor: Colors.white,
                     items: _statuses.map((status) {
                       return DropdownMenuItem<String>(
                         value: status,
                         child: Text(
                           status,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(fontSize: 11),
+                          style: const TextStyle(fontSize: 11, color: Colors.black),
                         ),
                       );
                     }).toList(),
@@ -585,11 +586,11 @@ class _PublicTenderViewerScreenState extends State<PublicTenderViewerScreen> {
     if (amount == null) return 'N/A';
     final num = double.tryParse(amount.toString()) ?? 0.0;
     if (num >= 1000000) {
-      return '₨${(num / 1000000).toStringAsFixed(1)}M';
+      return 'LKR ${(num / 1000000).toStringAsFixed(1)}M';
     } else if (num >= 1000) {
-      return '₨${(num / 1000).toStringAsFixed(1)}K';
+      return 'LKR ${(num / 1000).toStringAsFixed(1)}K';
     } else {
-      return '₨${num.toStringAsFixed(0)}';
+      return 'LKR ${num.toStringAsFixed(0)}';
     }
   }
 
@@ -637,22 +638,22 @@ class _PublicTenderViewerScreenState extends State<PublicTenderViewerScreen> {
             break;
         }
       },
-      items: [
+      items: const [
         BottomNavigationBarItem(
-          icon: const Icon(Icons.home),
-          label: AppLocalizations.of(context)!.home,
+          icon: Icon(Icons.home),
+          label: 'Home',
         ),
         BottomNavigationBarItem(
-          icon: const Icon(Icons.account_balance),
-          label: AppLocalizations.of(context)!.budget,
+          icon: Icon(Icons.account_balance),
+          label: 'Budget',
         ),
         BottomNavigationBarItem(
-          icon: const Icon(Icons.shopping_cart),
-          label: AppLocalizations.of(context)!.tenders,
+          icon: Icon(Icons.shopping_cart),
+          label: 'Tenders',
         ),
         BottomNavigationBarItem(
-          icon: const Icon(Icons.dashboard),
-          label: AppLocalizations.of(context)!.dashboard,
+          icon: Icon(Icons.dashboard),
+          label: 'Dashboard',
         ),
       ],
     );

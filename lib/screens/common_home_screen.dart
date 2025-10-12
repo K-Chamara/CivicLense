@@ -8,9 +8,9 @@ import '../services/auth_service.dart';
 import '../services/budget_service.dart';
 import '../services/news_service.dart';
 import '../services/notification_service.dart';
+import '../services/project_service.dart';
 import '../models/user_role.dart';
 import '../models/report.dart';
-import '../utils/app_theme.dart';
 import 'login_screen.dart';
 import 'budget_viewer_screen.dart';
 import 'settings_screen.dart';
@@ -43,6 +43,7 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
     with TickerProviderStateMixin {
   final AuthService _authService = AuthService();
   final BudgetService _budgetService = BudgetService();
+  final ProjectService _projectService = ProjectService();
   UserRole? userRole;
   Map<String, dynamic>? userData;
   bool isLoading = true;
@@ -429,13 +430,13 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
       final futures = await Future.wait([
         // Load tenders count only (not all data)
         FirebaseFirestore.instance
-          .collection('tenders')
+            .collection('tenders')
             .count()
             .get(),
         
         // Load projects count only
         FirebaseFirestore.instance
-          .collection('projects')
+            .collection('projects')
             .count()
             .get(),
             
@@ -476,30 +477,350 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
     }
   }
 
+  Future<List<Map<String, dynamic>>> _loadTopProjects() async {
+    try {
+      // Get all projects using ProjectService
+      final projects = await ProjectService.getAllProjects();
+      
+      // Sort by creation date (newest first) and take top 3
+      projects.sort((a, b) {
+        final aDate = a['createdAt'] as Timestamp?;
+        final bDate = b['createdAt'] as Timestamp?;
+        
+        if (aDate == null && bDate == null) return 0;
+        if (aDate == null) return 1;
+        if (bDate == null) return -1;
+        
+        return bDate.compareTo(aDate);
+      });
+      
+      // Take top 3 projects and format them for display
+      final topProjects = projects.take(3).map((project) {
+        // Safely access nested data with proper type checking
+        Map<String, dynamic>? winningBidder;
+        Map<String, dynamic>? sourceTender;
+        
+        try {
+          final winningBidderData = project['winningBidder'];
+          if (winningBidderData is Map<String, dynamic>) {
+            winningBidder = winningBidderData;
+          } else if (winningBidderData is String) {
+            winningBidder = {'name': winningBidderData};
+          }
+        } catch (e) {
+          winningBidder = null;
+        }
+        
+        try {
+          final sourceTenderData = project['sourceTender'];
+          if (sourceTenderData is Map<String, dynamic>) {
+            sourceTender = sourceTenderData;
+          }
+        } catch (e) {
+          sourceTender = null;
+        }
+        
+        return {
+          'id': project['id'],
+          'title': project['projectName'] ?? '',
+          'projectName': project['projectName'] ?? '',
+          'projectLocation': project['projectLocation'] ?? '',
+          'description': project['projectDescription'] ?? 'Project converted from tender',
+          'budget': _safeDouble(project['projectBudget']),
+          'originalBudget': _safeDouble(project['originalTenderBudget']),
+          'winningBidder': winningBidder?['name'] ?? '',
+          'hasWinningBidder': project['hasWinningBidder'] ?? false,
+          'tenderId': sourceTender?['tenderId'] ?? '',
+          'deadline': project['expectedCompletionDate'] ?? '',
+          'handoverDate': project['handoverDate'] ?? '',
+          'category': project['projectCategory'] ?? '',
+          'region': project['projectLocation'] ?? 'Central',
+          'status': project['projectStatus'] ?? 'ongoing',
+          'totalBids': 0,
+          'createdAt': project['createdAt'],
+          'type': 'project',
+          'imageUrl': project['imageUrl'], // Include project image
+          'projectId': project['projectId'],
+          'projectPhase': project['projectPhase'],
+          'completionPercentage': _safeInt(project['completionPercentage']),
+          'priority': project['priority'],
+          'riskLevel': project['riskLevel'],
+        };
+      }).toList();
+      
+      print('📊 Loaded ${topProjects.length} top projects for home page');
+      return topProjects;
+    } catch (e) {
+      print('Error loading top projects: $e');
+      return [];
+    }
+  }
+
+  // Helper methods for safe type conversion
+  double _safeDouble(dynamic value) {
+    if (value == null) return 0.0;
+    if (value is double) return value;
+    if (value is int) return value.toDouble();
+    if (value is String) return double.tryParse(value) ?? 0.0;
+    return 0.0;
+  }
+
+  int _safeInt(dynamic value) {
+    if (value == null) return 0;
+    if (value is int) return value;
+    if (value is double) return value.toInt();
+    if (value is String) return int.tryParse(value) ?? 0;
+    return 0;
+  }
+
+
+  Future<List<Map<String, dynamic>>> _loadTopTenders() async {
+    try {
+      print('🔄 Loading tenders for home page...');
+      
+      // Get all tenders from Firestore
+      final querySnapshot = await FirebaseFirestore.instance
+          .collection('tenders')
+          .get();
+
+      print('📊 Found ${querySnapshot.docs.length} total tenders in database');
+
+      final allTenders = querySnapshot.docs.map((doc) {
+        final data = doc.data();
+        return {
+          'id': doc.id,
+          'title': data['title'] ?? '',
+          'description': data['description'] ?? '',
+          'budget': _safeDouble(data['budget']),
+          'deadline': data['deadline'] ?? '',
+          'category': data['category'] ?? '',
+          'status': data['status'] ?? 'active',
+          'location': data['location'] ?? '',
+          'totalBids': data['totalBids'] ?? 0,
+          'lowestBid': data['lowestBid'],
+          'highestBid': data['highestBid'],
+          'awardedTo': data['awardedTo'],
+          'awardedAmount': data['awardedAmount'],
+          'createdAt': data['createdAt'],
+          'imageUrl': data['imageUrl'],
+        };
+      }).toList();
+
+      // Filter for active tenders only (exclude closed, cancelled, awarded, etc.)
+      final activeTenders = allTenders.where((tender) {
+        final status = tender['status'].toString().trim();
+        
+        // Only include tenders that are explicitly 'Active' or have no status (default to active)
+        if (status.isEmpty || status == 'null' || status == '') {
+          return true; // Default to active if no status
+        }
+        
+        // Only include tenders with 'Active' status (case-sensitive as per database)
+        return status == 'Active';
+      }).toList();
+
+      print('📊 Found ${activeTenders.length} active tenders');
+      
+      // Debug: Print status of all tenders to see what we're working with
+      print('📊 All tender statuses:');
+      for (int i = 0; i < allTenders.length && i < 5; i++) {
+        final tender = allTenders[i];
+        print('  ${tender['title']}: status="${tender['status']}"');
+      }
+
+      // Sort by creation date (newest first) - handle cases where createdAt might not exist
+      activeTenders.sort((a, b) {
+        final aCreatedAt = a['createdAt'];
+        final bCreatedAt = b['createdAt'];
+        
+        if (aCreatedAt == null && bCreatedAt == null) return 0;
+        if (aCreatedAt == null) return 1;
+        if (bCreatedAt == null) return -1;
+        
+        if (aCreatedAt is Timestamp && bCreatedAt is Timestamp) {
+          return bCreatedAt.compareTo(aCreatedAt);
+        }
+        
+        return 0;
+      });
+
+      // Take top 3 active tenders (newest first)
+      List<Map<String, dynamic>> topTenders = activeTenders.take(3).toList();
+      
+      // If no active tenders found, return empty list (don't show closed tenders)
+      if (topTenders.isEmpty) {
+        print('⚠️ No active tenders found - returning empty list');
+      }
+      
+      print('📊 Loaded ${topTenders.length} top tenders for home page');
+      for (int i = 0; i < topTenders.length; i++) {
+        final tender = topTenders[i];
+        print('  Tender ${i + 1}: ${tender['title']} (Status: ${tender['status']})');
+      }
+      
+      return topTenders;
+    } catch (e) {
+      print('Error loading top tenders: $e');
+      return [];
+    }
+  }
+
+  String _getDaysUntilDeadline(String deadline) {
+    try {
+      final deadlineDate = DateTime.parse(deadline);
+      final now = DateTime.now();
+      final difference = deadlineDate.difference(now).inDays;
+      
+      if (difference < 0) {
+        return 'Expired';
+      } else if (difference == 0) {
+        return 'Due today';
+      } else if (difference == 1) {
+        return 'Due tomorrow';
+      } else {
+        return '$difference days left';
+      }
+    } catch (e) {
+      return 'Invalid date';
+    }
+  }
+
+  Color _getDeadlineColor(String deadline) {
+    try {
+      final deadlineDate = DateTime.parse(deadline);
+      final now = DateTime.now();
+      final difference = deadlineDate.difference(now).inDays;
+      
+      if (difference < 0) {
+        return Colors.red;
+      } else if (difference <= 3) {
+        return Colors.red;
+      } else if (difference <= 7) {
+        return Colors.orange;
+      } else if (difference <= 14) {
+        return Colors.yellow[700]!;
+      } else {
+        return Colors.green;
+      }
+    } catch (e) {
+      return Colors.grey;
+    }
+  }
+
+  Widget _buildTendersShimmer() {
+    return Column(
+      children: List.generate(3, (index) => Container(
+        margin: const EdgeInsets.only(bottom: 16),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade200,
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    height: 16,
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade200,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Container(
+                    height: 14,
+                    width: MediaQuery.of(context).size.width * 0.6,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade200,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      )),
+    );
+  }
+
+  Widget _buildEmptyTendersCard() {
+    return Center(
+      child: Container(
+        padding: const EdgeInsets.all(32),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.withOpacity(0.1),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+          border: Border.all(color: Colors.grey.shade200, width: 1),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.shopping_cart_outlined,
+              size: 48,
+              color: Colors.grey.shade400,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'No tenders available',
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.grey.shade600,
+                fontWeight: FontWeight.w500,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   // Optimized method to get budget items count
   Future<int> _getBudgetItemsCount() async {
-      try {
-        int totalBudgetItems = 0;
-        
-        // Use the same method as PO Dashboard and BudgetItemsOverviewScreen
-        final categories = await _budgetService.getBudgetCategories();
-        print('Found ${categories.length} budget categories');
-        
+    try {
+      int totalBudgetItems = 0;
+      
+      // Use the same method as PO Dashboard and BudgetItemsOverviewScreen
+      final categories = await _budgetService.getBudgetCategories();
+      print('Found ${categories.length} budget categories');
+      
       // Process categories in parallel for better performance
       final categoryFutures = categories.map((category) async {
-          try {
-            final subcategories = await _budgetService.getBudgetSubcategories(category.id);
-            print('Category ${category.id} has ${subcategories.length} subcategories');
-            
+        try {
+          final subcategories = await _budgetService.getBudgetSubcategories(category.id);
+          print('Category ${category.id} has ${subcategories.length} subcategories');
+          
           int categoryItems = 0;
           // Process subcategories in parallel
           final subcategoryFutures = subcategories.map((subcategory) async {
-              try {
-                final items = await _budgetService.getBudgetItems(category.id, subcategory.id);
-                print('Subcategory ${subcategory.id} has ${items.length} items');
+            try {
+              final items = await _budgetService.getBudgetItems(category.id, subcategory.id);
+              print('Subcategory ${subcategory.id} has ${items.length} items');
               return items.length;
-              } catch (e) {
-                print('Error loading items for subcategory ${subcategory.id}: $e');
+            } catch (e) {
+              print('Error loading items for subcategory ${subcategory.id}: $e');
               return 0;
             }
           });
@@ -507,8 +828,8 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
           final subcategoryCounts = await Future.wait(subcategoryFutures);
           categoryItems = subcategoryCounts.fold(0, (sum, count) => sum + count);
           return categoryItems;
-          } catch (e) {
-            print('Error loading subcategories for category ${category.id}: $e');
+        } catch (e) {
+          print('Error loading subcategories for category ${category.id}: $e');
           return 0;
         }
       });
@@ -518,8 +839,8 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
       
       print('Allocations count loaded using BudgetService: $totalBudgetItems');
       return totalBudgetItems;
-      } catch (e) {
-        print('Error loading allocations count with BudgetService: $e');
+    } catch (e) {
+      print('Error loading allocations count with BudgetService: $e');
       return 0;
     }
   }
@@ -534,10 +855,9 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
       }
     } catch (e) {
       if (mounted) {
-        final l10n = AppLocalizations.of(context)!;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('${l10n.errorSigningOut}: $e'),
+            content: Text('Error signing out: $e'),
             backgroundColor: Colors.red,
           ),
         );
@@ -591,14 +911,13 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
   String _formatDate(DateTime date) {
     final now = DateTime.now();
     final difference = now.difference(date);
-    final l10n = AppLocalizations.of(context)!;
 
     if (difference.inDays == 0) {
-      return l10n.today;
+      return 'Today';
     } else if (difference.inDays == 1) {
-      return l10n.yesterday;
+      return 'Yesterday';
     } else if (difference.inDays < 7) {
-      return '${difference.inDays} ${l10n.ago}';
+      return '${difference.inDays} days ago';
     } else {
       return '${date.day}/${date.month}/${date.year}';
     }
@@ -606,8 +925,6 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-    
     if (isLoading) {
       return Scaffold(
         backgroundColor: const Color(0xFFF8FAFC),
@@ -620,7 +937,7 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
               ),
               const SizedBox(height: 24),
               Text(
-                l10n.loading,
+                'Loading your dashboard...',
                 style: TextStyle(
                   fontSize: 16,
                   color: Colors.grey.shade600,
@@ -729,7 +1046,7 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
                             ),
                           ),
                           Text(
-                            'Track • Trust • Transform',
+                            'Transparency • Accountability • Progress',
                             style: TextStyle(
                               fontSize: 14,
                               color: Colors.white70,
@@ -745,33 +1062,33 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
                     // Search Bar with Floating Results
                     Stack(
                       children: [
-                // Search Bar
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.search, color: Colors.grey),
-                      const SizedBox(width: 12),
+                        // Search Bar
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.1),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.search, color: Colors.grey),
+                              const SizedBox(width: 12),
                               Expanded(
-                        child: TextField(
+                                child: TextField(
                                   controller: _searchController,
                                   focusNode: _searchFocusNode,
-                                  decoration: InputDecoration(
-                            hintText: AppLocalizations.of(context)!.searchAcrossServices,
-                            border: InputBorder.none,
-                            hintStyle: TextStyle(color: Colors.grey),
-                          ),
+                                  decoration: const InputDecoration(
+                                    hintText: 'Search across services',
+                                    border: InputBorder.none,
+                                    hintStyle: TextStyle(color: Colors.grey),
+                                  ),
                                   onTap: () {
                                     print('🔍 Search field tapped');
                                     setState(() {
@@ -813,17 +1130,17 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
                                         padding: const EdgeInsets.all(16),
                                         child: Row(
                                           children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
+                                            Container(
+                                              padding: const EdgeInsets.all(8),
+                                              decoration: BoxDecoration(
                                                 color: Colors.blue.shade50,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
+                                                borderRadius: BorderRadius.circular(8),
+                                              ),
                                               child: Icon(
                                                 service['icon'],
                                                 color: Colors.blue.shade700,
-                          size: 20,
-                        ),
+                                                size: 20,
+                                              ),
                                             ),
                                             const SizedBox(width: 12),
                                             Expanded(
@@ -847,9 +1164,9 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
                                                     ),
                                                     maxLines: 1,
                                                     overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ),
+                                                  ),
+                                                ],
+                                              ),
                                             ),
                                             Icon(
                                               Icons.arrow_forward_ios,
@@ -866,7 +1183,7 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
                             ),
                           ),
                       ],
-                ),
+                    ),
               ],
             ),
           ),
@@ -954,16 +1271,16 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
                   icon, 
                   color: isEmpty ? Colors.grey.shade400 : color, 
                   size: 18
-              ),
+                ),
               ),
               if (!isEmpty)
-              Container(
-                padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(
-                  color: Colors.green.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Icon(Icons.trending_up, color: Colors.green, size: 12),
+                Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: Colors.green.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Icon(Icons.trending_up, color: Colors.green, size: 12),
                 )
               else
                 Container(
@@ -973,7 +1290,7 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Icon(Icons.hourglass_empty, color: Colors.grey.shade400, size: 12),
-              ),
+                ),
             ],
           ),
           // Content area
@@ -982,7 +1299,7 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
             children: [
               // Value
               Text(
-                isEmpty ? AppLocalizations.of(context)!.noData : value,
+                isEmpty ? 'No data' : value,
                 style: TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
@@ -1002,7 +1319,7 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
               const SizedBox(height: 2),
               // Subtitle
               Text(
-                isEmpty ? AppLocalizations.of(context)!.noData : subtitle,
+                isEmpty ? 'No items found' : subtitle,
                 style: TextStyle(
                   fontSize: 10,
                   color: isEmpty ? Colors.grey.shade400 : Colors.grey.shade600,
@@ -1024,7 +1341,7 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
         children: [
           Expanded(
             child: _buildQuickAccessCard(
-              AppLocalizations.of(context)!.home,
+              'Home',
               Icons.home,
               Colors.blue,
               () => setState(() => _currentIndex = 0),
@@ -1033,7 +1350,7 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
           const SizedBox(width: 12),
           Expanded(
             child: _buildQuickAccessCard(
-              AppLocalizations.of(context)!.budget,
+              'Budget',
               Icons.account_balance,
               Colors.green,
               () => Navigator.push(
@@ -1045,7 +1362,7 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
           const SizedBox(width: 12),
           Expanded(
             child: _buildQuickAccessCard(
-              AppLocalizations.of(context)!.tenders,
+              'Tenders',
               Icons.shopping_cart,
               Colors.orange,
               () => Navigator.push(
@@ -1057,7 +1374,7 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
           const SizedBox(width: 12),
           Expanded(
             child: _buildQuickAccessCard(
-              AppLocalizations.of(context)!.dashboard,
+              'Dashboard',
               Icons.dashboard,
               Colors.purple,
               _navigateToDashboard,
@@ -1184,8 +1501,8 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            AppLocalizations.of(context)!.services,
+          const Text(
+            'Services',
             style: TextStyle(
               fontSize: 22,
               fontWeight: FontWeight.bold,
@@ -1196,74 +1513,74 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
           Column(
             children: [
               _buildServiceCard(
-                AppLocalizations.of(context)!.community,
+                'Community',
                 Icons.people,
                 Colors.blue,
                 () => Navigator.pushNamed(context, '/communities'),
-                description: AppLocalizations.of(context)!.connectWithLocalCommunitiesAndCivicGroups,
+                description: 'Connect with local communities and civic groups',
               ),
               const SizedBox(height: 12),
               _buildServiceCard(
-                AppLocalizations.of(context)!.concerns,
+                'Concerns',
                 Icons.report_problem,
                 Colors.red,
                 () => Navigator.push(
                   context,
                   MaterialPageRoute(builder: (context) => const PublicConcernsScreen()),
                 ),
-                description: AppLocalizations.of(context)!.reportAndTrackPublicIssuesAndConcerns,
+                description: 'Report and track public issues and concerns',
               ),
               const SizedBox(height: 12),
               _buildServiceCard(
-                AppLocalizations.of(context)!.news,
+                'News',
                 Icons.article,
                 Colors.green,
                 () => Navigator.pushNamed(context, '/news'),
-                description: AppLocalizations.of(context)!.stayUpdatedWithLatestGovernmentNewsAndAnnouncements,
+                description: 'Stay updated with latest government news and announcements',
               ),
               const SizedBox(height: 12),
               _buildServiceCard(
-                AppLocalizations.of(context)!.reports,
+                'Reports',
                 Icons.analytics,
                 Colors.purple,
                 () => Navigator.push(
                   context,
                   MaterialPageRoute(builder: (context) => const ReportsAnalyticsScreen()),
                 ),
-                description: AppLocalizations.of(context)!.viewDetailedAnalyticsAndGovernmentReports,
+                description: 'View detailed analytics and government reports',
               ),
               const SizedBox(height: 12),
               _buildServiceCard(
-                AppLocalizations.of(context)!.budget,
+                'Budget',
                 Icons.account_balance,
                 Colors.orange,
                 () => Navigator.push(
                   context,
                   MaterialPageRoute(builder: (context) => const BudgetViewerScreen()),
                 ),
-                description: AppLocalizations.of(context)!.trackGovernmentBudgetAllocationsAndSpending,
+                description: 'Track government budget allocations and spending',
               ),
               const SizedBox(height: 12),
               _buildServiceCard(
-                AppLocalizations.of(context)!.tenders,
+                'Tenders',
                 Icons.shopping_cart,
                 Colors.teal,
                 () => Navigator.push(
                   context,
                   MaterialPageRoute(builder: (context) => const PublicTenderViewerScreen()),
                 ),
-                description: AppLocalizations.of(context)!.browseAndApplyForGovernmentTendersAndContracts,
+                description: 'Browse and apply for government tenders and contracts',
               ),
               const SizedBox(height: 12),
               _buildServiceCard(
-                AppLocalizations.of(context)!.projectsSectionHeader,
+                'Projects',
                 Icons.work,
                 Colors.indigo,
                 () => Navigator.push(
                   context,
                   MaterialPageRoute(builder: (context) => const OngoingTendersScreen()),
                 ),
-                description: AppLocalizations.of(context)!.viewOngoingAndCompletedGovernmentProjects,
+                description: 'View ongoing and completed government projects',
               ),
             ],
           ),
@@ -1439,8 +1756,8 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                AppLocalizations.of(context)!.newsSectionHeader,
+              const Text(
+                'News',
                 style: TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
@@ -1449,7 +1766,7 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
               ),
               TextButton(
                 onPressed: () => Navigator.pushNamed(context, '/news'),
-                child: Text(AppLocalizations.of(context)!.seeAll),
+                child: const Text('See all'),
               ),
             ],
           ),
@@ -1652,7 +1969,7 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
 
   Widget _buildEmptyNewsCard() {
     return _buildEmptyStateCard(
-            'No news available',
+      'No news available',
       Icons.article_outlined,
       actionText: 'Refresh',
       onAction: _refreshData,
@@ -1668,8 +1985,8 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                AppLocalizations.of(context)!.projectsSectionHeader,
+              const Text(
+                'Projects',
                 style: TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
@@ -1681,30 +1998,29 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
                   context,
                   MaterialPageRoute(builder: (context) => const OngoingTendersScreen()),
                 ),
-                child: Text(AppLocalizations.of(context)!.seeAll),
+                child: const Text('See all'),
               ),
             ],
           ),
           const SizedBox(height: 16),
-          StreamBuilder<QuerySnapshot>(
-            stream: FirebaseFirestore.instance
-                .collection('tenders')
-                .where('status', isEqualTo: 'awarded')
-                .orderBy('awardedDate', descending: true)
-                .limit(3)
-                .snapshots(),
+          FutureBuilder<List<Map<String, dynamic>>>(
+            future: _loadTopProjects(),
             builder: (context, snapshot) {
-              if (!snapshot.hasData) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
                 return _buildProjectsShimmer();
               }
               
-              final projects = snapshot.data!.docs;
+              if (snapshot.hasError) {
+                return _buildEmptyProjectsCard();
+              }
+              
+              final projects = snapshot.data ?? [];
               if (projects.isEmpty) {
                 return _buildEmptyProjectsCard();
               }
               
               return Column(
-                children: projects.map((doc) => _buildProjectCard(doc.data() as Map<String, dynamic>)).toList(),
+                children: projects.map((project) => _buildProjectCard(project)).toList(),
               );
             },
           ),
@@ -1732,12 +2048,17 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
         child: InkWell(
           borderRadius: BorderRadius.circular(12),
           onTap: () {
-            // Navigate to project details
+            // Navigate to active projects page
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const OngoingTendersScreen()),
+            );
           },
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Row(
               children: [
+                // Project Image or Icon
                 Container(
                   width: 80,
                   height: 80,
@@ -1745,19 +2066,35 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
                     borderRadius: BorderRadius.circular(8),
                     color: Colors.green.shade100,
                   ),
-                  child: Icon(
-                    Icons.work,
-                    color: Colors.green.shade600,
-                    size: 32,
-                  ),
+                  child: project['imageUrl'] != null && project['imageUrl'].toString().isNotEmpty
+                      ? ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Image.network(
+                            project['imageUrl'],
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) {
+                              return Icon(
+                                Icons.work,
+                                color: Colors.green.shade600,
+                                size: 32,
+                              );
+                            },
+                          ),
+                        )
+                      : Icon(
+                          Icons.work,
+                          color: Colors.green.shade600,
+                          size: 32,
+                        ),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // Project Name
                       Text(
-                        project['title'] ?? 'Project Title',
+                        project['projectName'] ?? project['title'] ?? 'Project Title',
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
@@ -1766,48 +2103,85 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 4),
+                      // Project Description
                       Text(
-                        'Awarded to: ${project['awardedTo'] ?? 'Contractor'}',
+                        project['description'] ?? 'Project converted from tender',
                         style: TextStyle(
-                          fontSize: 14,
+                          fontSize: 12,
                           color: Colors.grey.shade600,
                         ),
-                        maxLines: 1,
+                        maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
                       const SizedBox(height: 8),
                       Row(
                         children: [
+                          // Location
                           Icon(
-                            Icons.account_balance_wallet,
+                            Icons.location_on,
                             size: 14,
                             color: Colors.grey.shade500,
                           ),
                           const SizedBox(width: 4),
-                          Text(
-                            'LKR ${(project['awardedAmount'] ?? 0).toStringAsFixed(0)}',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey.shade500,
+                          Expanded(
+                            child: Text(
+                              project['projectLocation'] ?? 'Location not specified',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey.shade500,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
-                          const Spacer(),
+                          // Budget
+                          Icon(
+                            Icons.account_balance_wallet,
+                            size: 14,
+                            color: Colors.green.shade600,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            'LKR ${_formatBudget(project['budget'] ?? 0)}',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.green.shade600,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          // Status
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                             decoration: BoxDecoration(
-                              color: Colors.green.shade100,
+                              color: _getStatusColor(project['status'] ?? 'ongoing').withOpacity(0.1),
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Text(
-                              'Awarded',
+                              _getStatusText(project['status'] ?? 'ongoing'),
                               style: TextStyle(
                                 fontSize: 10,
-                                color: Colors.green.shade700,
+                                color: _getStatusColor(project['status'] ?? 'ongoing'),
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
                           ),
+                          const Spacer(),
+                          // Completion percentage if available
+                          if (project['completionPercentage'] != null && project['completionPercentage'] > 0)
+                            Text(
+                              '${project['completionPercentage']}% complete',
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: Colors.blue.shade600,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
                         ],
                       ),
                     ],
@@ -1821,40 +2195,94 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
     );
   }
 
+  String _formatBudget(double budget) {
+    if (budget >= 1000000) {
+      return '${(budget / 1000000).toStringAsFixed(1)}M';
+    } else if (budget >= 1000) {
+      return '${(budget / 1000).toStringAsFixed(1)}K';
+    } else {
+      return budget.toStringAsFixed(0);
+    }
+  }
+
+  Color _getStatusColor(String status) {
+    switch (status.toLowerCase()) {
+      case 'completed':
+        return Colors.green;
+      case 'ongoing':
+      case 'in_progress':
+        return Colors.blue;
+      case 'pending':
+        return Colors.orange;
+      case 'cancelled':
+        return Colors.red;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  String _getStatusText(String status) {
+    switch (status.toLowerCase()) {
+      case 'completed':
+        return 'Completed';
+      case 'ongoing':
+      case 'in_progress':
+        return 'Ongoing';
+      case 'pending':
+        return 'Pending';
+      case 'cancelled':
+        return 'Cancelled';
+      default:
+        return status;
+    }
+  }
+
+
   Widget _buildUpcomingEventsSection() {
     return Container(
       padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            AppLocalizations.of(context)!.upcomingEventsSectionHeader,
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-              color: Colors.black87,
-            ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Upcoming Events',
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+              ),
+              TextButton(
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const PublicTenderViewerScreen()),
+                ),
+                child: const Text('See all'),
+              ),
+            ],
           ),
           const SizedBox(height: 16),
-          StreamBuilder<QuerySnapshot>(
-            stream: FirebaseFirestore.instance
-                .collection('tenders')
-                .where('status', isEqualTo: 'active')
-                .orderBy('deadline')
-                .limit(3)
-                .snapshots(),
+          FutureBuilder<List<Map<String, dynamic>>>(
+            future: _loadTopTenders(),
             builder: (context, snapshot) {
-              if (!snapshot.hasData) {
-                return _buildEventsShimmer();
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return _buildTendersShimmer();
               }
               
-              final events = snapshot.data!.docs;
-              if (events.isEmpty) {
-                return _buildEmptyEventsCard();
+              if (snapshot.hasError) {
+                return _buildEmptyTendersCard();
+              }
+              
+              final tenders = snapshot.data ?? [];
+              if (tenders.isEmpty) {
+                return _buildEmptyTendersCard();
               }
               
               return Column(
-                children: events.map((doc) => _buildEventCard(doc.data() as Map<String, dynamic>)).toList(),
+                children: tenders.map((tender) => _buildEventCard(tender)).toList(),
               );
             },
           ),
@@ -1863,10 +2291,7 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
     );
   }
 
-  Widget _buildEventCard(Map<String, dynamic> event) {
-    final deadline = DateTime.tryParse(event['deadline'] ?? '');
-    final daysLeft = deadline != null ? deadline.difference(DateTime.now()).inDays : 0;
-    
+  Widget _buildEventCard(Map<String, dynamic> tender) {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
@@ -1885,32 +2310,53 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
         child: InkWell(
           borderRadius: BorderRadius.circular(12),
           onTap: () {
-            // Navigate to tender details
+            // Navigate to public tender page
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const PublicTenderViewerScreen()),
+            );
           },
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Row(
               children: [
+                // Tender Image or Icon
                 Container(
                   width: 80,
                   height: 80,
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(8),
-                    color: Colors.orange.shade100,
+                    color: Colors.blue.shade100,
                   ),
-                  child: Icon(
-                    Icons.event,
-                    color: Colors.orange.shade600,
-                    size: 32,
-                  ),
+                  child: tender['imageUrl'] != null && tender['imageUrl'].toString().isNotEmpty
+                      ? ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Image.network(
+                            tender['imageUrl'],
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) {
+                              return Icon(
+                                Icons.shopping_cart,
+                                color: Colors.blue.shade600,
+                                size: 32,
+                              );
+                            },
+                          ),
+                        )
+                      : Icon(
+                          Icons.shopping_cart,
+                          color: Colors.blue.shade600,
+                          size: 32,
+                        ),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // Tender Name
                       Text(
-                        event['title'] ?? 'Tender Title',
+                        tender['title'] ?? 'Tender Title',
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
@@ -1919,49 +2365,95 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 4),
+                      // Tender Description
                       Text(
-                        'Deadline: ${event['deadline'] ?? 'N/A'}',
+                        tender['description'] ?? 'No description available',
                         style: TextStyle(
-                          fontSize: 14,
+                          fontSize: 12,
                           color: Colors.grey.shade600,
                         ),
-                        maxLines: 1,
+                        maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
                       const SizedBox(height: 8),
                       Row(
                         children: [
+                          // Location
                           Icon(
-                            Icons.schedule,
+                            Icons.location_on,
                             size: 14,
-                            color: daysLeft <= 3 ? Colors.red.shade500 : Colors.grey.shade500,
+                            color: Colors.grey.shade500,
+                          ),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              tender['location'] ?? 'Location not specified',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey.shade500,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          // Budget
+                          Icon(
+                            Icons.account_balance_wallet,
+                            size: 14,
+                            color: Colors.green.shade600,
                           ),
                           const SizedBox(width: 4),
                           Text(
-                            daysLeft > 0 ? '$daysLeft days left' : 'Expired',
+                            'LKR ${_formatBudget(tender['budget'] ?? 0)}',
                             style: TextStyle(
                               fontSize: 12,
-                              color: daysLeft <= 3 ? Colors.red.shade500 : Colors.grey.shade500,
-                              fontWeight: daysLeft <= 3 ? FontWeight.bold : FontWeight.normal,
+                              color: Colors.green.shade600,
+                              fontWeight: FontWeight.bold,
                             ),
                           ),
-                          const Spacer(),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          // Days until deadline
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                             decoration: BoxDecoration(
-                              color: daysLeft <= 3 ? Colors.red.shade100 : Colors.orange.shade100,
+                              color: _getDeadlineColor(tender['deadline']).withOpacity(0.1),
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Text(
-                              daysLeft <= 3 ? 'Urgent' : 'Active',
+                              _getDaysUntilDeadline(tender['deadline']),
                               style: TextStyle(
                                 fontSize: 10,
-                                color: daysLeft <= 3 ? Colors.red.shade700 : Colors.orange.shade700,
+                                color: _getDeadlineColor(tender['deadline']),
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
                           ),
+                          const Spacer(),
+                          // Bids count
+                          if (tender['totalBids'] > 0)
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.people,
+                                  size: 12,
+                                  color: Colors.blue.shade600,
+                                ),
+                                const SizedBox(width: 2),
+                                Text(
+                                  '${tender['totalBids']} bids',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    color: Colors.blue.shade600,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
                         ],
                       ),
                     ],
@@ -1984,8 +2476,8 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                AppLocalizations.of(context)!.priorityConcerns,
+              const Text(
+                'Most Supported Concerns',
                 style: TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
@@ -1997,7 +2489,7 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
                   context,
                   MaterialPageRoute(builder: (context) => const PublicConcernsScreen()),
                 ),
-                child: Text(AppLocalizations.of(context)!.seeAll),
+                child: const Text('See all'),
               ),
             ],
           ),
@@ -2600,7 +3092,7 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
 
   PreferredSizeWidget _buildAppBar() {
     return AppBar(
-      backgroundColor: AppTheme.getAppBarColor(context),
+      backgroundColor: Colors.blue,
       foregroundColor: Colors.white,
       elevation: 0,
       title: Row(
@@ -2629,7 +3121,7 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
                   ),
                 ),
                 Text(
-                  '${AppLocalizations.of(context)!.home} • ${userRole?.name ?? AppLocalizations.of(context)!.dashboard}',
+                  'Home • ${userRole?.name ?? 'Dashboard'}',
                   style: const TextStyle(
                     fontSize: 12,
                     color: Colors.white70,
@@ -2659,7 +3151,7 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
 
   Widget _buildNavigationDrawer() {
     return Drawer(
-      backgroundColor: AppTheme.getDrawerColor(context),
+      backgroundColor: Colors.white,
       child: Column(
         children: [
           // Drawer Header
@@ -2731,7 +3223,7 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
                 ),
                 _buildDrawerItem(
                   icon: Icons.account_balance,
-                  title: AppLocalizations.of(context)!.budgetOverview,
+                  title: 'Budget Overview',
                   onTap: () {
                     Navigator.pop(context);
                     Navigator.push(
@@ -2742,7 +3234,7 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
                 ),
                 _buildDrawerItem(
                   icon: Icons.shopping_cart,
-                  title: AppLocalizations.of(context)!.tenders,
+                  title: 'Tenders',
                   onTap: () {
                     Navigator.pop(context);
                     Navigator.push(
@@ -2753,7 +3245,7 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
                 ),
                 _buildDrawerItem(
                   icon: Icons.article,
-                  title: AppLocalizations.of(context)!.newsMedia,
+                  title: 'News & Media',
                   onTap: () {
                     Navigator.pop(context);
                     Navigator.pushNamed(context, '/news');
@@ -2761,7 +3253,7 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
                 ),
                 _buildDrawerItem(
                   icon: Icons.forum,
-                  title: AppLocalizations.of(context)!.mediaHub,
+                  title: 'Media Hub',
                   onTap: () {
                     Navigator.pop(context);
                     Navigator.pushNamed(context, '/media-hub');
@@ -2769,7 +3261,7 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
                 ),
                 _buildDrawerItem(
                   icon: Icons.people,
-                  title: AppLocalizations.of(context)!.community,
+                  title: 'Communities',
                   onTap: () {
                     Navigator.pop(context);
                     Navigator.push(
@@ -2780,7 +3272,7 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
                 ),
                 _buildDrawerItem(
                   icon: Icons.analytics,
-                  title: AppLocalizations.of(context)!.reportsAnalytics,
+                  title: 'Reports & Analytics',
                   onTap: () {
                     Navigator.pop(context);
                     Navigator.push(
@@ -2791,7 +3283,7 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
                 ),
                 _buildDrawerItem(
                   icon: Icons.report_problem,
-                  title: AppLocalizations.of(context)!.raiseConcern,
+                  title: 'Raise Concerns',
                   onTap: () => Navigator.push(
                     context,
                     MaterialPageRoute(
@@ -2801,7 +3293,7 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
                 ),
                 _buildDrawerItem(
                   icon: Icons.track_changes,
-                  title: AppLocalizations.of(context)!.myConcerns,
+                  title: 'My Concerns',
                   onTap: () => Navigator.push(
                     context,
                     MaterialPageRoute(
@@ -2811,7 +3303,7 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
                 ),
                 _buildDrawerItem(
                   icon: Icons.people_alt,
-                  title: AppLocalizations.of(context)!.viewPublicConcerns,
+                  title: 'View Public Concerns',
                   onTap: () => Navigator.push(
                     context,
                     MaterialPageRoute(
@@ -2830,7 +3322,7 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
                 const Divider(),
                 _buildDrawerItem(
                   icon: Icons.info,
-                  title: AppLocalizations.of(context)!.about,
+                  title: 'About',
                   onTap: () {
                     Navigator.pop(context);
                     Navigator.push(
@@ -2908,7 +3400,7 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
             });
           },
           type: BottomNavigationBarType.fixed,
-          backgroundColor: AppTheme.getBottomNavColor(context),
+          backgroundColor: Colors.white,
           selectedItemColor: Colors.blue,
           unselectedItemColor: Colors.grey.shade600,
           selectedFontSize: 12,
@@ -2928,7 +3420,7 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
                   size: _currentIndex == 0 ? 24 : 22,
                 ),
               ),
-              label: AppLocalizations.of(context)!.home,
+              label: 'Home',
             ),
             BottomNavigationBarItem(
               icon: AnimatedContainer(
@@ -2943,7 +3435,7 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
                   size: _currentIndex == 1 ? 24 : 22,
                 ),
               ),
-              label: AppLocalizations.of(context)!.budget,
+              label: 'Budget',
             ),
             BottomNavigationBarItem(
               icon: AnimatedContainer(
@@ -2958,7 +3450,7 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
                   size: _currentIndex == 2 ? 24 : 22,
                 ),
               ),
-              label: AppLocalizations.of(context)!.tenders,
+              label: 'Tenders',
             ),
             BottomNavigationBarItem(
               icon: AnimatedContainer(
@@ -2973,7 +3465,7 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
                   size: _currentIndex == 3 ? 24 : 22,
                 ),
               ),
-              label: AppLocalizations.of(context)!.dashboard,
+              label: 'Dashboard',
             ),
           ],
         ),
@@ -3041,32 +3533,32 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
         onRefresh: _refreshData,
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Government Portal Header with Image
-          _buildGovernmentHeader(),
-          
-          // Quick Access Icons (4 horizontal squares)
-          _buildQuickAccessIcons(),
-          
-          // Services Section
-          _buildServicesSection(),
-          
-          // News Section with Images
-          _buildNewsSection(),
-          
-          // Projects Section (Awarded Tenders)
-          _buildProjectsSection(),
-          
-          // Upcoming Events Section
-          _buildUpcomingEventsSection(),
-          
-          // Concerns Section
-          _buildConcernsSection(),
-          
-          const SizedBox(height: 20),
-        ],
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+            // Government Portal Header with Image
+            _buildGovernmentHeader(),
+            
+            // Quick Access Icons (4 horizontal squares)
+            _buildQuickAccessIcons(),
+            
+            // Services Section
+            _buildServicesSection(),
+            
+            // News Section with Images
+            _buildNewsSection(),
+            
+            // Projects Section (Awarded Tenders)
+            _buildProjectsSection(),
+            
+            // Upcoming Events Section (Top Tenders)
+            _buildUpcomingEventsSection(),
+            
+            // Concerns Section
+            _buildConcernsSection(),
+            
+            const SizedBox(height: 20),
+          ],
         ),
       ),
       ),
@@ -3730,3 +4222,5 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
     );
   }
 }
+
+
