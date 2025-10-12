@@ -73,6 +73,111 @@ class _ProcurementOfficerDashboardScreenState extends State<ProcurementOfficerDa
     await _loadDashboardData();
   }
 
+  Future<void> _createSampleAwardedProjects() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        print('❌ No user logged in');
+        return;
+      }
+
+      print('🔄 Creating sample awarded projects for PO dashboard...');
+      
+      final sampleProjects = [
+        {
+          'title': 'Government IT Infrastructure Upgrade',
+          'projectName': 'IT Modernization Project',
+          'location': 'Central Government Building',
+          'description': 'Complete upgrade of government IT systems with modern servers and networking equipment',
+          'budget': 5000000.0,
+          'deadline': '2024-08-15',
+          'category': 'Technology',
+          'region': 'Central',
+          'status': 'closed',
+          'totalBids': 7,
+          'lowestBid': 4800000.0,
+          'highestBid': 5200000.0,
+          'awardedTo': 'TechSolutions Pvt Ltd',
+          'awardedAmount': 4850000.0,
+          'awardedDate': FieldValue.serverTimestamp(),
+          'createdAt': FieldValue.serverTimestamp(),
+          'createdBy': user.uid,
+        },
+        {
+          'title': 'Public Transportation Fleet Expansion',
+          'projectName': 'Bus Fleet Modernization',
+          'location': 'Transport Department',
+          'description': 'Purchase of new buses and maintenance equipment for public transportation system',
+          'budget': 8000000.0,
+          'deadline': '2024-09-30',
+          'category': 'Transportation',
+          'region': 'National',
+          'status': 'closed',
+          'totalBids': 5,
+          'lowestBid': 7600000.0,
+          'highestBid': 8200000.0,
+          'awardedTo': 'BusCorp Industries',
+          'awardedAmount': 7750000.0,
+          'awardedDate': FieldValue.serverTimestamp(),
+          'createdAt': FieldValue.serverTimestamp(),
+          'createdBy': user.uid,
+        },
+        {
+          'title': 'Water Treatment Plant Modernization',
+          'projectName': 'Clean Water Initiative',
+          'location': 'Water Department',
+          'description': 'Upgrade of water treatment facilities with advanced filtration systems',
+          'budget': 12000000.0,
+          'deadline': '2024-12-31',
+          'category': 'Infrastructure',
+          'region': 'National',
+          'status': 'closed',
+          'totalBids': 4,
+          'lowestBid': 11500000.0,
+          'highestBid': 12500000.0,
+          'awardedTo': 'AquaTech Solutions',
+          'awardedAmount': 11600000.0,
+          'awardedDate': FieldValue.serverTimestamp(),
+          'createdAt': FieldValue.serverTimestamp(),
+          'createdBy': user.uid,
+        },
+      ];
+
+      for (final project in sampleProjects) {
+        await FirebaseFirestore.instance
+            .collection('tenders')
+            .add(project);
+        print('✅ Created sample awarded project: ${project['title']}');
+      }
+      
+      print('🎉 Sample awarded projects created successfully!');
+      
+      // Refresh dashboard to show the new projects
+      await _refreshDashboard();
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Sample awarded projects created!'),
+            backgroundColor: Colors.blue,
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+      
+    } catch (e) {
+      print('❌ Error creating sample awarded projects: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error creating sample projects: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   Future<void> _loadDashboardData() async {
     print('Loading dashboard data...');
     try {
@@ -211,10 +316,28 @@ class _ProcurementOfficerDashboardScreenState extends State<ProcurementOfficerDa
         notificationsCount = 0;
       }
 
-      // Get recent projects (combine active tenders and projects)
+      // Get recent projects - focus on awarded tenders (which are actual projects)
       final List<Map<String, dynamic>> allRecentItems = [];
 
-      // Add active tenders (filter out expired ones)
+      // Add awarded tenders (these are the actual projects)
+      final awardedTenders = tenders
+          .where((tender) => tender['status'] == 'closed' && tender['awardedDate'] != null)
+          .map((tender) => {
+                'id': tender['id'],
+                'title': tender['title'] ?? tender['projectName'] ?? 'Project',
+                'budget': tender['awardedAmount'] ?? tender['budget'] ?? 0.0,
+                'deadline': tender['deadline'] ?? '',
+                'category': tender['category'] ?? 'Infrastructure',
+                'totalBids': tender['totalBids'] ?? 0,
+                'type': 'project',
+                'awardedTo': tender['awardedTo'] ?? 'Contractor',
+                'createdAt': tender['awardedDate'] ?? tender['createdAt'],
+              })
+          .toList();
+          
+      print('Awarded tenders found: ${awardedTenders.length}');
+
+      // Add active tenders as well (for completeness)
       final activeTenders = tenders
           .where((tender) => tender['status'] == 'active')
           .where((tender) {
@@ -233,57 +356,23 @@ class _ProcurementOfficerDashboardScreenState extends State<ProcurementOfficerDa
           })
           .map((tender) => {
                 'id': tender['id'],
-                'title': tender['title'] ?? '',
+                'title': tender['title'] ?? 'Tender',
                 'budget': tender['budget'] ?? 0.0,
                 'deadline': tender['deadline'] ?? '',
-                'category': tender['category'] ?? '',
+                'category': tender['category'] ?? 'General',
                 'totalBids': tender['totalBids'] ?? 0,
                 'type': 'tender',
                 'createdAt': tender['createdAt'],
               })
           .toList();
           
-      print('Active tenders after filtering expired: ${activeTenders.length}');
+      print('Active tenders found: ${activeTenders.length}');
 
-             // Add projects with winning bid amounts
-       final List<Map<String, dynamic>> projectItems = [];
-       for (final project in projects) {
-         // Get winning bid amount for this project
-         double winningBidAmount = project['budget'] ?? 0.0; // fallback to original budget
-         
-         if (project['tenderId'] != null) {
-           try {
-             final bidsSnapshot = await FirebaseFirestore.instance
-                 .collection('bids')
-                 .where('tenderId', isEqualTo: project['tenderId'])
-                 .where('status', isEqualTo: 'awarded')
-                 .get();
-             
-             if (bidsSnapshot.docs.isNotEmpty) {
-               final winningBid = bidsSnapshot.docs.first.data();
-               winningBidAmount = winningBid['bidAmount'] ?? project['budget'] ?? 0.0;
-             }
-           } catch (e) {
-             print('Error fetching winning bid for project ${project['id']}: $e');
-           }
-         }
-         
-         projectItems.add({
-           'id': project['id'],
-           'title': project['tenderTitle'] ?? '',
-           'budget': winningBidAmount,
-           'deadline': '',
-           'category': project['category'] ?? '',
-           'totalBids': 0,
-           'type': 'project',
-           'createdAt': project['createdAt'],
-         });
-       }
+      // Combine and prioritize awarded tenders (projects)
+      allRecentItems.addAll(awardedTenders);
+      allRecentItems.addAll(activeTenders);
 
-             allRecentItems.addAll(activeTenders);
-       allRecentItems.addAll(projectItems);
-
-      // Sort by creation date (newest first) and take the most recent 4
+      // Sort by creation/award date (newest first) and take the most recent 3
       allRecentItems.sort((a, b) {
         final aDate = a['createdAt'] as Timestamp?;
         final bDate = b['createdAt'] as Timestamp?;
@@ -293,7 +382,7 @@ class _ProcurementOfficerDashboardScreenState extends State<ProcurementOfficerDa
         return bDate.compareTo(aDate);
       });
 
-      recentProjects = allRecentItems.take(4).toList();
+      recentProjects = allRecentItems.take(3).toList();
       
       // Debug: Print recent projects
       print('Recent projects loaded: ${recentProjects.length}');
@@ -301,22 +390,9 @@ class _ProcurementOfficerDashboardScreenState extends State<ProcurementOfficerDa
         print('Project $i: ${recentProjects[i]}');
       }
       
-      // If no projects found, add some sample data for demonstration
+      // Debug: If no projects found, log it
       if (recentProjects.isEmpty) {
-        print('No projects found, adding sample data');
-        recentProjects = [
-          {
-            'id': 'sample1',
-            'title': 'Adiambalama Central College',
-            'budget': 50000.0,
-            'deadline': '',
-            'category': 'Infrastructure Development',
-            'totalBids': 0,
-            'type': 'project',
-            'createdAt': Timestamp.now(),
-          },
-        ];
-        print('Added ${recentProjects.length} sample projects');
+        print('No recent projects found - this is normal if no tenders have been awarded yet');
       }
 
       // Force update the UI
@@ -874,25 +950,72 @@ class _ProcurementOfficerDashboardScreenState extends State<ProcurementOfficerDa
             ],
           ),
           child: recentProjects.isEmpty
-              ? const Center(
-                  child: Padding(
-                    padding: EdgeInsets.all(20),
-                    child: Text(
-                      'No active projects found',
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: Colors.grey,
+              ? Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    children: [
+                      Icon(
+                        Icons.work_outline,
+                        size: 48,
+                        color: Colors.grey.shade400,
                       ),
-                    ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'No recent projects found',
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Colors.grey.shade600,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Awarded tenders will appear here as projects',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey.shade500,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          ElevatedButton.icon(
+                            onPressed: _refreshDashboard,
+                            icon: const Icon(Icons.refresh, size: 16),
+                            label: const Text('Refresh'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.blue.shade50,
+                              foregroundColor: Colors.blue.shade700,
+                              elevation: 0,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          ElevatedButton.icon(
+                            onPressed: _createSampleAwardedProjects,
+                            icon: const Icon(Icons.add, size: 16),
+                            label: const Text('Create Sample'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.green.shade50,
+                              foregroundColor: Colors.green.shade700,
+                              elevation: 0,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 )
               : Column(
                   children: recentProjects.map((project) => _buildProjectItem(
                     project['title'],
-                    project['type'] == 'project' ? 'Project' : _getDaysRemaining(project['deadline']),
+                    project['type'] == 'project' 
+                        ? 'Awarded to: ${project['awardedTo'] ?? 'Contractor'}'
+                        : 'Deadline: ${_getDaysRemaining(project['deadline'])}',
                     _formatBudget(project['budget']),
-                    project['type'] == 'project' ? Icons.assignment : _getCategoryIcon(project['category']),
-                    project['type'] == 'project' ? Colors.purple : _getCategoryColor(project['category']),
+                    project['type'] == 'project' ? Icons.work : _getCategoryIcon(project['category']),
+                    project['type'] == 'project' ? Colors.green : _getCategoryColor(project['category']),
                     () => _navigateToProjects(),
                   )).toList(),
                 ),
