@@ -209,6 +209,7 @@ class _SplashScreenState extends State<SplashScreen>
     );
   }
 
+
   @override
   void dispose() {
     _logoController.dispose();
@@ -304,7 +305,7 @@ class _SplashScreenState extends State<SplashScreen>
                             
                             // Subtitle
                             const Text(
-                              'Transparency • Accountability • Progress',
+                              'Track • Trust • Transform',
                               style: TextStyle(
                                 fontSize: 14,
                                 color: Colors.white70,
@@ -338,6 +339,9 @@ class _SplashScreenState extends State<SplashScreen>
                     );
                   },
                 ),
+                
+                const SizedBox(height: 40),
+                
               ],
             ),
           ),

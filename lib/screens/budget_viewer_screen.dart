@@ -12,6 +12,8 @@ import 'finance_officer_dashboard_screen.dart';
 import 'procurement_officer_dashboard_screen.dart';
 import 'anticorruption_officer_dashboard_screen.dart';
 import 'public_user_dashboard_screen.dart';
+import '../utils/app_theme.dart';
+import '../l10n/app_localizations.dart';
 
 /// Budget Viewer Screen - Main screen for viewing government budget data
 /// 
@@ -30,9 +32,11 @@ class _BudgetViewerScreenState extends State<BudgetViewerScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Government Budget'),
+        title: Text(l10n.governmentBudget),
         backgroundColor: const Color(0xFF2E4A62),
         foregroundColor: Colors.white,
         elevation: 0,
@@ -40,12 +44,12 @@ class _BudgetViewerScreenState extends State<BudgetViewerScreen> {
           IconButton(
             icon: const Icon(Icons.report_problem),
             onPressed: () => _raiseBudgetConcern(context),
-            tooltip: 'Raise Budget Concern',
+            tooltip: l10n.raiseConcern,
           ),
           IconButton(
             icon: const Icon(Icons.info_outline),
             onPressed: () => _showBudgetInfo(context),
-            tooltip: 'Budget Information',
+            tooltip: l10n.about,
           ),
         ],
       ),
@@ -55,6 +59,8 @@ class _BudgetViewerScreenState extends State<BudgetViewerScreen> {
   }
 
   Widget _buildBottomNavigationBar() {
+    final l10n = AppLocalizations.of(context)!;
+    
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -106,7 +112,7 @@ class _BudgetViewerScreenState extends State<BudgetViewerScreen> {
             }
           },
           type: BottomNavigationBarType.fixed,
-          backgroundColor: Colors.white,
+          backgroundColor: AppTheme.getBottomNavColor(context),
           selectedItemColor: Colors.blue,
           unselectedItemColor: Colors.grey.shade600,
           selectedFontSize: 12,
@@ -115,19 +121,19 @@ class _BudgetViewerScreenState extends State<BudgetViewerScreen> {
           items: [
             BottomNavigationBarItem(
               icon: Icon(Icons.home_outlined, size: 22),
-              label: 'Home',
+              label: l10n.home,
             ),
             BottomNavigationBarItem(
               icon: Icon(Icons.account_balance, size: 24),
-              label: 'Budget',
+              label: l10n.budget,
             ),
             BottomNavigationBarItem(
               icon: Icon(Icons.shopping_cart_outlined, size: 22),
-              label: 'Tenders',
+              label: l10n.tenders,
             ),
             BottomNavigationBarItem(
               icon: Icon(Icons.dashboard_outlined, size: 22),
-              label: 'Dashboard',
+              label: l10n.dashboard,
             ),
           ],
         ),

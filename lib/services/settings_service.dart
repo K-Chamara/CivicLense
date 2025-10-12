@@ -15,16 +15,9 @@ class SettingsService {
     'ta': 'தமிழ்',
   };
   
-  // Available currencies
+  // Available currencies (LKR only for Sri Lankan context)
   static const Map<String, String> currencies = {
-    'USD': 'USD (\$)',
     'LKR': 'LKR (₨)',
-  };
-  
-  // Currency exchange rates (base: USD)
-  static const Map<String, double> exchangeRates = {
-    'USD': 1.0,
-    'LKR': 320.0, // Approximate rate
   };
 
   /// Get current language
@@ -57,53 +50,24 @@ class SettingsService {
     await prefs.setString(_currencyKey, currency);
   }
 
-  /// Get currency symbol
+  /// Get currency symbol (LKR only)
   static String getCurrencySymbol(String currency) {
-    switch (currency) {
-      case 'USD':
-        return '\$';
-      case 'LKR':
-        return '₨';
-      default:
-        return '₨';
-    }
+    return '₨'; // Always LKR for Sri Lankan context
   }
 
-  /// Format amount based on current currency
+  /// Format amount in LKR
   static Future<String> formatAmount(double amount) async {
-    final currency = await getCurrency();
-    final symbol = getCurrencySymbol(currency);
+    const symbol = '₨';
     
-    if (currency == 'USD') {
-      // Convert LKR to USD if needed
-      if (amount > 1000) {
-        amount = amount / exchangeRates['LKR']!;
-      }
-      return '$symbol${amount.toStringAsFixed(2)}';
+    if (amount >= 1000000000) {
+      return '$symbol${(amount / 1000000000).toStringAsFixed(1)}B';
+    } else if (amount >= 1000000) {
+      return '$symbol${(amount / 1000000).toStringAsFixed(1)}M';
+    } else if (amount >= 1000) {
+      return '$symbol${(amount / 1000).toStringAsFixed(1)}K';
     } else {
-      // Keep as LKR
-      if (amount < 1000) {
-        amount = amount * exchangeRates['LKR']!;
-      }
-      if (amount >= 1000000) {
-        return '$symbol ${(amount / 1000000).toStringAsFixed(1)}M';
-      } else if (amount >= 1000) {
-        return '$symbol ${(amount / 1000).toStringAsFixed(1)}K';
-      } else {
-        return '$symbol ${amount.toStringAsFixed(0)}';
-      }
+      return '$symbol${amount.toStringAsFixed(0)}';
     }
-  }
-
-  /// Convert amount between currencies
-  static double convertAmount(double amount, String fromCurrency, String toCurrency) {
-    if (fromCurrency == toCurrency) return amount;
-    
-    // Convert to USD first
-    double usdAmount = amount / exchangeRates[fromCurrency]!;
-    
-    // Convert to target currency
-    return usdAmount * exchangeRates[toCurrency]!;
   }
 
   /// Reset to default settings
