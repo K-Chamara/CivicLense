@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import '../l10n/app_localizations.dart';
 import '../services/settings_service.dart';
+import '../services/language_service.dart';
 import '../main.dart';
+import '../utils/theme_manager.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -12,12 +14,15 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   String _selectedLanguage = 'en';
-  String _selectedCurrency = 'LKR';
   bool _isLoading = true;
+  late ThemeManager _themeManager;
+  late LanguageService _languageService;
 
   @override
   void initState() {
     super.initState();
+    _themeManager = getThemeManager();
+    _languageService = getLanguageService();
     _loadSettings();
   }
 
@@ -26,11 +31,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
     
     try {
       final language = await SettingsService.getLanguage();
-      final currency = await SettingsService.getCurrency();
       
       setState(() {
         _selectedLanguage = language;
-        _selectedCurrency = currency;
       });
     } catch (e) {
       print('Error loading settings: $e');
@@ -39,10 +42,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
+  Locale _getLocaleFromLanguageCode(String languageCode) {
+    switch (languageCode) {
+      case 'en':
+        return const Locale('en', 'US');
+      case 'si':
+        return const Locale('si', 'LK');
+      case 'ta':
+        return const Locale('ta', 'LK');
+      default:
+        return const Locale('en', 'US');
+    }
+  }
+
   Future<void> _saveSettings() async {
     try {
       await SettingsService.setLanguage(_selectedLanguage);
-      await SettingsService.setCurrency(_selectedCurrency);
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -52,8 +67,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
         );
         
-        // Reload the app locale to apply language changes
-        reloadAppLocale();
+        // Change the app language immediately
+        final locale = _getLocaleFromLanguageCode(_selectedLanguage);
+        await _languageService.changeLanguage(locale);
         
         // Navigate back to home
         await Future.delayed(const Duration(milliseconds: 500));
@@ -80,11 +96,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(l10n.settings),
-        backgroundColor: Colors.blue,
-        foregroundColor: Colors.white,
         elevation: 0,
       ),
-      backgroundColor: Colors.grey.shade50,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
@@ -118,27 +132,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   
                   const SizedBox(height: 16),
                   
-                  // Currency Section
+                  // Theme Section
                   _buildSectionCard(
-                    title: l10n.currency,
-                    icon: Icons.attach_money,
+                    title: l10n.theme,
+                    icon: Icons.brightness_6,
                     children: [
-                      ...SettingsService.currencies.entries.map((entry) {
-                        return _buildRadioTile(
-                          title: entry.value,
-                          value: entry.key,
-                          groupValue: _selectedCurrency,
-                          onChanged: (value) async {
-                            setState(() {
-                              _selectedCurrency = value!;
-                            });
-                            // Save currency immediately
-                            await SettingsService.setCurrency(value!);
-                          },
-                        );
-                      }),
+                      _buildSwitchTile(
+                        title: l10n.darkMode,
+                        subtitle: l10n.switchBetweenLightAndDarkTheme,
+                        value: _themeManager.isDarkMode,
+                        onChanged: (value) async {
+                          await _themeManager.setThemeMode(
+                            value ? ThemeMode.dark : ThemeMode.light
+                          );
+                          setState(() {});
+                        },
+                      ),
                     ],
                   ),
+                  
                   
                   const SizedBox(height: 32),
                   
@@ -275,6 +287,45 @@ class _SettingsScreenState extends State<SettingsScreen> {
         onChanged: onChanged,
         activeColor: Colors.blue,
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      ),
+    );
+  }
+
+  Widget _buildSwitchTile({
+    required String title,
+    required String subtitle,
+    required bool value,
+    required ValueChanged<bool> onChanged,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        color: value ? Colors.blue.withOpacity(0.1) : Colors.transparent,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: value ? Colors.blue : Colors.grey.withOpacity(0.3),
+          width: value ? 2 : 1,
+        ),
+      ),
+      child: SwitchListTile(
+        title: Text(
+          title,
+          style: TextStyle(
+            fontWeight: value ? FontWeight.bold : FontWeight.normal,
+            color: value ? Colors.blue : null,
+          ),
+        ),
+        subtitle: Text(
+          subtitle,
+          style: TextStyle(
+            fontSize: 12,
+            color: Colors.grey[600],
+          ),
+        ),
+        value: value,
+        onChanged: onChanged,
+        activeColor: Colors.blue,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       ),
     );
   }

@@ -4,11 +4,13 @@ import '../services/concern_management_service.dart';
 import '../services/notification_service.dart';
 import '../models/user_role.dart';
 import '../models/concern_models.dart';
+import '../l10n/app_localizations.dart';
 import 'login_screen.dart';
 import 'concern_management_screen.dart';
 import 'enhanced_concern_management_screen.dart';
 import 'enhanced_concern_detail_screen.dart';
 import 'community_management_officer_screen.dart';
+import 'public_tender_viewer_screen.dart';
 
 class AntiCorruptionOfficerDashboardScreen extends StatefulWidget {
   const AntiCorruptionOfficerDashboardScreen({super.key});
@@ -106,7 +108,7 @@ class _AntiCorruptionOfficerDashboardScreenState extends State<AntiCorruptionOff
       backgroundColor: const Color(0xFFF5F5F5),
       drawer: _buildNavigationDrawer(),
       appBar: AppBar(
-        title: const Text('Anti-corruption Officer Dashboard'),
+        title: Text(AppLocalizations.of(context)!.antiCorruptionOfficerDashboard),
         backgroundColor: Colors.purple,
         foregroundColor: Colors.white,
         elevation: 0,
@@ -153,29 +155,32 @@ class _AntiCorruptionOfficerDashboardScreenState extends State<AntiCorruptionOff
             Navigator.pushNamed(context, '/budget-viewer');
             break;
           case 2:
-            _showFeatureComingSoon('Tender Viewer');
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const PublicTenderViewerScreen()),
+            );
             break;
           case 3:
             // Already on dashboard
             break;
         }
       },
-      items: const [
+      items: [
         BottomNavigationBarItem(
-          icon: Icon(Icons.home),
-          label: 'Home',
+          icon: const Icon(Icons.home),
+          label: AppLocalizations.of(context)!.home,
         ),
         BottomNavigationBarItem(
-          icon: Icon(Icons.account_balance),
-          label: 'Budget',
+          icon: const Icon(Icons.account_balance),
+          label: AppLocalizations.of(context)!.budget,
         ),
         BottomNavigationBarItem(
-          icon: Icon(Icons.shopping_cart),
-          label: 'Tenders',
+          icon: const Icon(Icons.shopping_cart),
+          label: AppLocalizations.of(context)!.tenders,
         ),
         BottomNavigationBarItem(
-          icon: Icon(Icons.dashboard),
-          label: 'Dashboard',
+          icon: const Icon(Icons.dashboard),
+          label: AppLocalizations.of(context)!.dashboard,
         ),
       ],
     );
@@ -219,7 +224,7 @@ class _AntiCorruptionOfficerDashboardScreenState extends State<AntiCorruptionOff
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Welcome, ${userData?['firstName'] ?? 'Anti-corruption Officer'}!',
+                  AppLocalizations.of(context)!.welcomeAntiCorruptionOfficer,
                   style: const TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
@@ -227,9 +232,9 @@ class _AntiCorruptionOfficerDashboardScreenState extends State<AntiCorruptionOff
                   ),
                 ),
                 const SizedBox(height: 4),
-                const Text(
-                  'Investigate concerns, ensure transparency, and combat corruption',
-                  style: TextStyle(
+                Text(
+                  AppLocalizations.of(context)!.investigateConcernsEnsureTransparency,
+                  style: const TextStyle(
                     fontSize: 16,
                     color: Colors.white,
                     fontWeight: FontWeight.w300,
@@ -253,25 +258,25 @@ class _AntiCorruptionOfficerDashboardScreenState extends State<AntiCorruptionOff
       childAspectRatio: 1.5,
       children: [
         _buildStatCard(
-          'Active Cases',
+          AppLocalizations.of(context)!.activeCases,
           '${_stats['activeCases']}',
           Icons.assignment,
           Colors.red,
         ),
         _buildStatCard(
-          'Resolved',
+          AppLocalizations.of(context)!.resolved,
           '${_stats['resolved']}',
           Icons.check_circle,
           Colors.green,
         ),
         _buildStatCard(
-          'Under Review',
+          AppLocalizations.of(context)!.underReview,
           '${_stats['underReview']}',
           Icons.pending,
           Colors.orange,
         ),
         _buildStatCard(
-          'Priority',
+          AppLocalizations.of(context)!.priority,
           '${_stats['priority']}',
           Icons.priority_high,
           Colors.purple,
@@ -329,9 +334,9 @@ class _AntiCorruptionOfficerDashboardScreenState extends State<AntiCorruptionOff
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Management Tools',
-          style: TextStyle(
+        Text(
+          AppLocalizations.of(context)!.managementTools,
+          style: const TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.bold,
             color: Colors.black87,
@@ -339,15 +344,15 @@ class _AntiCorruptionOfficerDashboardScreenState extends State<AntiCorruptionOff
         ),
         const SizedBox(height: 16),
         _buildFeatureCard(
-          'Concern Management',
-          'Review and manage public concerns and complaints',
+          AppLocalizations.of(context)!.concernManagement,
+          AppLocalizations.of(context)!.reviewAndManagePublicConcerns,
           Icons.report_problem,
           Colors.red,
           () => _navigateToConcernManagement(),
         ),
         _buildFeatureCard(
-          'Community Management',
-          'Monitor communities, moderate content, and manage violations',
+          AppLocalizations.of(context)!.communityManagement,
+          AppLocalizations.of(context)!.monitorCommunitiesModerateContent,
           Icons.people,
           Colors.blue,
           () => _navigateToCommunityManagement(),
@@ -400,9 +405,9 @@ class _AntiCorruptionOfficerDashboardScreenState extends State<AntiCorruptionOff
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text(
-              'Recent Concerns',
-              style: TextStyle(
+            Text(
+              AppLocalizations.of(context)!.recentConcerns,
+              style: const TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
                 color: Colors.black87,
@@ -410,7 +415,7 @@ class _AntiCorruptionOfficerDashboardScreenState extends State<AntiCorruptionOff
             ),
             TextButton(
               onPressed: _navigateToConcernManagement,
-              child: const Text('View All'),
+              child: Text(AppLocalizations.of(context)!.viewAll),
             ),
           ],
         ),
@@ -429,7 +434,7 @@ class _AntiCorruptionOfficerDashboardScreenState extends State<AntiCorruptionOff
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Text('Error loading concerns'),
+                child: Text(AppLocalizations.of(context)!.errorLoadingConcerns),
               );
             }
 
@@ -441,7 +446,7 @@ class _AntiCorruptionOfficerDashboardScreenState extends State<AntiCorruptionOff
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Text('No recent concerns'),
+                child: Text(AppLocalizations.of(context)!.noRecentConcerns),
               );
             }
 
@@ -692,7 +697,10 @@ class _AntiCorruptionOfficerDashboardScreenState extends State<AntiCorruptionOff
                   title: 'Tenders',
                   onTap: () {
                     Navigator.pop(context);
-                    _showFeatureComingSoon('Tender Viewer');
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const PublicTenderViewerScreen()),
+                    );
                   },
                 ),
                 _buildDrawerItem(

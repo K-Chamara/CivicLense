@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/concern_models.dart';
 import '../services/concern_service.dart';
+import '../l10n/app_localizations.dart';
 
 class UserConcernTrackingScreen extends StatefulWidget {
   const UserConcernTrackingScreen({super.key});
@@ -195,6 +196,14 @@ class _UserConcernTrackingScreenState extends State<UserConcernTrackingScreen>
                     ),
                   ),
                   _buildStatusChip(concern.status),
+                  const SizedBox(width: 8),
+                  // Delete button - only show for concerns that can be deleted
+                  if (_canDeleteConcern(concern))
+                    IconButton(
+                      icon: const Icon(Icons.delete, color: Colors.red),
+                      onPressed: () => _showDeleteConfirmation(concern),
+                      tooltip: AppLocalizations.of(context)!.deleteConcern,
+                    ),
                 ],
               ),
               const SizedBox(height: 8),
@@ -410,5 +419,110 @@ class _UserConcernTrackingScreenState extends State<UserConcernTrackingScreen>
         ],
       ),
     );
+  }
+
+  /// Check if a concern can be deleted by the current user
+  bool _canDeleteConcern(Concern concern) {
+    // Only allow deletion if:
+    // 1. Current user is the author
+    // 2. Concern is not resolved or dismissed
+    // 3. User is authenticated
+    if (_currentUserId == null) return false;
+    if (concern.authorId != _currentUserId) return false;
+    if (concern.status == ConcernStatus.resolved || concern.status == ConcernStatus.dismissed) {
+      return false;
+    }
+    return true;
+  }
+
+  /// Show delete confirmation dialog
+  void _showDeleteConfirmation(Concern concern) {
+    final l10n = AppLocalizations.of(context)!;
+    
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text(l10n.deleteConcern),
+          content: Text(l10n.deleteConcernConfirmation),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text(AppLocalizations.of(context)!.cancel),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _deleteConcern(concern);
+              },
+              style: TextButton.styleFrom(foregroundColor: Colors.red),
+              child: Text(l10n.deleteConcern),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  /// Delete the concern
+  Future<void> _deleteConcern(Concern concern) async {
+    final l10n = AppLocalizations.of(context)!;
+    
+    try {
+      // Show loading indicator
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext context) {
+          return const AlertDialog(
+            content: Row(
+              children: [
+                CircularProgressIndicator(),
+                SizedBox(width: 16),
+                Text('Deleting concern...'),
+              ],
+            ),
+          );
+        },
+      );
+
+      // Delete the concern
+      await _concernService.deleteUserConcern(concern.id);
+
+      // Close loading dialog
+      if (mounted) Navigator.of(context).pop();
+
+      // Show success message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(l10n.deleteConcernSuccess),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      // Close loading dialog
+      if (mounted) Navigator.of(context).pop();
+
+      // Show error message
+      String errorMessage = l10n.deleteConcernError;
+      if (e.toString().contains('You can only delete your own concerns')) {
+        errorMessage = l10n.onlyDeleteOwnConcerns;
+      } else if (e.toString().contains('Cannot delete resolved or dismissed concerns')) {
+        errorMessage = l10n.cannotDeleteResolvedConcern;
+      } else if (e.toString().contains('Cannot delete this concern')) {
+        errorMessage = l10n.cannotDeleteConcern;
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(errorMessage),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 }

@@ -761,4 +761,85 @@ class ConcernService {
       throw Exception('Failed to delete concern: $e');
     }
   }
+
+  /// Delete concern by user (only if they are the author)
+  Future<void> deleteUserConcern(String concernId) async {
+    try {
+      final currentUser = _auth.currentUser;
+      if (currentUser == null) {
+        throw Exception('User must be authenticated to delete concerns');
+      }
+
+      // Get the concern first to check ownership
+      final concernDoc = await _concernsCol.doc(concernId).get();
+      if (!concernDoc.exists) {
+        throw Exception('Concern not found');
+      }
+
+      final concernData = concernDoc.data()!;
+      final authorId = concernData['authorId'] as String;
+
+      // Check if current user is the author
+      if (authorId != currentUser.uid) {
+        throw Exception('You can only delete your own concerns');
+      }
+
+      // Check if concern is already resolved or dismissed
+      final status = concernData['status'] as String;
+      if (status == 'resolved' || status == 'dismissed') {
+        throw Exception('Cannot delete resolved or dismissed concerns');
+      }
+
+      // Delete all related data
+      await _deleteConcernRelatedData(concernId);
+
+      // Delete the concern
+      await _concernsCol.doc(concernId).delete();
+
+      print('✅ Concern $concernId deleted by user ${currentUser.uid}');
+    } catch (e) {
+      print('Error deleting user concern: $e');
+      throw Exception('Failed to delete concern: $e');
+    }
+  }
+
+  /// Helper method to delete all concern-related data
+  Future<void> _deleteConcernRelatedData(String concernId) async {
+    // Delete all comments
+    final commentsSnapshot = await _concernCommentsCol
+        .where('concernId', isEqualTo: concernId)
+        .get();
+    
+    for (var doc in commentsSnapshot.docs) {
+      await doc.reference.delete();
+    }
+
+    // Delete all updates
+    final updatesSnapshot = await _concernUpdatesCol
+        .where('concernId', isEqualTo: concernId)
+        .get();
+    
+    for (var doc in updatesSnapshot.docs) {
+      await doc.reference.delete();
+    }
+
+    // Delete all votes/supports
+    final votesSnapshot = await _concernSupportsCol
+        .where('concernId', isEqualTo: concernId)
+        .get();
+    
+    for (var doc in votesSnapshot.docs) {
+      await doc.reference.delete();
+    }
+
+    // Delete any other related data
+    final votesSnapshot2 = await _db
+        .collection('concern_votes')
+        .where('concernId', isEqualTo: concernId)
+        .get();
+    
+    for (var doc in votesSnapshot2.docs) {
+      await doc.reference.delete();
+    }
+  }
 }

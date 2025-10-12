@@ -761,7 +761,7 @@ class Transaction {
   /// Get formatted amount with sign
   String get formattedAmount {
     final sign = type == 'income' ? '+' : '-';
-    return '$sign\$${NumberFormat('#,##,##,##0.00').format(amount)}';
+    return '$sign₨${NumberFormat('#,##,##,##0.00').format(amount)}';
   }
 }
 
@@ -770,13 +770,13 @@ class BudgetFormatter {
   /// Format amount to currency string
   static String formatAmount(double amount) {
     if (amount >= 1000000000) {
-      return '\$${(amount / 1000000000).toStringAsFixed(1)}B';
+      return '₨${(amount / 1000000000).toStringAsFixed(1)}B';
     } else if (amount >= 1000000) {
-      return '\$${(amount / 1000000).toStringAsFixed(1)}M';
+      return '₨${(amount / 1000000).toStringAsFixed(1)}M';
     } else if (amount >= 1000) {
-      return '\$${(amount / 1000).toStringAsFixed(1)}K';
+      return '₨${(amount / 1000).toStringAsFixed(1)}K';
     } else {
-      return '\$${amount.toStringAsFixed(0)}';
+      return '₨${amount.toStringAsFixed(0)}';
     }
   }
 

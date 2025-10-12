@@ -614,4 +614,183 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get veryPositive => 'Very Positive';
+
+  @override
+  String get seeAll => 'See all';
+
+  @override
+  String get darkMode => 'Dark Mode';
+
+  @override
+  String get switchBetweenLightAndDarkTheme =>
+      'Switch between light and dark theme';
+
+  @override
+  String get errorSigningOut => 'Error signing out';
+
+  @override
+  String get governmentBudget => 'Government Budget';
+
+  @override
+  String get governmentBudgetOverview => 'Government Budget Overview';
+
+  @override
+  String get budgetCategories => 'Budget Categories';
+
+  @override
+  String get spent => 'Spent';
+
+  @override
+  String get spentPercentage => 'Spent %';
+
+  @override
+  String get remaining => 'Remaining';
+
+  @override
+  String get searchAcrossServices => 'Search across services';
+
+  @override
+  String get trackTrustTransform => 'Track • Trust • Transform';
+
+  @override
+  String get community => 'Community';
+
+  @override
+  String get connectWithLocalCommunities =>
+      'Connect with local communities and civic groups';
+
+  @override
+  String get reportAndTrackIssues =>
+      'Report and track public issues and concerns';
+
+  @override
+  String get stayUpdatedWithNews =>
+      'Stay updated with latest government news and announcements';
+
+  @override
+  String get services => 'Services';
+
+  @override
+  String get budgetOverview => 'Budget Overview';
+
+  @override
+  String get newsMedia => 'News & Media';
+
+  @override
+  String get reportsAnalytics => 'Reports & Analytics';
+
+  @override
+  String get viewPublicConcerns => 'View Public Concerns';
+
+  @override
+  String get antiCorruptionOfficer => 'Anti-corruption Officer';
+
+  @override
+  String get connectWithLocalCommunitiesAndCivicGroups =>
+      'Connect with local communities and civic groups';
+
+  @override
+  String get reportAndTrackPublicIssuesAndConcerns =>
+      'Report and track public issues and concerns';
+
+  @override
+  String get stayUpdatedWithLatestGovernmentNewsAndAnnouncements =>
+      'Stay updated with latest government news and announcements';
+
+  @override
+  String get viewDetailedAnalyticsAndGovernmentReports =>
+      'View detailed analytics and government reports';
+
+  @override
+  String get newsSectionHeader => 'News';
+
+  @override
+  String get projectsSectionHeader => 'Projects';
+
+  @override
+  String get upcomingEventsSectionHeader => 'Upcoming Events';
+
+  @override
+  String get trackGovernmentBudgetAllocationsAndSpending =>
+      'Track government budget allocations and spending';
+
+  @override
+  String get browseAndApplyForGovernmentTendersAndContracts =>
+      'Browse and apply for government tenders and contracts';
+
+  @override
+  String get viewOngoingAndCompletedGovernmentProjects =>
+      'View ongoing and completed government projects';
+
+  @override
+  String get priorityConcerns => 'Priority Concerns';
+
+  @override
+  String get subcategories => 'Subcategories';
+
+  @override
+  String get budgetItems => 'Budget Items';
+
+  @override
+  String get searchTenders => 'Search tenders...';
+
+  @override
+  String get antiCorruptionOfficerDashboard =>
+      'Anti-corruption Officer Dashboard';
+
+  @override
+  String get welcomeAntiCorruptionOfficer => 'Welcome, anti corruption!';
+
+  @override
+  String get investigateConcernsEnsureTransparency =>
+      'Investigate concerns, ensure transparency, and combat corruption';
+
+  @override
+  String get activeCases => 'Active Cases';
+
+  @override
+  String get managementTools => 'Management Tools';
+
+  @override
+  String get reviewAndManagePublicConcerns =>
+      'Review and manage public concerns and complaints';
+
+  @override
+  String get monitorCommunitiesModerateContent =>
+      'Monitor communities, moderate content, and manage violations';
+
+  @override
+  String get recentConcerns => 'Recent Concerns';
+
+  @override
+  String get viewAll => 'View All';
+
+  @override
+  String get errorLoadingConcerns => 'Error loading concerns';
+
+  @override
+  String get noRecentConcerns => 'No recent concerns';
+
+  @override
+  String get deleteConcern => 'Delete Concern';
+
+  @override
+  String get deleteConcernConfirmation =>
+      'Are you sure you want to delete this concern? This action cannot be undone.';
+
+  @override
+  String get deleteConcernSuccess => 'Concern deleted successfully';
+
+  @override
+  String get deleteConcernError => 'Failed to delete concern';
+
+  @override
+  String get cannotDeleteConcern => 'Cannot delete this concern';
+
+  @override
+  String get onlyDeleteOwnConcerns => 'You can only delete your own concerns';
+
+  @override
+  String get cannotDeleteResolvedConcern =>
+      'Cannot delete resolved or dismissed concerns';
 }

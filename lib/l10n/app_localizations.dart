@@ -1305,6 +1305,330 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Very Positive'**
   String get veryPositive;
+
+  /// No description provided for @seeAll.
+  ///
+  /// In en, this message translates to:
+  /// **'See all'**
+  String get seeAll;
+
+  /// No description provided for @darkMode.
+  ///
+  /// In en, this message translates to:
+  /// **'Dark Mode'**
+  String get darkMode;
+
+  /// No description provided for @switchBetweenLightAndDarkTheme.
+  ///
+  /// In en, this message translates to:
+  /// **'Switch between light and dark theme'**
+  String get switchBetweenLightAndDarkTheme;
+
+  /// No description provided for @errorSigningOut.
+  ///
+  /// In en, this message translates to:
+  /// **'Error signing out'**
+  String get errorSigningOut;
+
+  /// No description provided for @governmentBudget.
+  ///
+  /// In en, this message translates to:
+  /// **'Government Budget'**
+  String get governmentBudget;
+
+  /// No description provided for @governmentBudgetOverview.
+  ///
+  /// In en, this message translates to:
+  /// **'Government Budget Overview'**
+  String get governmentBudgetOverview;
+
+  /// No description provided for @budgetCategories.
+  ///
+  /// In en, this message translates to:
+  /// **'Budget Categories'**
+  String get budgetCategories;
+
+  /// No description provided for @spent.
+  ///
+  /// In en, this message translates to:
+  /// **'Spent'**
+  String get spent;
+
+  /// No description provided for @spentPercentage.
+  ///
+  /// In en, this message translates to:
+  /// **'Spent %'**
+  String get spentPercentage;
+
+  /// No description provided for @remaining.
+  ///
+  /// In en, this message translates to:
+  /// **'Remaining'**
+  String get remaining;
+
+  /// No description provided for @searchAcrossServices.
+  ///
+  /// In en, this message translates to:
+  /// **'Search across services'**
+  String get searchAcrossServices;
+
+  /// No description provided for @trackTrustTransform.
+  ///
+  /// In en, this message translates to:
+  /// **'Track • Trust • Transform'**
+  String get trackTrustTransform;
+
+  /// No description provided for @community.
+  ///
+  /// In en, this message translates to:
+  /// **'Community'**
+  String get community;
+
+  /// No description provided for @connectWithLocalCommunities.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect with local communities and civic groups'**
+  String get connectWithLocalCommunities;
+
+  /// No description provided for @reportAndTrackIssues.
+  ///
+  /// In en, this message translates to:
+  /// **'Report and track public issues and concerns'**
+  String get reportAndTrackIssues;
+
+  /// No description provided for @stayUpdatedWithNews.
+  ///
+  /// In en, this message translates to:
+  /// **'Stay updated with latest government news and announcements'**
+  String get stayUpdatedWithNews;
+
+  /// No description provided for @services.
+  ///
+  /// In en, this message translates to:
+  /// **'Services'**
+  String get services;
+
+  /// No description provided for @budgetOverview.
+  ///
+  /// In en, this message translates to:
+  /// **'Budget Overview'**
+  String get budgetOverview;
+
+  /// No description provided for @newsMedia.
+  ///
+  /// In en, this message translates to:
+  /// **'News & Media'**
+  String get newsMedia;
+
+  /// No description provided for @reportsAnalytics.
+  ///
+  /// In en, this message translates to:
+  /// **'Reports & Analytics'**
+  String get reportsAnalytics;
+
+  /// No description provided for @viewPublicConcerns.
+  ///
+  /// In en, this message translates to:
+  /// **'View Public Concerns'**
+  String get viewPublicConcerns;
+
+  /// No description provided for @antiCorruptionOfficer.
+  ///
+  /// In en, this message translates to:
+  /// **'Anti-corruption Officer'**
+  String get antiCorruptionOfficer;
+
+  /// No description provided for @connectWithLocalCommunitiesAndCivicGroups.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect with local communities and civic groups'**
+  String get connectWithLocalCommunitiesAndCivicGroups;
+
+  /// No description provided for @reportAndTrackPublicIssuesAndConcerns.
+  ///
+  /// In en, this message translates to:
+  /// **'Report and track public issues and concerns'**
+  String get reportAndTrackPublicIssuesAndConcerns;
+
+  /// No description provided for @stayUpdatedWithLatestGovernmentNewsAndAnnouncements.
+  ///
+  /// In en, this message translates to:
+  /// **'Stay updated with latest government news and announcements'**
+  String get stayUpdatedWithLatestGovernmentNewsAndAnnouncements;
+
+  /// No description provided for @viewDetailedAnalyticsAndGovernmentReports.
+  ///
+  /// In en, this message translates to:
+  /// **'View detailed analytics and government reports'**
+  String get viewDetailedAnalyticsAndGovernmentReports;
+
+  /// No description provided for @newsSectionHeader.
+  ///
+  /// In en, this message translates to:
+  /// **'News'**
+  String get newsSectionHeader;
+
+  /// No description provided for @projectsSectionHeader.
+  ///
+  /// In en, this message translates to:
+  /// **'Projects'**
+  String get projectsSectionHeader;
+
+  /// No description provided for @upcomingEventsSectionHeader.
+  ///
+  /// In en, this message translates to:
+  /// **'Upcoming Events'**
+  String get upcomingEventsSectionHeader;
+
+  /// No description provided for @trackGovernmentBudgetAllocationsAndSpending.
+  ///
+  /// In en, this message translates to:
+  /// **'Track government budget allocations and spending'**
+  String get trackGovernmentBudgetAllocationsAndSpending;
+
+  /// No description provided for @browseAndApplyForGovernmentTendersAndContracts.
+  ///
+  /// In en, this message translates to:
+  /// **'Browse and apply for government tenders and contracts'**
+  String get browseAndApplyForGovernmentTendersAndContracts;
+
+  /// No description provided for @viewOngoingAndCompletedGovernmentProjects.
+  ///
+  /// In en, this message translates to:
+  /// **'View ongoing and completed government projects'**
+  String get viewOngoingAndCompletedGovernmentProjects;
+
+  /// No description provided for @priorityConcerns.
+  ///
+  /// In en, this message translates to:
+  /// **'Priority Concerns'**
+  String get priorityConcerns;
+
+  /// No description provided for @subcategories.
+  ///
+  /// In en, this message translates to:
+  /// **'Subcategories'**
+  String get subcategories;
+
+  /// No description provided for @budgetItems.
+  ///
+  /// In en, this message translates to:
+  /// **'Budget Items'**
+  String get budgetItems;
+
+  /// No description provided for @searchTenders.
+  ///
+  /// In en, this message translates to:
+  /// **'Search tenders...'**
+  String get searchTenders;
+
+  /// No description provided for @antiCorruptionOfficerDashboard.
+  ///
+  /// In en, this message translates to:
+  /// **'Anti-corruption Officer Dashboard'**
+  String get antiCorruptionOfficerDashboard;
+
+  /// No description provided for @welcomeAntiCorruptionOfficer.
+  ///
+  /// In en, this message translates to:
+  /// **'Welcome, anti corruption!'**
+  String get welcomeAntiCorruptionOfficer;
+
+  /// No description provided for @investigateConcernsEnsureTransparency.
+  ///
+  /// In en, this message translates to:
+  /// **'Investigate concerns, ensure transparency, and combat corruption'**
+  String get investigateConcernsEnsureTransparency;
+
+  /// No description provided for @activeCases.
+  ///
+  /// In en, this message translates to:
+  /// **'Active Cases'**
+  String get activeCases;
+
+  /// No description provided for @managementTools.
+  ///
+  /// In en, this message translates to:
+  /// **'Management Tools'**
+  String get managementTools;
+
+  /// No description provided for @reviewAndManagePublicConcerns.
+  ///
+  /// In en, this message translates to:
+  /// **'Review and manage public concerns and complaints'**
+  String get reviewAndManagePublicConcerns;
+
+  /// No description provided for @monitorCommunitiesModerateContent.
+  ///
+  /// In en, this message translates to:
+  /// **'Monitor communities, moderate content, and manage violations'**
+  String get monitorCommunitiesModerateContent;
+
+  /// No description provided for @recentConcerns.
+  ///
+  /// In en, this message translates to:
+  /// **'Recent Concerns'**
+  String get recentConcerns;
+
+  /// No description provided for @viewAll.
+  ///
+  /// In en, this message translates to:
+  /// **'View All'**
+  String get viewAll;
+
+  /// No description provided for @errorLoadingConcerns.
+  ///
+  /// In en, this message translates to:
+  /// **'Error loading concerns'**
+  String get errorLoadingConcerns;
+
+  /// No description provided for @noRecentConcerns.
+  ///
+  /// In en, this message translates to:
+  /// **'No recent concerns'**
+  String get noRecentConcerns;
+
+  /// No description provided for @deleteConcern.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete Concern'**
+  String get deleteConcern;
+
+  /// No description provided for @deleteConcernConfirmation.
+  ///
+  /// In en, this message translates to:
+  /// **'Are you sure you want to delete this concern? This action cannot be undone.'**
+  String get deleteConcernConfirmation;
+
+  /// No description provided for @deleteConcernSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Concern deleted successfully'**
+  String get deleteConcernSuccess;
+
+  /// No description provided for @deleteConcernError.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to delete concern'**
+  String get deleteConcernError;
+
+  /// No description provided for @cannotDeleteConcern.
+  ///
+  /// In en, this message translates to:
+  /// **'Cannot delete this concern'**
+  String get cannotDeleteConcern;
+
+  /// No description provided for @onlyDeleteOwnConcerns.
+  ///
+  /// In en, this message translates to:
+  /// **'You can only delete your own concerns'**
+  String get onlyDeleteOwnConcerns;
+
+  /// No description provided for @cannotDeleteResolvedConcern.
+  ///
+  /// In en, this message translates to:
+  /// **'Cannot delete resolved or dismissed concerns'**
+  String get cannotDeleteResolvedConcern;
 }
 
 class _AppLocalizationsDelegate

@@ -11,6 +11,7 @@ import 'finance_officer_dashboard_screen.dart';
 import 'procurement_officer_dashboard_screen.dart';
 import 'anticorruption_officer_dashboard_screen.dart';
 import 'public_user_dashboard_screen.dart';
+import '../l10n/app_localizations.dart';
 
 class PublicTenderViewerScreen extends StatefulWidget {
   const PublicTenderViewerScreen({super.key});
@@ -125,7 +126,7 @@ class _PublicTenderViewerScreenState extends State<PublicTenderViewerScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
       appBar: AppBar(
-        title: const Text('Public Tenders'),
+        title: Text(AppLocalizations.of(context)!.publicTenders),
         backgroundColor: Colors.blue,
         foregroundColor: Colors.white,
         elevation: 0,
@@ -133,7 +134,7 @@ class _PublicTenderViewerScreenState extends State<PublicTenderViewerScreen> {
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _loadTenders,
-            tooltip: 'Refresh',
+            tooltip: AppLocalizations.of(context)!.refresh,
           ),
         ],
       ),
@@ -162,7 +163,7 @@ class _PublicTenderViewerScreenState extends State<PublicTenderViewerScreen> {
           // Search Bar
           TextField(
             decoration: InputDecoration(
-              hintText: 'Search tenders...',
+              hintText: AppLocalizations.of(context)!.searchTenders,
               prefixIcon: const Icon(Icons.search),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
@@ -192,7 +193,7 @@ class _PublicTenderViewerScreenState extends State<PublicTenderViewerScreen> {
                   child: DropdownButtonFormField<String>(
                     value: _selectedCategory,
                     decoration: InputDecoration(
-                      labelText: 'Category',
+                      labelText: AppLocalizations.of(context)!.category,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8),
                       ),
@@ -233,7 +234,7 @@ class _PublicTenderViewerScreenState extends State<PublicTenderViewerScreen> {
                   child: DropdownButtonFormField<String>(
                     value: _selectedStatus,
                     decoration: InputDecoration(
-                      labelText: 'Status',
+                      labelText: AppLocalizations.of(context)!.status,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8),
                       ),
@@ -584,11 +585,11 @@ class _PublicTenderViewerScreenState extends State<PublicTenderViewerScreen> {
     if (amount == null) return 'N/A';
     final num = double.tryParse(amount.toString()) ?? 0.0;
     if (num >= 1000000) {
-      return 'LKR ${(num / 1000000).toStringAsFixed(1)}M';
+      return '₨${(num / 1000000).toStringAsFixed(1)}M';
     } else if (num >= 1000) {
-      return 'LKR ${(num / 1000).toStringAsFixed(1)}K';
+      return '₨${(num / 1000).toStringAsFixed(1)}K';
     } else {
-      return 'LKR ${num.toStringAsFixed(0)}';
+      return '₨${num.toStringAsFixed(0)}';
     }
   }
 
@@ -636,22 +637,22 @@ class _PublicTenderViewerScreenState extends State<PublicTenderViewerScreen> {
             break;
         }
       },
-      items: const [
+      items: [
         BottomNavigationBarItem(
-          icon: Icon(Icons.home),
-          label: 'Home',
+          icon: const Icon(Icons.home),
+          label: AppLocalizations.of(context)!.home,
         ),
         BottomNavigationBarItem(
-          icon: Icon(Icons.account_balance),
-          label: 'Budget',
+          icon: const Icon(Icons.account_balance),
+          label: AppLocalizations.of(context)!.budget,
         ),
         BottomNavigationBarItem(
-          icon: Icon(Icons.shopping_cart),
-          label: 'Tenders',
+          icon: const Icon(Icons.shopping_cart),
+          label: AppLocalizations.of(context)!.tenders,
         ),
         BottomNavigationBarItem(
-          icon: Icon(Icons.dashboard),
-          label: 'Dashboard',
+          icon: const Icon(Icons.dashboard),
+          label: AppLocalizations.of(context)!.dashboard,
         ),
       ],
     );

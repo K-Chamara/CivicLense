@@ -121,7 +121,7 @@ class AppLocalizationsTa extends AppLocalizations {
   String get remainingAmount => 'மீதமுள்ள தொகை';
 
   @override
-  String get category => 'வகை';
+  String get category => 'பிரிவு';
 
   @override
   String get type => 'வகை';
@@ -232,7 +232,7 @@ class AppLocalizationsTa extends AppLocalizations {
   String get news => 'செய்திகள்';
 
   @override
-  String get mediaHub => 'மீடியா ஹப்';
+  String get mediaHub => 'ஊடக மையம்';
 
   @override
   String get newsFeed => 'செய்தி ஃபீட்';
@@ -301,7 +301,7 @@ class AppLocalizationsTa extends AppLocalizations {
   String get sort => 'வரிசைப்படுத்து';
 
   @override
-  String get refresh => 'புதுப்பி';
+  String get refresh => 'புதுப்பிக்கவும்';
 
   @override
   String get loading => 'ஏற்றுகிறது';
@@ -618,4 +618,184 @@ class AppLocalizationsTa extends AppLocalizations {
 
   @override
   String get veryPositive => 'மிக நேர்மறை';
+
+  @override
+  String get seeAll => 'அனைத்தையும் பார்க்க';
+
+  @override
+  String get darkMode => 'இருண்ட பயன்முறை';
+
+  @override
+  String get switchBetweenLightAndDarkTheme =>
+      'வெளிச்சம் மற்றும் இருண்ட தீம் இடையே மாறவும்';
+
+  @override
+  String get errorSigningOut => 'வெளியேறுவதில் பிழை';
+
+  @override
+  String get governmentBudget => 'அரசு பட்ஜெட்';
+
+  @override
+  String get governmentBudgetOverview => 'அரசு பட்ஜெட் கண்ணோட்டம்';
+
+  @override
+  String get budgetCategories => 'பட்ஜெட் வகைகள்';
+
+  @override
+  String get spent => 'செலவழிக்கப்பட்டது';
+
+  @override
+  String get spentPercentage => 'செலவழிக்கப்பட்ட %';
+
+  @override
+  String get remaining => 'மீதமுள்ள';
+
+  @override
+  String get searchAcrossServices => 'சேவைகளில் தேடுங்கள்';
+
+  @override
+  String get trackTrustTransform => 'கண்காணி • நம்பிக்கை • மாற்றம்';
+
+  @override
+  String get community => 'சமூகம்';
+
+  @override
+  String get connectWithLocalCommunities =>
+      'உள்ளூர் சமூகங்கள் மற்றும் குடிமை குழுக்களுடன் இணைக்கவும்';
+
+  @override
+  String get reportAndTrackIssues =>
+      'பொது பிரச்சினைகள் மற்றும் கவலைகளை அறிவித்து கண்காணிக்கவும்';
+
+  @override
+  String get stayUpdatedWithNews =>
+      'சமீபத்திய அரசு செய்திகள் மற்றும் அறிவிப்புகளுடன் புதுப்பிக்கவும்';
+
+  @override
+  String get services => 'சேவைகள்';
+
+  @override
+  String get budgetOverview => 'பட்ஜெட் கண்ணோட்டம்';
+
+  @override
+  String get newsMedia => 'செய்திகள் மற்றும் ஊடகம்';
+
+  @override
+  String get reportsAnalytics => 'அறிக்கைகள் மற்றும் பகுப்பாய்வு';
+
+  @override
+  String get viewPublicConcerns => 'பொது கவலைகளை பார்க்கவும்';
+
+  @override
+  String get antiCorruptionOfficer => 'ஊழல் எதிர்ப்பு அதிகாரி';
+
+  @override
+  String get connectWithLocalCommunitiesAndCivicGroups =>
+      'உள்ளூர் சமூகங்கள் மற்றும் குடிமை குழுக்களுடன் இணைக்கவும்';
+
+  @override
+  String get reportAndTrackPublicIssuesAndConcerns =>
+      'பொது பிரச்சினைகள் மற்றும் கவலைகளை அறிவித்து கண்காணிக்கவும்';
+
+  @override
+  String get stayUpdatedWithLatestGovernmentNewsAndAnnouncements =>
+      'சமீபத்திய அரசு செய்திகள் மற்றும் அறிவிப்புகளுடன் புதுப்பிக்கவும்';
+
+  @override
+  String get viewDetailedAnalyticsAndGovernmentReports =>
+      'விரிவான பகுப்பாய்வு மற்றும் அரசு அறிக்கைகளை பார்க்கவும்';
+
+  @override
+  String get newsSectionHeader => 'செய்திகள்';
+
+  @override
+  String get projectsSectionHeader => 'திட்டங்கள்';
+
+  @override
+  String get upcomingEventsSectionHeader => 'வரவிருக்கும் நிகழ்வுகள்';
+
+  @override
+  String get trackGovernmentBudgetAllocationsAndSpending =>
+      'அரசு வரவு செலவுத் திட்ட ஒதுக்கீடுகள் மற்றும் செலவினங்களை கண்காணிக்கவும்';
+
+  @override
+  String get browseAndApplyForGovernmentTendersAndContracts =>
+      'அரசு டெண்டர்கள் மற்றும் ஒப்பந்தங்களை உலாவி விண்ணப்பிக்கவும்';
+
+  @override
+  String get viewOngoingAndCompletedGovernmentProjects =>
+      'நடந்து கொண்டிருக்கும் மற்றும் முடிக்கப்பட்ட அரசு திட்டங்களை பார்க்கவும்';
+
+  @override
+  String get priorityConcerns => 'முன்னுரிமை கவலைகள்';
+
+  @override
+  String get subcategories => 'துணை பிரிவுகள்';
+
+  @override
+  String get budgetItems => 'வரவு செலவுத் திட்ட உருப்படிகள்';
+
+  @override
+  String get searchTenders => 'டெண்டர்களை தேடுங்கள்...';
+
+  @override
+  String get antiCorruptionOfficerDashboard =>
+      'ஊழல் எதிர்ப்பு அதிகாரி டாஷ்போர்டு';
+
+  @override
+  String get welcomeAntiCorruptionOfficer =>
+      'வரவேற்கிறோம், ஊழல் எதிர்ப்பு அதிகாரி!';
+
+  @override
+  String get investigateConcernsEnsureTransparency =>
+      'கவலைகளை விசாரிக்கவும், வெளிப்படைத்தன்மையை உறுதிப்படுத்தவும், மற்றும் ஊழலுக்கு எதிராக போராடவும்';
+
+  @override
+  String get activeCases => 'செயலில் உள்ள வழக்குகள்';
+
+  @override
+  String get managementTools => 'மேலாண்மை கருவிகள்';
+
+  @override
+  String get reviewAndManagePublicConcerns =>
+      'பொது கவலைகள் மற்றும் புகார்களை மறுஆய்வு செய்து மேலாண்மை செய்யுங்கள்';
+
+  @override
+  String get monitorCommunitiesModerateContent =>
+      'சமூகங்களை கண்காணிக்கவும், உள்ளடக்கத்தை மிதமாக்கவும், மற்றும் மீறல்களை மேலாண்மை செய்யுங்கள்';
+
+  @override
+  String get recentConcerns => 'சமீபத்திய கவலைகள்';
+
+  @override
+  String get viewAll => 'அனைத்தையும் பார்க்க';
+
+  @override
+  String get errorLoadingConcerns => 'கவலைகளை ஏற்றுவதில் பிழை';
+
+  @override
+  String get noRecentConcerns => 'சமீபத்திய கவலைகள் இல்லை';
+
+  @override
+  String get deleteConcern => 'கவலையை நீக்கு';
+
+  @override
+  String get deleteConcernConfirmation =>
+      'இந்த கவலையை நீக்க விரும்புகிறீர்களா? இந்த செயலை மீளமுடியாது.';
+
+  @override
+  String get deleteConcernSuccess => 'கவலை வெற்றிகரமாக நீக்கப்பட்டது';
+
+  @override
+  String get deleteConcernError => 'கவலையை நீக்க முடியவில்லை';
+
+  @override
+  String get cannotDeleteConcern => 'இந்த கவலையை நீக்க முடியாது';
+
+  @override
+  String get onlyDeleteOwnConcerns => 'உங்கள் சொந்த கவலைகளை மட்டுமே நீக்கலாம்';
+
+  @override
+  String get cannotDeleteResolvedConcern =>
+      'தீர்க்கப்பட்ட அல்லது நிராகரிக்கப்பட்ட கவலைகளை நீக்க முடியாது';
 }

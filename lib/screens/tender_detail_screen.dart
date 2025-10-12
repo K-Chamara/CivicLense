@@ -728,11 +728,11 @@ class _TenderDetailScreenState extends State<TenderDetailScreen> {
     if (amount == null) return 'N/A';
     final num = double.tryParse(amount.toString()) ?? 0.0;
     if (num >= 1000000) {
-      return 'LKR ${(num / 1000000).toStringAsFixed(1)}M';
+      return '₨${(num / 1000000).toStringAsFixed(1)}M';
     } else if (num >= 1000) {
-      return 'LKR ${(num / 1000).toStringAsFixed(1)}K';
+      return '₨${(num / 1000).toStringAsFixed(1)}K';
     } else {
-      return 'LKR ${num.toStringAsFixed(0)}';
+      return '₨${num.toStringAsFixed(0)}';
     }
   }
 

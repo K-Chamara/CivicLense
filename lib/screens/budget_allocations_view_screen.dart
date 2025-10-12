@@ -388,7 +388,7 @@ class _BudgetAllocationsViewScreenState extends State<BudgetAllocationsViewScree
                       Text(
                         NumberFormat.currency(
                           locale: 'en_US',
-                          symbol: '\$',
+                          symbol: '₨',
                           decimalDigits: 0,
                         ).format(item.allocatedAmount),
                         style: const TextStyle(
