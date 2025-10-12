@@ -4,6 +4,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'l10n/app_localizations.dart';
 import 'services/settings_service.dart';
+import 'services/language_service.dart';
 import 'screens/splash_screen.dart';
 import 'screens/news_feed_screen.dart';
 import 'screens/article_detail_screen.dart';
@@ -24,9 +25,12 @@ import 'services/user_service.dart';
 import 'utils/create_admin.dart';
 import 'screens/admin_setup_screen.dart';
 import 'screens/settings_screen.dart';
+import 'utils/theme_manager.dart';
 
 // Global key to access the app state
 final GlobalKey<_MyAppState> _appKey = GlobalKey<_MyAppState>();
+final ThemeManager _themeManager = ThemeManager();
+final LanguageService _languageService = LanguageService();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -37,6 +41,10 @@ void main() async {
     print('🚀 Civic Lense App Starting...');
     print('📁 File uploads: Using Cloudinary (free)');
     print('🔥 Firebase: Successfully initialized');
+    
+    // Initialize language service
+    await _languageService.initialize();
+    print('🌍 Language service initialized');
   } catch (e) {
     print('❌ Firebase initialization failed: $e');
     print('🔄 App will continue with limited functionality');
@@ -48,6 +56,21 @@ void main() async {
 // Function to reload locale from anywhere in the app
 void reloadAppLocale() {
   _appKey.currentState?.reloadLocale();
+}
+
+// Function to reload theme from anywhere in the app
+void reloadAppTheme() {
+  _appKey.currentState?.reloadTheme();
+}
+
+// Get theme manager instance
+ThemeManager getThemeManager() {
+  return _themeManager;
+}
+
+// Get language service instance
+LanguageService getLanguageService() {
+  return _languageService;
 }
 
 class MyApp extends StatefulWidget {
@@ -63,37 +86,108 @@ class _MyAppState extends State<MyApp> {
   @override
   void initState() {
     super.initState();
-    _loadLocale();
+    _currentLocale = _languageService.currentLocale;
+    _themeManager.addListener(_onThemeChanged);
+    _languageService.addListener(_onLanguageChanged);
   }
 
-  Future<void> _loadLocale() async {
-    final locale = await SettingsService.getLocale();
+  @override
+  void dispose() {
+    _themeManager.removeListener(_onThemeChanged);
+    _languageService.removeListener(_onLanguageChanged);
+    super.dispose();
+  }
+
+  void _onThemeChanged() {
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  void _onLanguageChanged() {
     if (mounted) {
       setState(() {
-        _currentLocale = locale;
+        _currentLocale = _languageService.currentLocale;
       });
     }
   }
 
   // Method to reload locale when settings change
   void reloadLocale() {
-    _loadLocale();
+    setState(() {
+      _currentLocale = _languageService.currentLocale;
+    });
+  }
+
+  // Method to reload theme when settings change
+  void reloadTheme() {
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    print('🌍 Building MaterialApp with locale: $_currentLocale');
+    
     return MaterialApp(
       title: 'Civic Lense',
       debugShowCheckedModeBanner: false,
+      
+      // Light Theme
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: Colors.blue,
+          brightness: Brightness.light,
+        ),
         useMaterial3: true,
+        brightness: Brightness.light,
+        scaffoldBackgroundColor: Colors.white,
+        cardColor: Colors.white,
         appBarTheme: const AppBarTheme(
           backgroundColor: Colors.blue,
           foregroundColor: Colors.white,
           elevation: 0,
         ),
+        drawerTheme: const DrawerThemeData(
+          backgroundColor: Colors.white,
+        ),
+        dialogBackgroundColor: Colors.white,
+        bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+          backgroundColor: Colors.white,
+        ),
       ),
+      
+      // Dark Theme
+      darkTheme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: Colors.blue,
+          brightness: Brightness.dark,
+        ),
+        useMaterial3: true,
+        brightness: Brightness.dark,
+        scaffoldBackgroundColor: const Color(0xFF121212),
+        cardColor: const Color(0xFF1E1E1E),
+        appBarTheme: AppBarTheme(
+          backgroundColor: const Color(0xFF1E1E1E),
+          foregroundColor: Colors.white,
+          elevation: 0,
+          iconTheme: const IconThemeData(color: Colors.white),
+        ),
+        drawerTheme: const DrawerThemeData(
+          backgroundColor: Color(0xFF121212),
+        ),
+        dialogBackgroundColor: const Color(0xFF1E1E1E),
+        bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+          backgroundColor: Color(0xFF1E1E1E),
+        ),
+        dividerColor: Colors.grey[800],
+      ),
+      
+      // Theme mode controlled by ThemeManager
+      themeMode: _themeManager.themeMode,
+      
+      // Localization configuration
       localizationsDelegates: const [
         AppLocalizations.delegate,
         GlobalMaterialLocalizations.delegate,
@@ -101,11 +195,20 @@ class _MyAppState extends State<MyApp> {
         GlobalCupertinoLocalizations.delegate,
       ],
       supportedLocales: const [
-        Locale('en', ''), // English
-        Locale('si', ''), // Sinhala
-        Locale('ta', ''), // Tamil
+        Locale('en', 'US'), // English
+        Locale('si', 'LK'), // Sinhala
+        Locale('ta', 'LK'), // Tamil
       ],
       locale: _currentLocale,
+      localeResolutionCallback: (locale, supportedLocales) {
+        print('🌍 Locale resolution callback called');
+        print('🌍 Requested locale: $locale');
+        print('🌍 Supported locales: $supportedLocales');
+        print('🌍 Current locale: $_currentLocale');
+        
+        // Return the current locale from our service
+        return _currentLocale;
+      },
       initialRoute: '/',
       routes: {
         '/': (context) => const AppInitializer(),

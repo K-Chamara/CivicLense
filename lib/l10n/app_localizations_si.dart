@@ -120,7 +120,7 @@ class AppLocalizationsSi extends AppLocalizations {
   String get remainingAmount => 'ඉතිරි මුදල';
 
   @override
-  String get category => 'ප්‍රවර්ගය';
+  String get category => 'කාණ්ඩය';
 
   @override
   String get type => 'වර්ගය';
@@ -201,7 +201,7 @@ class AppLocalizationsSi extends AppLocalizations {
   String get inProgress => 'ප්‍රගතියේ';
 
   @override
-  String get resolved => 'විසඳන ලද';
+  String get resolved => 'ගණිතය';
 
   @override
   String get communities => 'ප්‍රජා';
@@ -231,7 +231,7 @@ class AppLocalizationsSi extends AppLocalizations {
   String get news => 'ප්‍රවෘත්ති';
 
   @override
-  String get mediaHub => 'මාධ්‍ය හබ්';
+  String get mediaHub => 'මාධ්‍ය මධ්‍යස්ථානය';
 
   @override
   String get newsFeed => 'ප්‍රවෘත්ති පෝෂණය';
@@ -614,4 +614,181 @@ class AppLocalizationsSi extends AppLocalizations {
 
   @override
   String get veryPositive => 'ඉතා ධන';
+
+  @override
+  String get seeAll => 'සියල්ල බලන්න';
+
+  @override
+  String get darkMode => 'අඳුරු ප්‍රකාරය';
+
+  @override
+  String get switchBetweenLightAndDarkTheme =>
+      'දීප්තිමත් සහ අඳුරු තේමා අතර මාරු වන්න';
+
+  @override
+  String get errorSigningOut => 'පිටවීමේ දෝෂය';
+
+  @override
+  String get governmentBudget => 'රජයේ අයවැය';
+
+  @override
+  String get governmentBudgetOverview => 'රජයේ අයවැය දළ විශ්ලේෂණය';
+
+  @override
+  String get budgetCategories => 'අයවැය ප්‍රවර්ග';
+
+  @override
+  String get spent => 'වියදම් කරන ලද';
+
+  @override
+  String get spentPercentage => 'වියදම් %';
+
+  @override
+  String get remaining => 'ඉතිරි';
+
+  @override
+  String get searchAcrossServices => 'සේවා අතර සොයන්න';
+
+  @override
+  String get trackTrustTransform => 'ට්‍රැක් • විශ්වාස • පරිවර්තනය';
+
+  @override
+  String get community => 'ප්‍රජාව';
+
+  @override
+  String get connectWithLocalCommunities =>
+      'දේශීය ප්‍රජා සහ සිවිල් කණ්ඩායම් සමඟ සම්බන්ධ වන්න';
+
+  @override
+  String get reportAndTrackIssues =>
+      'පොදු ගැටළු සහ කරදර වාර්තා කර ට්‍රැක් කරන්න';
+
+  @override
+  String get stayUpdatedWithNews =>
+      'නවතම රජයේ ප්‍රවෘත්ති සහ නිවේදන සමඟ යාවත්කාලීනව සිටින්න';
+
+  @override
+  String get services => 'සේවාවන්';
+
+  @override
+  String get budgetOverview => 'අයවැය දළ විශ්ලේෂණය';
+
+  @override
+  String get newsMedia => 'ප්‍රවෘත්ති සහ මාධ්‍ය';
+
+  @override
+  String get reportsAnalytics => 'වාර්තා සහ විශ්ලේෂණ';
+
+  @override
+  String get viewPublicConcerns => 'පොදු කරදර බලන්න';
+
+  @override
+  String get antiCorruptionOfficer => 'දූෂණ විරෝධී නිලධාරියා';
+
+  @override
+  String get connectWithLocalCommunitiesAndCivicGroups =>
+      'දේශීය ප්‍රජා සහ සිවිල් කණ්ඩායම් සමඟ සම්බන්ධ වන්න';
+
+  @override
+  String get reportAndTrackPublicIssuesAndConcerns =>
+      'පොදු ගැටළු සහ කරදර වාර්තා කර ට්‍රැක් කරන්න';
+
+  @override
+  String get stayUpdatedWithLatestGovernmentNewsAndAnnouncements =>
+      'නවතම රජයේ ප්‍රවෘත්ති සහ නිවේදන සමඟ යාවත්කාලීනව සිටින්න';
+
+  @override
+  String get viewDetailedAnalyticsAndGovernmentReports =>
+      'විස්තරාත්මක විශ්ලේෂණ සහ රජයේ වාර්තා බලන්න';
+
+  @override
+  String get newsSectionHeader => 'ප්‍රවෘත්ති';
+
+  @override
+  String get projectsSectionHeader => 'ව්‍යාපෘති';
+
+  @override
+  String get upcomingEventsSectionHeader => 'ඉදිරි සිදුවීම්';
+
+  @override
+  String get trackGovernmentBudgetAllocationsAndSpending =>
+      'රජයේ අයවැය කොටස්කරණ සහ වියදම් ට්‍රැක් කරන්න';
+
+  @override
+  String get browseAndApplyForGovernmentTendersAndContracts =>
+      'රජයේ ටෙන්ඩර් සහ ගිවිසුම් පිරික්සා අයදුම් කරන්න';
+
+  @override
+  String get viewOngoingAndCompletedGovernmentProjects =>
+      'පවත්නා සහ සම්පූර්ණ කළ රජයේ ව්‍යාපෘති බලන්න';
+
+  @override
+  String get priorityConcerns => 'ප්‍රමුඛ කරදර';
+
+  @override
+  String get subcategories => 'උප කාණ්ඩ';
+
+  @override
+  String get budgetItems => 'අයවැය අයිතම';
+
+  @override
+  String get searchTenders => 'ටෙන්ඩර් සොයන්න...';
+
+  @override
+  String get antiCorruptionOfficerDashboard => 'දූෂණ විරෝධී නිලධාරී ඩැෂ්බෝඩ්';
+
+  @override
+  String get welcomeAntiCorruptionOfficer => 'ආයුබෝවන්, දූෂණ විරෝධී නිලධාරී!';
+
+  @override
+  String get investigateConcernsEnsureTransparency =>
+      'කරදර විමර්ශනය කරන්න, විනිවිදභාවය සහතික කරන්න, සහ දූෂණයට එරෙහි සටන් කරන්න';
+
+  @override
+  String get activeCases => 'ක්‍රියාකාරී නඩු';
+
+  @override
+  String get managementTools => 'කළමනාකරණ මෙවලම්';
+
+  @override
+  String get reviewAndManagePublicConcerns =>
+      'පොදු කරදර සහ පැමිණිලි සමාලෝචනය කර කළමනාකරණය කරන්න';
+
+  @override
+  String get monitorCommunitiesModerateContent =>
+      'ප්‍රජා නිරීක්ෂණය කරන්න, අන්තර්ගතය මධ්‍යස්ථ කරන්න, සහ උල්ලංඝන කළමනාකරණය කරන්න';
+
+  @override
+  String get recentConcerns => 'ශීඝ්‍ර කරදර';
+
+  @override
+  String get viewAll => 'සියල්ල බලන්න';
+
+  @override
+  String get errorLoadingConcerns => 'කරදර පූරණය කිරීමේ දෝෂය';
+
+  @override
+  String get noRecentConcerns => 'ශීඝ්‍ර කරදර නැත';
+
+  @override
+  String get deleteConcern => 'කරදර මකන්න';
+
+  @override
+  String get deleteConcernConfirmation =>
+      'ඔබට ඇත්තටම මෙම කරදර මකන්න ඕනද? මෙම ක්‍රියාව අහෝසි කළ නොහැක.';
+
+  @override
+  String get deleteConcernSuccess => 'කරදර සාර්ථකව මකන ලදී';
+
+  @override
+  String get deleteConcernError => 'කරදර මකන්න අසමත් විය';
+
+  @override
+  String get cannotDeleteConcern => 'මෙම කරදර මකන්න බැරිය';
+
+  @override
+  String get onlyDeleteOwnConcerns => 'ඔබට ඔබේම කරදර පමණක් මකන්න පුළුවන්';
+
+  @override
+  String get cannotDeleteResolvedConcern => 'ගණිත හෝ අසාර්ථක කරදර මකන්න බැරිය';
 }

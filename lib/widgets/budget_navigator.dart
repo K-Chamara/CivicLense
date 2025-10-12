@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../models/budget_models.dart';
 import '../services/budget_service.dart';
+import '../l10n/app_localizations.dart';
 
 /// BudgetNavigator Widget - Hierarchical government budget breakdown with drill-down navigation
 /// 
@@ -292,15 +293,16 @@ class _BudgetNavigatorState extends State<BudgetNavigator>
 
   /// Get breadcrumb text based on current navigation level
   String _getBreadcrumbText() {
+    final l10n = AppLocalizations.of(context)!;
     switch (_navigationState.currentLevel) {
       case 0:
-        return 'Government Budget Overview';
+        return l10n.governmentBudgetOverview;
       case 1:
-        return '${_navigationState.parentName} - Subcategories';
+        return '${_navigationState.parentName} - ${l10n.subcategories}';
       case 2:
-        return '${_navigationState.parentName} - Budget Items';
+        return '${_navigationState.parentName} - ${l10n.budgetItems}';
       default:
-        return 'Government Budget';
+        return l10n.governmentBudget;
     }
   }
 
@@ -474,8 +476,8 @@ class _BudgetNavigatorState extends State<BudgetNavigator>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Budget Categories',
+        Text(
+          AppLocalizations.of(context)!.budgetCategories,
           style: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.bold,

@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../models/concern_models.dart';
 import '../services/concern_management_service.dart';
+import '../services/concern_service.dart';
 import '../services/notification_service.dart';
 import '../services/officer_ai_service.dart';
+import '../l10n/app_localizations.dart';
 import 'user_concern_tracking_screen.dart';
 import 'public_tender_viewer_screen.dart';
 import 'package:flutter/services.dart';
@@ -26,6 +29,8 @@ class ConcernDetailScreen extends StatefulWidget {
 
 class _ConcernDetailScreenState extends State<ConcernDetailScreen> {
   final TextEditingController _commentController = TextEditingController();
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final ConcernService _concernService = ConcernService();
   bool _isUpdating = false;
   
   // AI Assistant State
@@ -173,6 +178,18 @@ class _ConcernDetailScreenState extends State<ConcernDetailScreen> {
                                   ],
                                 ),
                               ),
+                              // Add delete option for users (only if they can delete)
+                              if (_canDeleteConcern())
+                                PopupMenuItem(
+                                  value: 'delete',
+                                  child: Row(
+                                    children: [
+                                      const Icon(Icons.delete, color: Colors.red),
+                                      const SizedBox(width: 8),
+                                      Text(AppLocalizations.of(context)!.deleteConcern),
+                                    ],
+                                  ),
+                                ),
                             ],
                           ),
                         ),
@@ -699,6 +716,12 @@ class _ConcernDetailScreenState extends State<ConcernDetailScreen> {
   }
 
   void _showStatusUpdateDialog(String status) async {
+    // Handle delete action
+    if (status == 'delete') {
+      _showDeleteConfirmation();
+      return;
+    }
+
     try {
       setState(() {
         _isUpdating = true;
@@ -761,5 +784,110 @@ class _ConcernDetailScreenState extends State<ConcernDetailScreen> {
         backgroundColor: Colors.purple,
       ),
     );
+  }
+
+  /// Check if current user can delete this concern
+  bool _canDeleteConcern() {
+    final currentUser = _auth.currentUser;
+    if (currentUser == null) return false;
+    if (widget.concern.authorId != currentUser.uid) return false;
+    if (widget.concern.status == ConcernStatus.resolved || widget.concern.status == ConcernStatus.dismissed) {
+      return false;
+    }
+    return true;
+  }
+
+  /// Show delete confirmation dialog
+  void _showDeleteConfirmation() {
+    final l10n = AppLocalizations.of(context)!;
+    
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text(l10n.deleteConcern),
+          content: Text(l10n.deleteConcernConfirmation),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text(AppLocalizations.of(context)!.cancel),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _deleteConcern();
+              },
+              style: TextButton.styleFrom(foregroundColor: Colors.red),
+              child: Text(l10n.deleteConcern),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  /// Delete the concern and navigate back
+  Future<void> _deleteConcern() async {
+    final l10n = AppLocalizations.of(context)!;
+    
+    try {
+      // Show loading indicator
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext context) {
+          return const AlertDialog(
+            content: Row(
+              children: [
+                CircularProgressIndicator(),
+                SizedBox(width: 16),
+                Text('Deleting concern...'),
+              ],
+            ),
+          );
+        },
+      );
+
+      // Delete the concern
+      await _concernService.deleteUserConcern(widget.concern.id);
+
+      // Close loading dialog
+      if (mounted) Navigator.of(context).pop();
+
+      // Show success message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(l10n.deleteConcernSuccess),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+
+      // Navigate back to previous screen
+      if (mounted) Navigator.of(context).pop();
+    } catch (e) {
+      // Close loading dialog
+      if (mounted) Navigator.of(context).pop();
+
+      // Show error message
+      String errorMessage = l10n.deleteConcernError;
+      if (e.toString().contains('You can only delete your own concerns')) {
+        errorMessage = l10n.onlyDeleteOwnConcerns;
+      } else if (e.toString().contains('Cannot delete resolved or dismissed concerns')) {
+        errorMessage = l10n.cannotDeleteResolvedConcern;
+      } else if (e.toString().contains('Cannot delete this concern')) {
+        errorMessage = l10n.cannotDeleteConcern;
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(errorMessage),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 }

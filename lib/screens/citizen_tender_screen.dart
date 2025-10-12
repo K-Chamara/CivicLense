@@ -388,7 +388,7 @@ class _CitizenTenderScreenState extends State<CitizenTenderScreen> {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          '\$${NumberFormat('#,##0').format(tender['budget'] ?? 0)}',
+                          '₨${NumberFormat('#,##0').format(tender['budget'] ?? 0)}',
                           style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
@@ -454,7 +454,7 @@ class _CitizenTenderScreenState extends State<CitizenTenderScreen> {
                       ),
                       if (tender['awardedAmount'] != null)
                         Text(
-                          '\$${NumberFormat('#,##0').format(tender['awardedAmount'])}',
+                          '₨${NumberFormat('#,##0').format(tender['awardedAmount'])}',
                           style: const TextStyle(
                             fontSize: 12,
                             color: Colors.green,
@@ -523,7 +523,7 @@ class _CitizenTenderScreenState extends State<CitizenTenderScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
                       Text(
-                        'Budget: \$${NumberFormat('#,##0').format(tender['budget'] ?? 0)}',
+                        'Budget: ₨${NumberFormat('#,##0').format(tender['budget'] ?? 0)}',
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
                           color: Colors.blue,
@@ -723,7 +723,7 @@ class _CitizenTenderScreenState extends State<CitizenTenderScreen> {
                                       ),
                                     ),
                                     Text(
-                                      '\$${NumberFormat('#,##0').format(bidAmount)}',
+                                      '₨${NumberFormat('#,##0').format(bidAmount)}',
                                       style: TextStyle(
                                         fontWeight: FontWeight.bold,
                                         color: isLowest ? Colors.green : isHighest ? Colors.orange : Colors.blue,

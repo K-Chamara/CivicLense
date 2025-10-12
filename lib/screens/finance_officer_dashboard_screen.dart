@@ -30,7 +30,7 @@ class _FinanceOfficerDashboardScreenState extends State<FinanceOfficerDashboardS
   Map<String, dynamic>? budgetStats;
   Map<String, dynamic>? transactionStats;
   List<CategoryAnalytics> categoryAnalytics = [];
-  String selectedCurrency = 'USD';
+  String selectedCurrency = 'LKR';
 
   @override
   void initState() {
@@ -989,7 +989,7 @@ class _FinanceOfficerDashboardScreenState extends State<FinanceOfficerDashboardS
 
   String _formatCurrency(double amount) {
     final currencySymbols = {
-      'USD': '\$',
+        'USD': '₨',
       'EUR': '€',
       'GBP': '£',
       'JPY': '¥',
