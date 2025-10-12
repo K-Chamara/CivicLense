@@ -321,6 +321,10 @@ class AuthWrapper extends StatelessWidget {
         if (snapshot.hasData && snapshot.data != null) {
           print('✅ AuthWrapper: User is signed in: ${snapshot.data!.uid}');
           print('✅ AuthWrapper: User email: ${snapshot.data!.email}');
+          
+          // Reload language for the logged-in user
+          _languageService.reloadForUser();
+          
           // User is signed in, check their role and document upload status
           return FutureBuilder<Map<String, dynamic>>(
             future: _checkUserStatus(snapshot.data!.uid),

@@ -1629,6 +1629,186 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Cannot delete resolved or dismissed concerns'**
   String get cannotDeleteResolvedConcern;
+
+  /// No description provided for @concernDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'Concern Details'**
+  String get concernDetails;
+
+  /// No description provided for @supporters.
+  ///
+  /// In en, this message translates to:
+  /// **'Supporters'**
+  String get supporters;
+
+  /// No description provided for @showYourSupport.
+  ///
+  /// In en, this message translates to:
+  /// **'Show your support for this concern'**
+  String get showYourSupport;
+
+  /// No description provided for @supported.
+  ///
+  /// In en, this message translates to:
+  /// **'Supported'**
+  String get supported;
+
+  /// No description provided for @noCommentsYet.
+  ///
+  /// In en, this message translates to:
+  /// **'No comments yet'**
+  String get noCommentsYet;
+
+  /// No description provided for @addComment.
+  ///
+  /// In en, this message translates to:
+  /// **'Add Comment'**
+  String get addComment;
+
+  /// No description provided for @writeYourComment.
+  ///
+  /// In en, this message translates to:
+  /// **'Write your comment here...'**
+  String get writeYourComment;
+
+  /// No description provided for @postComment.
+  ///
+  /// In en, this message translates to:
+  /// **'Post Comment'**
+  String get postComment;
+
+  /// No description provided for @timeline.
+  ///
+  /// In en, this message translates to:
+  /// **'Timeline'**
+  String get timeline;
+
+  /// No description provided for @noUpdatesYet.
+  ///
+  /// In en, this message translates to:
+  /// **'No updates yet'**
+  String get noUpdatesYet;
+
+  /// No description provided for @citizenTools.
+  ///
+  /// In en, this message translates to:
+  /// **'Citizen Tools'**
+  String get citizenTools;
+
+  /// No description provided for @governmentBudgetTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Government Budget'**
+  String get governmentBudgetTitle;
+
+  /// No description provided for @exploreHowYourTaxMoneyIsAllocatedAndSpent.
+  ///
+  /// In en, this message translates to:
+  /// **'Explore how your tax money is allocated and spent'**
+  String get exploreHowYourTaxMoneyIsAllocatedAndSpent;
+
+  /// No description provided for @governmentTenders.
+  ///
+  /// In en, this message translates to:
+  /// **'Government Tenders'**
+  String get governmentTenders;
+
+  /// No description provided for @viewActiveTendersAndProcurementOpportunities.
+  ///
+  /// In en, this message translates to:
+  /// **'View active tenders and procurement opportunities'**
+  String get viewActiveTendersAndProcurementOpportunities;
+
+  /// No description provided for @newsAndMedia.
+  ///
+  /// In en, this message translates to:
+  /// **'News & Media'**
+  String get newsAndMedia;
+
+  /// No description provided for @readLatestNewsArticlesAndEngageWithContent.
+  ///
+  /// In en, this message translates to:
+  /// **'Read latest news articles and engage with content'**
+  String get readLatestNewsArticlesAndEngageWithContent;
+
+  /// No description provided for @trackPublicSpending.
+  ///
+  /// In en, this message translates to:
+  /// **'Track Public Spending'**
+  String get trackPublicSpending;
+
+  /// No description provided for @monitorGovernmentBudgetsAndExpenditures.
+  ///
+  /// In en, this message translates to:
+  /// **'Monitor government budgets and expenditures'**
+  String get monitorGovernmentBudgetsAndExpenditures;
+
+  /// No description provided for @raiseConcerns.
+  ///
+  /// In en, this message translates to:
+  /// **'Raise Concerns'**
+  String get raiseConcerns;
+
+  /// No description provided for @reportIssuesAndTrackTheirResolution.
+  ///
+  /// In en, this message translates to:
+  /// **'Report issues and track their resolution'**
+  String get reportIssuesAndTrackTheirResolution;
+
+  /// No description provided for @seeWhatOthersAreConcernedAboutAndShowSupport.
+  ///
+  /// In en, this message translates to:
+  /// **'See what others are concerned about and show support'**
+  String get seeWhatOthersAreConcernedAboutAndShowSupport;
+
+  /// No description provided for @accountPendingApproval.
+  ///
+  /// In en, this message translates to:
+  /// **'Account Pending Approval'**
+  String get accountPendingApproval;
+
+  /// No description provided for @yourAccountIsBeingReviewedLimitedAccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Your account is being reviewed. You currently have limited access with citizen-level features. Full access will be granted once approved by an administrator.'**
+  String get yourAccountIsBeingReviewedLimitedAccess;
+
+  /// No description provided for @featureComingSoon.
+  ///
+  /// In en, this message translates to:
+  /// **'feature coming soon!'**
+  String get featureComingSoon;
+
+  /// No description provided for @errorSigningOutMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Error signing out'**
+  String get errorSigningOutMessage;
+
+  /// No description provided for @welcomeBack.
+  ///
+  /// In en, this message translates to:
+  /// **'Welcome back'**
+  String get welcomeBack;
+
+  /// No description provided for @user.
+  ///
+  /// In en, this message translates to:
+  /// **'User'**
+  String get user;
+
+  /// No description provided for @budgetAllocated.
+  ///
+  /// In en, this message translates to:
+  /// **'Budget Allocated'**
+  String get budgetAllocated;
+
+  /// No description provided for @tenderBudgetOverview.
+  ///
+  /// In en, this message translates to:
+  /// **'Tender & Budget Overview'**
+  String get tenderBudgetOverview;
 }
 
 class _AppLocalizationsDelegate

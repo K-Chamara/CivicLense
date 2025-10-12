@@ -684,7 +684,7 @@ class AppLocalizationsTa extends AppLocalizations {
   String get reportsAnalytics => 'அறிக்கைகள் மற்றும் பகுப்பாய்வு';
 
   @override
-  String get viewPublicConcerns => 'பொது கவலைகளை பார்க்கவும்';
+  String get viewPublicConcerns => 'பொது கவலைகளைப் பார்க்கவும்';
 
   @override
   String get antiCorruptionOfficer => 'ஊழல் எதிர்ப்பு அதிகாரி';
@@ -798,4 +798,101 @@ class AppLocalizationsTa extends AppLocalizations {
   @override
   String get cannotDeleteResolvedConcern =>
       'தீர்க்கப்பட்ட அல்லது நிராகரிக்கப்பட்ட கவலைகளை நீக்க முடியாது';
+
+  @override
+  String get concernDetails => 'கவலை விவரங்கள்';
+
+  @override
+  String get supporters => 'ஆதரவாளர்கள்';
+
+  @override
+  String get showYourSupport => 'இந்த கவலைக்கு உங்கள் ஆதரவைக் காட்டுங்கள்';
+
+  @override
+  String get supported => 'ஆதரித்தது';
+
+  @override
+  String get noCommentsYet => 'இன்னும் கருத்துகள் இல்லை';
+
+  @override
+  String get addComment => 'கருத்து சேர்க்கவும்';
+
+  @override
+  String get writeYourComment => 'உங்கள் கருத்தை இங்கே எழுதுங்கள்...';
+
+  @override
+  String get postComment => 'கருத்தை இடுகையிடவும்';
+
+  @override
+  String get timeline => 'காலவரிசை';
+
+  @override
+  String get noUpdatesYet => 'இன்னும் புதுப்பிப்புகள் இல்லை';
+
+  @override
+  String get citizenTools => 'குடிமக்கள் கருவிகள்';
+
+  @override
+  String get governmentBudgetTitle => 'அரசாங்க பட்ஜெட்';
+
+  @override
+  String get exploreHowYourTaxMoneyIsAllocatedAndSpent =>
+      'உங்கள் வரி பணம் எவ்வாறு ஒதுக்கப்பட்டு செலவிடப்படுகிறது என்பதை ஆராயுங்கள்';
+
+  @override
+  String get governmentTenders => 'அரசாங்க டெண்டர்கள்';
+
+  @override
+  String get viewActiveTendersAndProcurementOpportunities =>
+      'செயலில் உள்ள டெண்டர்கள் மற்றும் கொள்முதல் வாய்ப்புகளைப் பார்க்கவும்';
+
+  @override
+  String get newsAndMedia => 'செய்திகள் & ஊடகம்';
+
+  @override
+  String get readLatestNewsArticlesAndEngageWithContent =>
+      'சமீபத்திய செய்திக் கட்டுரைகளைப் படித்து உள்ளடக்கத்துடன் ஈடுபடுங்கள்';
+
+  @override
+  String get trackPublicSpending => 'பொது செலவினங்களைக் கண்காணிக்கவும்';
+
+  @override
+  String get monitorGovernmentBudgetsAndExpenditures =>
+      'அரசாங்க பட்ஜெட்டுகள் மற்றும் செலவினங்களைக் கண்காணிக்கவும்';
+
+  @override
+  String get raiseConcerns => 'கவலைகளை எழுப்புங்கள்';
+
+  @override
+  String get reportIssuesAndTrackTheirResolution =>
+      'சிக்கல்களைப் புகாரளித்து அவற்றின் தீர்வைக் கண்காணிக்கவும்';
+
+  @override
+  String get seeWhatOthersAreConcernedAboutAndShowSupport =>
+      'மற்றவர்கள் எதைப் பற்றி கவலைப்படுகிறார்கள் என்பதைப் பார்த்து ஆதரவைக் காட்டுங்கள்';
+
+  @override
+  String get accountPendingApproval => 'கணக்கு அனுமதி நிலுவையில்';
+
+  @override
+  String get yourAccountIsBeingReviewedLimitedAccess =>
+      'உங்கள் கணக்கு மதிப்பாய்வு செய்யப்படுகிறது. தற்போது நீங்கள் குடிமக்கள் மட்ட அம்சங்களுடன் வரையறுக்கப்பட்ட அணுகலைக் கொண்டுள்ளீர்கள். நிர்வாகியால் அனுமதிக்கப்பட்டவுடன் முழு அணுகல் வழங்கப்படும்.';
+
+  @override
+  String get featureComingSoon => 'அம்சம் விரைவில் வருகிறது!';
+
+  @override
+  String get errorSigningOutMessage => 'வெளியேறும் பிழை';
+
+  @override
+  String get welcomeBack => 'மீண்டும் வரவேற்கிறோம்';
+
+  @override
+  String get user => 'பயனர்';
+
+  @override
+  String get budgetAllocated => 'ஒதுக்கப்பட்ட பட்ஜெட்';
+
+  @override
+  String get tenderBudgetOverview => 'டெண்டர் & பட்ஜெட் கண்ணோட்டம்';
 }

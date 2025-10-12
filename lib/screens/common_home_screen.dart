@@ -11,6 +11,8 @@ import '../services/notification_service.dart';
 import '../services/project_service.dart';
 import '../models/user_role.dart';
 import '../models/report.dart';
+import '../utils/app_theme.dart';
+import '../main.dart';
 import 'login_screen.dart';
 import 'budget_viewer_screen.dart';
 import 'settings_screen.dart';
@@ -847,6 +849,10 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
 
   Future<void> _signOut() async {
     try {
+      // Reset language to English before signing out
+      final languageService = getLanguageService();
+      await languageService.resetToEnglish();
+      
       await _authService.signOut();
       if (mounted) {
         Navigator.of(context).pushReplacement(
@@ -2657,16 +2663,19 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
                             color: Colors.grey.shade500,
                           ),
                           const SizedBox(width: 4),
-                          Text(
-                            concern['location'] ?? 'Location not specified',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey.shade500,
+                          Expanded(
+                            child: Text(
+                              concern['location'] ?? 'Location not specified',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey.shade500,
+                              ),
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
-                          const Spacer(),
+                          const SizedBox(width: 8),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                             decoration: BoxDecoration(
                               color: Colors.blue.shade100,
                               borderRadius: BorderRadius.circular(12),
@@ -2679,7 +2688,7 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
                                   size: 12,
                                   color: Colors.blue.shade700,
                                 ),
-                                const SizedBox(width: 4),
+                                const SizedBox(width: 2),
                                 Text(
                                   '${concern['supportCount'] ?? 0}',
                                   style: TextStyle(

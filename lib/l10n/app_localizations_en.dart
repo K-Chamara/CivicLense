@@ -793,4 +793,101 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get cannotDeleteResolvedConcern =>
       'Cannot delete resolved or dismissed concerns';
+
+  @override
+  String get concernDetails => 'Concern Details';
+
+  @override
+  String get supporters => 'Supporters';
+
+  @override
+  String get showYourSupport => 'Show your support for this concern';
+
+  @override
+  String get supported => 'Supported';
+
+  @override
+  String get noCommentsYet => 'No comments yet';
+
+  @override
+  String get addComment => 'Add Comment';
+
+  @override
+  String get writeYourComment => 'Write your comment here...';
+
+  @override
+  String get postComment => 'Post Comment';
+
+  @override
+  String get timeline => 'Timeline';
+
+  @override
+  String get noUpdatesYet => 'No updates yet';
+
+  @override
+  String get citizenTools => 'Citizen Tools';
+
+  @override
+  String get governmentBudgetTitle => 'Government Budget';
+
+  @override
+  String get exploreHowYourTaxMoneyIsAllocatedAndSpent =>
+      'Explore how your tax money is allocated and spent';
+
+  @override
+  String get governmentTenders => 'Government Tenders';
+
+  @override
+  String get viewActiveTendersAndProcurementOpportunities =>
+      'View active tenders and procurement opportunities';
+
+  @override
+  String get newsAndMedia => 'News & Media';
+
+  @override
+  String get readLatestNewsArticlesAndEngageWithContent =>
+      'Read latest news articles and engage with content';
+
+  @override
+  String get trackPublicSpending => 'Track Public Spending';
+
+  @override
+  String get monitorGovernmentBudgetsAndExpenditures =>
+      'Monitor government budgets and expenditures';
+
+  @override
+  String get raiseConcerns => 'Raise Concerns';
+
+  @override
+  String get reportIssuesAndTrackTheirResolution =>
+      'Report issues and track their resolution';
+
+  @override
+  String get seeWhatOthersAreConcernedAboutAndShowSupport =>
+      'See what others are concerned about and show support';
+
+  @override
+  String get accountPendingApproval => 'Account Pending Approval';
+
+  @override
+  String get yourAccountIsBeingReviewedLimitedAccess =>
+      'Your account is being reviewed. You currently have limited access with citizen-level features. Full access will be granted once approved by an administrator.';
+
+  @override
+  String get featureComingSoon => 'feature coming soon!';
+
+  @override
+  String get errorSigningOutMessage => 'Error signing out';
+
+  @override
+  String get welcomeBack => 'Welcome back';
+
+  @override
+  String get user => 'User';
+
+  @override
+  String get budgetAllocated => 'Budget Allocated';
+
+  @override
+  String get tenderBudgetOverview => 'Tender & Budget Overview';
 }

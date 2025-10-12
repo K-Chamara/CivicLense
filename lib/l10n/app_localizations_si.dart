@@ -450,7 +450,7 @@ class AppLocalizationsSi extends AppLocalizations {
   String get allocations => 'වෙන් කිරීම්';
 
   @override
-  String get activeTenders => 'ක්‍රියාකාරී ටෙන්ඩර්';
+  String get activeTenders => 'සක්‍රිය ටෙන්ඩර්';
 
   @override
   String get projects => 'ව්‍යාපෘති';
@@ -791,4 +791,101 @@ class AppLocalizationsSi extends AppLocalizations {
 
   @override
   String get cannotDeleteResolvedConcern => 'ගණිත හෝ අසාර්ථක කරදර මකන්න බැරිය';
+
+  @override
+  String get concernDetails => 'කරදර විස්තර';
+
+  @override
+  String get supporters => 'සහාය දක්වන්නන්';
+
+  @override
+  String get showYourSupport => 'මෙම කරදරට ඔබේ සහාය පෙන්වන්න';
+
+  @override
+  String get supported => 'සහාය දක්වා ඇත';
+
+  @override
+  String get noCommentsYet => 'තවම අදහස් නැත';
+
+  @override
+  String get addComment => 'අදහස් එක් කරන්න';
+
+  @override
+  String get writeYourComment => 'ඔබේ අදහස මෙහි ලියන්න...';
+
+  @override
+  String get postComment => 'අදහස පළ කරන්න';
+
+  @override
+  String get timeline => 'කාලරේඛාව';
+
+  @override
+  String get noUpdatesYet => 'තවම යාවත්කාලීන නැත';
+
+  @override
+  String get citizenTools => 'පුරවැසි මෙවලම්';
+
+  @override
+  String get governmentBudgetTitle => 'රජයේ අයවැය';
+
+  @override
+  String get exploreHowYourTaxMoneyIsAllocatedAndSpent =>
+      'ඔබේ බදු මුදල් වෙන් කර වියදම් කරන ආකාරය ගවේෂණය කරන්න';
+
+  @override
+  String get governmentTenders => 'රජයේ ටෙන්ඩර්';
+
+  @override
+  String get viewActiveTendersAndProcurementOpportunities =>
+      'ක්‍රියාකාරී ටෙන්ඩර් සහ ප්‍රසම්පාදන අවස්ථා බලන්න';
+
+  @override
+  String get newsAndMedia => 'පුවත් සහ මාධ්‍ය';
+
+  @override
+  String get readLatestNewsArticlesAndEngageWithContent =>
+      'නවතම පුවත් ලිපි කියවා අන්තර්ගතය සමඟ සම්බන්ධ වන්න';
+
+  @override
+  String get trackPublicSpending => 'රජයේ වියදම් නිරීක්ෂණය කරන්න';
+
+  @override
+  String get monitorGovernmentBudgetsAndExpenditures =>
+      'රජයේ අයවැය සහ වියදම් නිරීක්ෂණය කරන්න';
+
+  @override
+  String get raiseConcerns => 'කරදර මතු කරන්න';
+
+  @override
+  String get reportIssuesAndTrackTheirResolution =>
+      'ගැටළු වාර්තා කර ඒවායේ විසඳුම නිරීක්ෂණය කරන්න';
+
+  @override
+  String get seeWhatOthersAreConcernedAboutAndShowSupport =>
+      'අනෙක් අය ගැන සැලකිලිමත් වන දේ බලා සහාය පෙන්වන්න';
+
+  @override
+  String get accountPendingApproval => 'ගිණුම අනුමැතිය බලාපොරොත්තුවෙන්';
+
+  @override
+  String get yourAccountIsBeingReviewedLimitedAccess =>
+      'ඔබේ ගිණුම සමාලෝචනය වෙමින් පවතී. ඔබට දැනට පුරවැසි මට්ටමේ විශේෂාංග සමඟ සීමිත ප්‍රවේශයක් ඇත. පරිපාලකයෙකු විසින් අනුමත කළ පසු සම්පූර්ණ ප්‍රවේශය ලබා දෙනු ලැබේ.';
+
+  @override
+  String get featureComingSoon => 'විශේෂාංගය ඉක්මනින් එනවා!';
+
+  @override
+  String get errorSigningOutMessage => 'පිටවීමේ දෝෂයකි';
+
+  @override
+  String get welcomeBack => 'ආපසු සාදරයෙන් පිළිගනිමු';
+
+  @override
+  String get user => 'පරිශීලක';
+
+  @override
+  String get budgetAllocated => 'වෙන් කළ අයවැය';
+
+  @override
+  String get tenderBudgetOverview => 'ටෙන්ඩර් සහ අයවැය දළ විශ්ලේෂණය';
 }
