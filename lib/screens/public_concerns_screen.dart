@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/concern_models.dart';
 import '../services/concern_service.dart';
-import 'concern_detail_screen.dart';
+import 'citizen_concern_detail_screen.dart';
 
 class PublicConcernsScreen extends StatefulWidget {
   const PublicConcernsScreen({super.key});
@@ -93,10 +93,8 @@ class _PublicConcernsScreenState extends State<PublicConcernsScreen>
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => ConcernDetailScreen(
+              builder: (context) => CitizenConcernDetailScreen(
                 concern: concern,
-                officerId: 'public_user',
-                officerName: 'Public User',
               ),
             ),
           );
@@ -185,14 +183,17 @@ class _PublicConcernsScreenState extends State<PublicConcernsScreen>
                     color: Colors.grey[600],
                   ),
                   const SizedBox(width: 4),
-                  Text(
-                    concern.isAnonymous ? 'Anonymous' : concern.authorName,
-                    style: TextStyle(
-                      color: Colors.grey[600],
-                      fontSize: 12,
+                  Expanded(
+                    child: Text(
+                      concern.isAnonymous ? 'Anonymous' : concern.authorName,
+                      style: TextStyle(
+                        color: Colors.grey[600],
+                        fontSize: 12,
+                      ),
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  const Spacer(),
+                  const SizedBox(width: 8),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
@@ -238,7 +239,7 @@ class _PublicConcernsScreenState extends State<PublicConcernsScreen>
                       ),
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 8),
                   Icon(
                     Icons.comment,
                     size: 16,
@@ -254,22 +255,25 @@ class _PublicConcernsScreenState extends State<PublicConcernsScreen>
                   ),
                   const Spacer(),
                   if (concern.tags.isNotEmpty)
-                    Wrap(
-                      spacing: 4,
-                      children: concern.tags.take(2).map((tag) => Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: Colors.grey[200],
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          '#$tag',
-                          style: TextStyle(
-                            color: Colors.grey[700],
-                            fontSize: 10,
+                    Flexible(
+                      child: Wrap(
+                        spacing: 4,
+                        children: concern.tags.take(2).map((tag) => Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.grey[200],
+                            borderRadius: BorderRadius.circular(8),
                           ),
-                        ),
-                      )).toList(),
+                          child: Text(
+                            '#$tag',
+                            style: TextStyle(
+                              color: Colors.grey[700],
+                              fontSize: 10,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        )).toList(),
+                      ),
                     ),
                 ],
               ),

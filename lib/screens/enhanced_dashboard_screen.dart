@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/auth_service.dart';
 import '../services/news_service.dart';
 import '../services/media_hub_service.dart';
 import '../models/user_role.dart';
 import '../models/report.dart';
+import '../l10n/app_localizations.dart';
 import 'login_screen.dart';
 import 'budget_viewer_screen.dart';
 import 'citizen_tender_screen.dart';
@@ -38,6 +40,16 @@ class _EnhancedDashboardScreenState extends State<EnhancedDashboardScreen>
   UserRole? userRole;
   Map<String, dynamic>? userData;
   bool isLoading = true;
+  
+  // Dashboard stats
+  int activeTendersCount = 0;
+  double totalBudgetAllocated = 0.0;
+  int projectsCount = 0;
+  
+  // Real data from Firestore
+  List<Map<String, dynamic>> recentTenders = [];
+  List<Map<String, dynamic>> budgetCategories = [];
+  List<Map<String, dynamic>> budgetAllocations = [];
   
   late AnimationController _fadeController;
   late AnimationController _slideController;
@@ -88,6 +100,9 @@ class _EnhancedDashboardScreenState extends State<EnhancedDashboardScreen>
       final role = await _authService.getUserRole(user.uid);
       final data = await _authService.getUserData(user.uid);
       
+      // Fetch dashboard stats
+      await _loadDashboardStats();
+      
       setState(() {
         userRole = role;
         userData = data;
@@ -97,6 +112,90 @@ class _EnhancedDashboardScreenState extends State<EnhancedDashboardScreen>
       // Start animations after data loads
       _fadeController.forward();
       _slideController.forward();
+    }
+  }
+  
+  Future<void> _loadDashboardStats() async {
+    try {
+      // Fetch recent tenders (top 3 most recent)
+      final tendersSnapshot = await FirebaseFirestore.instance
+          .collection('tenders')
+          .orderBy('createdAt', descending: true)
+          .limit(3)
+          .get();
+      
+      recentTenders = tendersSnapshot.docs.map((doc) {
+        final data = doc.data();
+        return {
+          'title': data['title'] ?? 'Unknown',
+          'budget': data['budget'] ?? 0.0,
+          'status': data['status'] ?? 'unknown',
+        };
+      }).toList();
+      
+      // Count active tenders
+      final activeTendersSnapshot = await FirebaseFirestore.instance
+          .collection('tenders')
+          .where('status', isEqualTo: 'active')
+          .get();
+      activeTendersCount = activeTendersSnapshot.docs.length;
+
+      // Fetch budget categories with totals
+      final budgetSnapshot = await FirebaseFirestore.instance
+          .collection('budget')
+          .get();
+      
+      Map<String, double> categoryTotals = {};
+      totalBudgetAllocated = 0.0;
+      
+      for (var doc in budgetSnapshot.docs) {
+        final data = doc.data();
+        final allocated = data['allocated'];
+        final name = data['name'] ?? 'Unknown';
+        
+        if (allocated != null) {
+          final amount = (allocated is int ? allocated.toDouble() : allocated);
+          totalBudgetAllocated += amount;
+          categoryTotals[name] = (categoryTotals[name] ?? 0.0) + amount;
+        }
+      }
+      
+      // Convert to list and take top 3
+      budgetCategories = categoryTotals.entries
+          .map((e) => {'name': e.key, 'amount': e.value})
+          .toList()
+        ..sort((a, b) => (b['amount'] as double).compareTo(a['amount'] as double));
+      
+      if (budgetCategories.length > 3) {
+        budgetCategories = budgetCategories.sublist(0, 3);
+      }
+
+      // Fetch budget allocations (top 2 budget items by allocated amount)
+      final allocationsSnapshot = await FirebaseFirestore.instance
+          .collection('budget')
+          .orderBy('allocated', descending: true)
+          .limit(2)
+          .get();
+      
+      budgetAllocations = allocationsSnapshot.docs.map((doc) {
+        final data = doc.data();
+        return {
+          'name': data['name'] ?? 'Unknown',
+          'description': data['description'] ?? 'No description',
+          'allocated': data['allocated'] ?? 0.0,
+          'spent': data['spent'] ?? 0.0,
+        };
+      }).toList();
+
+      // Fetch projects count
+      final projectsSnapshot = await FirebaseFirestore.instance
+          .collection('projects')
+          .get();
+      projectsCount = projectsSnapshot.docs.length;
+
+      print('✅ Dashboard data loaded: Tenders=${recentTenders.length}, Budget Categories=${budgetCategories.length}, Allocations=${budgetAllocations.length}');
+    } catch (e) {
+      print('❌ Error loading dashboard stats: $e');
     }
   }
 
@@ -110,9 +209,10 @@ class _EnhancedDashboardScreenState extends State<EnhancedDashboardScreen>
       }
     } catch (e) {
       if (mounted) {
+        final l10n = AppLocalizations.of(context)!;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error signing out: $e'),
+            content: Text('${l10n.errorSigningOutMessage}: $e'),
             backgroundColor: Colors.red,
           ),
         );
@@ -514,7 +614,7 @@ class _EnhancedDashboardScreenState extends State<EnhancedDashboardScreen>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Welcome back, ${userData?['firstName'] ?? 'User'}!',
+                  '${AppLocalizations.of(context)!.welcomeBack}, ${userData?['firstName'] ?? AppLocalizations.of(context)!.user}!',
                   style: const TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
@@ -523,7 +623,7 @@ class _EnhancedDashboardScreenState extends State<EnhancedDashboardScreen>
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  userRole?.description ?? 'Track public spending and ensure transparency',
+                  userRole?.description ?? AppLocalizations.of(context)!.trackTrustTransform,
                   style: const TextStyle(
                     fontSize: 16,
                     color: Colors.white70,
@@ -543,8 +643,8 @@ class _EnhancedDashboardScreenState extends State<EnhancedDashboardScreen>
       children: [
         Expanded(
           child: _buildStatCard(
-            'Active Tenders',
-            '24',
+            AppLocalizations.of(context)!.activeTenders,
+            activeTendersCount.toString(),
             Icons.shopping_cart,
             Colors.orange,
           ),
@@ -552,8 +652,8 @@ class _EnhancedDashboardScreenState extends State<EnhancedDashboardScreen>
         const SizedBox(width: 16),
         Expanded(
           child: _buildStatCard(
-            'Budget Allocated',
-            '\$2.4M',
+            AppLocalizations.of(context)!.budgetAllocated,
+            _formatBudget(totalBudgetAllocated),
             Icons.account_balance_wallet,
             Colors.green,
           ),
@@ -561,14 +661,26 @@ class _EnhancedDashboardScreenState extends State<EnhancedDashboardScreen>
         const SizedBox(width: 16),
         Expanded(
           child: _buildStatCard(
-            'Projects',
-            '12',
+            AppLocalizations.of(context)!.projects,
+            projectsCount.toString(),
             Icons.construction,
             Colors.purple,
           ),
         ),
       ],
     );
+  }
+  
+  String _formatBudget(double amount) {
+    if (amount >= 1000000000) {
+      return '₨${(amount / 1000000000).toStringAsFixed(1)}B';
+    } else if (amount >= 1000000) {
+      return '₨${(amount / 1000000).toStringAsFixed(1)}M';
+    } else if (amount >= 1000) {
+      return '₨${(amount / 1000).toStringAsFixed(1)}K';
+    } else {
+      return '₨${amount.toStringAsFixed(0)}';
+    }
   }
 
   Widget _buildStatCard(String title, String value, IconData icon, Color color) {
@@ -626,12 +738,34 @@ class _EnhancedDashboardScreenState extends State<EnhancedDashboardScreen>
   }
 
   Widget _buildTenderBudgetOverview() {
+    // Prepare recent tenders list
+    List<String> tendersList = recentTenders.map((tender) {
+      final budget = tender['budget'];
+      final formattedBudget = '₨${(budget / 1000000).toStringAsFixed(1)}M';
+      return '${tender['title']} - $formattedBudget';
+    }).toList();
+    
+    if (tendersList.isEmpty) {
+      tendersList = ['No recent tenders'];
+    }
+    
+    // Prepare budget categories list
+    List<String> categoriesList = budgetCategories.map((cat) {
+      final amount = cat['amount'];
+      final formattedAmount = '₨${(amount / 1000000).toStringAsFixed(1)}M';
+      return '${cat['name']} - $formattedAmount';
+    }).toList();
+    
+    if (categoriesList.isEmpty) {
+      categoriesList = ['No budget categories'];
+    }
+    
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Tender & Budget Overview',
-          style: TextStyle(
+        Text(
+          AppLocalizations.of(context)!.tenderBudgetOverview,
+          style: const TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.bold,
             color: Colors.black87,
@@ -643,11 +777,7 @@ class _EnhancedDashboardScreenState extends State<EnhancedDashboardScreen>
             Expanded(
               child: _buildOverviewCard(
                 'Recent Tenders',
-                [
-                  'Road Construction - \$50L',
-                  'School Building - \$30L',
-                  'Water Supply - \$25L',
-                ],
+                tendersList,
                 Icons.shopping_cart,
                 Colors.orange,
               ),
@@ -656,11 +786,7 @@ class _EnhancedDashboardScreenState extends State<EnhancedDashboardScreen>
             Expanded(
               child: _buildOverviewCard(
                 'Budget Categories',
-                [
-                  'Infrastructure - \$1.2M',
-                  'Education - \$800K',
-                  'Healthcare - \$400K',
-                ],
+                categoriesList,
                 Icons.pie_chart,
                 Colors.blue,
               ),
@@ -672,6 +798,44 @@ class _EnhancedDashboardScreenState extends State<EnhancedDashboardScreen>
   }
 
   Widget _buildBudgetAllocationsSection() {
+    if (budgetAllocations.isEmpty) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Budget Allocations',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+              ),
+              TextButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const BudgetViewerScreen()),
+                  );
+                },
+                child: const Text(
+                  'View All',
+                  style: TextStyle(
+                    color: Colors.blue,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          const Text('No budget allocations available', style: TextStyle(color: Colors.grey)),
+        ],
+      );
+    }
+    
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -690,7 +854,7 @@ class _EnhancedDashboardScreenState extends State<EnhancedDashboardScreen>
               onPressed: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => const BudgetAllocationsViewScreen()),
+                  MaterialPageRoute(builder: (context) => const BudgetViewerScreen()),
                 );
               },
               child: const Text(
@@ -719,25 +883,18 @@ class _EnhancedDashboardScreenState extends State<EnhancedDashboardScreen>
           ),
           child: Column(
             children: [
-              _buildAllocationItem(
-                'Infrastructure Development',
-                'Roads, bridges, public buildings, and utilities',
-                '\$12,00,00,000',
-                '1',
-                '1',
-                Colors.blue,
-                'Active',
-              ),
-              const Divider(height: 24),
-              _buildAllocationItem(
-                'School Development',
-                'We are focusing on government school projects',
-                '\$10,00,000',
-                '1',
-                '1',
-                Colors.teal,
-                'Active',
-              ),
+              for (int i = 0; i < budgetAllocations.length; i++) ...[
+                if (i > 0) const Divider(height: 24),
+                _buildAllocationItem(
+                  budgetAllocations[i]['name'],
+                  budgetAllocations[i]['description'],
+                  '₨${budgetAllocations[i]['allocated'].toStringAsFixed(0)}',
+                  budgetAllocations[i]['spent'].toStringAsFixed(0),
+                  budgetAllocations[i]['allocated'].toStringAsFixed(0),
+                  i == 0 ? Colors.blue : Colors.teal,
+                  'Active',
+                ),
+              ],
             ],
           ),
         ),
@@ -1178,6 +1335,8 @@ class _EnhancedDashboardScreenState extends State<EnhancedDashboardScreen>
   }
 
   Widget _buildPendingUserContent() {
+    final l10n = AppLocalizations.of(context)!;
+    
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1192,7 +1351,7 @@ class _EnhancedDashboardScreenState extends State<EnhancedDashboardScreen>
           ),
           child: Row(
             children: [
-              Icon(
+              const Icon(
                 Icons.pending_actions,
                 color: Colors.orange,
                 size: 24,
@@ -1203,7 +1362,7 @@ class _EnhancedDashboardScreenState extends State<EnhancedDashboardScreen>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Account Pending Approval',
+                      l10n.accountPendingApproval,
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
@@ -1212,7 +1371,7 @@ class _EnhancedDashboardScreenState extends State<EnhancedDashboardScreen>
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Your account is being reviewed. You currently have limited access with citizen-level features. Full access will be granted once approved by an administrator.',
+                      l10n.yourAccountIsBeingReviewedLimitedAccess,
                       style: TextStyle(
                         fontSize: 14,
                         color: Colors.orange[700],
@@ -1361,12 +1520,14 @@ class _EnhancedDashboardScreenState extends State<EnhancedDashboardScreen>
   }
 
   Widget _buildCitizenContent() {
+    final l10n = AppLocalizations.of(context)!;
+    
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Citizen Tools',
-          style: TextStyle(
+        Text(
+          l10n.citizenTools,
+          style: const TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.bold,
             color: Colors.black87,
@@ -1374,8 +1535,8 @@ class _EnhancedDashboardScreenState extends State<EnhancedDashboardScreen>
         ),
         const SizedBox(height: 16),
         _buildFeatureCard(
-          'Government Budget',
-          'Explore how your tax money is allocated and spent',
+          l10n.governmentBudgetTitle,
+          l10n.exploreHowYourTaxMoneyIsAllocatedAndSpent,
           Icons.account_balance,
           Colors.blue,
           () => Navigator.push(
@@ -1384,32 +1545,35 @@ class _EnhancedDashboardScreenState extends State<EnhancedDashboardScreen>
           ),
         ),
         _buildFeatureCard(
-          'Government Tenders',
-          'View active tenders and procurement opportunities',
+          l10n.governmentTenders,
+          l10n.viewActiveTendersAndProcurementOpportunities,
           Icons.assignment,
           Colors.purple,
           () => Navigator.push(
             context,
-            MaterialPageRoute(builder: (context) => const CitizenTenderScreen()),
+            MaterialPageRoute(builder: (context) => const PublicTenderViewerScreen()),
           ),
         ),
         _buildFeatureCard(
-          'News & Media',
-          'Read latest news articles and engage with content',
+          l10n.newsAndMedia,
+          l10n.readLatestNewsArticlesAndEngageWithContent,
           Icons.article,
           Colors.orange,
           () => Navigator.pushNamed(context, '/news'),
         ),
         _buildFeatureCard(
-          'Track Public Spending',
-          'Monitor government budgets and expenditures',
+          l10n.trackPublicSpending,
+          l10n.monitorGovernmentBudgetsAndExpenditures,
           Icons.track_changes,
           Colors.green,
-          () => _showFeatureComingSoon('Track Public Spending'),
+          () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const BudgetViewerScreen()),
+          ),
         ),
         _buildFeatureCard(
-          'Raise Concerns',
-          'Report issues and track their resolution',
+          l10n.raiseConcerns,
+          l10n.reportIssuesAndTrackTheirResolution,
           Icons.report_problem,
           Colors.orange,
           () => Navigator.push(
@@ -1420,8 +1584,8 @@ class _EnhancedDashboardScreenState extends State<EnhancedDashboardScreen>
           ),
         ),
         _buildFeatureCard(
-          'View Public Concerns',
-          'See what others are concerned about and show support',
+          l10n.viewPublicConcerns,
+          l10n.seeWhatOthersAreConcernedAboutAndShowSupport,
           Icons.people_alt,
           Colors.purple,
           () => Navigator.push(
@@ -1902,9 +2066,11 @@ class _EnhancedDashboardScreenState extends State<EnhancedDashboardScreen>
   }
 
   void _showFeatureComingSoon(String featureName) {
+    final l10n = AppLocalizations.of(context)!;
+    
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('$featureName feature coming soon!'),
+        content: Text('$featureName ${l10n.featureComingSoon}'),
         backgroundColor: userRole?.color ?? Colors.blue,
         duration: const Duration(seconds: 2),
       ),
