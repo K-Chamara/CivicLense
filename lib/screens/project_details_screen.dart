@@ -4,8 +4,13 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 class ProjectDetailsScreen extends StatefulWidget {
   final Map<String, dynamic> project;
+  final bool allowMilestoneEditing;
 
-  const ProjectDetailsScreen({super.key, required this.project});
+  const ProjectDetailsScreen({
+    super.key, 
+    required this.project,
+    this.allowMilestoneEditing = false,
+  });
 
   @override
   State<ProjectDetailsScreen> createState() => _ProjectDetailsScreenState();
@@ -53,15 +58,13 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
   }
 
   bool _shouldShowAddButton() {
-    // Only procurement officers can add milestones
-    // Citizens can only view and track projects
+    // Only allow milestone editing if user navigated from project management screen
+    // and is a procurement officer
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return false;
     
-    // TODO: Implement proper role checking
-    // For now, hide the add button for all users to prevent editing
-    // Only procurement officers should be able to add/edit milestones
-    return false; // Citizens can only view and track, not edit
+    // Only show add button if milestone editing is allowed (from project management screen)
+    return widget.allowMilestoneEditing;
   }
 
   Widget _buildStatusRow() {
@@ -441,6 +444,21 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
                             ),
                           ),
                           const SizedBox(height: 16),
+                          // Project Image (if available)
+                          if (widget.project['imageUrl'] != null) ...[
+                            Container(
+                              width: double.infinity,
+                              height: 200,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(8),
+                                image: DecorationImage(
+                                  image: NetworkImage(widget.project['imageUrl']),
+                                  fit: BoxFit.cover,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                          ],
                           _buildInfoRow('Project Title', widget.project['title'] ?? ''),
                           _buildInfoRow('Location', widget.project['projectLocation'] ?? ''),
                           _buildInfoRow('Description', widget.project['description'] ?? ''),
@@ -548,7 +566,19 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
                                 ),
                               ),
                               const Spacer(),
-                              if (_isCitizenUser())
+                              if (widget.allowMilestoneEditing)
+                                ElevatedButton.icon(
+                                  onPressed: () => _showAddMilestoneDialog(),
+                                  icon: const Icon(Icons.add, size: 16),
+                                  label: const Text('Add Milestone'),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.green,
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                    textStyle: const TextStyle(fontSize: 12),
+                                  ),
+                                )
+                              else if (_isCitizenUser())
                                 Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                   decoration: BoxDecoration(

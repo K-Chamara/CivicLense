@@ -8,6 +8,7 @@ import '../services/project_service.dart';
 import '../models/user_role.dart';
 import 'add_tender_screen.dart';
 import 'ongoing_tenders_screen.dart';
+import 'project_management_screen.dart';
 import 'notifications_screen.dart';
 import 'tender_management_screen.dart';
 import 'budget_items_overview_screen.dart';
@@ -544,7 +545,7 @@ class _ProcurementOfficerDashboardScreenState extends State<ProcurementOfficerDa
       case 1:
         return 'Tender Management';
       case 2:
-        return 'Active Projects';
+        return 'Project Management';
       case 3:
         return 'Notifications';
       default:
@@ -778,7 +779,7 @@ class _ProcurementOfficerDashboardScreenState extends State<ProcurementOfficerDa
           },
         ),
         _buildFeatureCard(
-          'Active Projects',
+          'Project Management',
           'View and browse all active projects',
           Icons.assignment,
           Colors.blue,
@@ -786,7 +787,7 @@ class _ProcurementOfficerDashboardScreenState extends State<ProcurementOfficerDa
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => const OngoingTendersScreen(),
+                builder: (context) => const ProjectManagementScreen(),
               ),
             );
           },
