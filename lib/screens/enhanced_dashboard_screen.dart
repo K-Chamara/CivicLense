@@ -644,7 +644,14 @@ class _EnhancedDashboardScreenState extends State<EnhancedDashboardScreen>
         Expanded(
           child: _buildStatCard(
             AppLocalizations.of(context)!.activeTenders,
+<<<<<<< Updated upstream
+<<<<<<< Updated upstream
             activeTendersCount.toString(),
+=======
+=======
+>>>>>>> Stashed changes
+            '24',
+>>>>>>> Stashed changes
             Icons.shopping_cart,
             Colors.orange,
           ),
@@ -653,7 +660,15 @@ class _EnhancedDashboardScreenState extends State<EnhancedDashboardScreen>
         Expanded(
           child: _buildStatCard(
             AppLocalizations.of(context)!.budgetAllocated,
+<<<<<<< Updated upstream
+<<<<<<< Updated upstream
             _formatBudget(totalBudgetAllocated),
+=======
+            '₨2.4M',
+>>>>>>> Stashed changes
+=======
+            '₨2.4M',
+>>>>>>> Stashed changes
             Icons.account_balance_wallet,
             Colors.green,
           ),
@@ -662,7 +677,14 @@ class _EnhancedDashboardScreenState extends State<EnhancedDashboardScreen>
         Expanded(
           child: _buildStatCard(
             AppLocalizations.of(context)!.projects,
+<<<<<<< Updated upstream
+<<<<<<< Updated upstream
             projectsCount.toString(),
+=======
+=======
+>>>>>>> Stashed changes
+            '12',
+>>>>>>> Stashed changes
             Icons.construction,
             Colors.purple,
           ),
