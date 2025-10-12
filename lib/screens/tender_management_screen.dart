@@ -174,6 +174,7 @@ class _TenderManagementScreenState extends State<TenderManagementScreen> {
           'highestBid': 160000.0,
           'awardedTo': 'ABC Construction Ltd',
           'awardedAmount': 145000.0,
+          'awardedDate': FieldValue.serverTimestamp(),
           'createdAt': FieldValue.serverTimestamp(),
           'createdBy': 'system',
         },
@@ -207,6 +208,81 @@ class _TenderManagementScreenState extends State<TenderManagementScreen> {
       
     } catch (e) {
       print('❌ Error creating sample tenders: $e');
+    }
+  }
+
+  Future<void> _createSampleAwardedProjects() async {
+    try {
+      print('🔄 Creating sample awarded projects...');
+      
+      final sampleProjects = [
+        {
+          'title': 'Government IT Infrastructure Upgrade',
+          'description': 'Complete upgrade of government IT systems with modern servers and networking equipment',
+          'location': 'Central Government Building',
+          'budget': 5000000.0,
+          'deadline': '2024-08-15',
+          'category': 'Technology',
+          'status': 'closed',
+          'totalBids': 7,
+          'lowestBid': 4800000.0,
+          'highestBid': 5200000.0,
+          'awardedTo': 'TechSolutions Pvt Ltd',
+          'awardedAmount': 4850000.0,
+          'awardedDate': FieldValue.serverTimestamp(),
+          'createdAt': FieldValue.serverTimestamp(),
+          'createdBy': 'system',
+        },
+        {
+          'title': 'Public Transportation Fleet Expansion',
+          'description': 'Purchase of new buses and maintenance equipment for public transportation system',
+          'location': 'Transport Department',
+          'budget': 8000000.0,
+          'deadline': '2024-09-30',
+          'category': 'Transportation',
+          'status': 'closed',
+          'totalBids': 5,
+          'lowestBid': 7600000.0,
+          'highestBid': 8200000.0,
+          'awardedTo': 'BusCorp Industries',
+          'awardedAmount': 7750000.0,
+          'awardedDate': FieldValue.serverTimestamp(),
+          'createdAt': FieldValue.serverTimestamp(),
+          'createdBy': 'system',
+        },
+        {
+          'title': 'Water Treatment Plant Modernization',
+          'description': 'Upgrade of water treatment facilities with advanced filtration systems',
+          'location': 'Water Department',
+          'budget': 12000000.0,
+          'deadline': '2024-12-31',
+          'category': 'Infrastructure',
+          'status': 'closed',
+          'totalBids': 4,
+          'lowestBid': 11500000.0,
+          'highestBid': 12500000.0,
+          'awardedTo': 'AquaTech Solutions',
+          'awardedAmount': 11600000.0,
+          'awardedDate': FieldValue.serverTimestamp(),
+          'createdAt': FieldValue.serverTimestamp(),
+          'createdBy': 'system',
+        },
+      ];
+
+      for (final project in sampleProjects) {
+        await FirebaseFirestore.instance
+            .collection('tenders')
+            .add(project);
+        print('✅ Created sample awarded project: ${project['title']}');
+      }
+      
+      print('🎉 Sample awarded projects created successfully!');
+      
+      // Reload tenders after creating samples
+      await _loadTenders();
+      
+    } catch (e) {
+      print('❌ Error creating sample awarded projects: $e');
     }
   }
 
@@ -436,6 +512,19 @@ class _TenderManagementScreenState extends State<TenderManagementScreen> {
               );
             },
             tooltip: 'Create Sample Data',
+          ),
+          IconButton(
+            icon: const Icon(Icons.work),
+            onPressed: () async {
+              await _createSampleAwardedProjects();
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Sample awarded projects created!'),
+                  backgroundColor: Colors.blue,
+                ),
+              );
+            },
+            tooltip: 'Create Sample Awarded Projects',
           ),
         ],
       ),

@@ -4,6 +4,72 @@ import 'package:firebase_auth/firebase_auth.dart';
 class SampleDataCreator {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
+  // Create sample awarded projects for testing
+  static Future<void> createSampleAwardedProjects() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        print('❌ No user logged in');
+        return;
+      }
+
+      final awardedProjects = [
+        {
+          'title': 'Smart City Infrastructure',
+          'projectName': 'Digital City Initiative',
+          'projectLocation': 'Tech Hub District, Bangalore',
+          'description': 'Implementation of smart city infrastructure including IoT sensors, data analytics, and citizen services platform.',
+          'budget': 8000000.0,
+          'deadline': '2024-09-30',
+          'category': 'Technology',
+          'region': 'South',
+          'status': 'closed',
+          'createdBy': user.uid,
+          'createdAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+          'bids': [],
+          'progress': 0.0,
+          'totalBids': 0,
+          'lowestBid': null,
+          'highestBid': null,
+          'awardedTo': 'TechCorp Solutions',
+          'awardedAmount': 7500000.0,
+          'awardedDate': Timestamp.fromDate(DateTime.now().subtract(const Duration(days: 5))),
+        },
+        {
+          'title': 'Water Treatment Plant',
+          'projectName': 'Clean Water Initiative',
+          'projectLocation': 'Industrial Zone, Mumbai',
+          'description': 'Construction of modern water treatment facility with advanced filtration systems for industrial use.',
+          'budget': 12000000.0,
+          'deadline': '2024-11-15',
+          'category': 'Infrastructure',
+          'region': 'West',
+          'status': 'closed',
+          'createdBy': user.uid,
+          'createdAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+          'bids': [],
+          'progress': 0.0,
+          'totalBids': 0,
+          'lowestBid': null,
+          'highestBid': null,
+          'awardedTo': 'AquaTech Engineering',
+          'awardedAmount': 11200000.0,
+          'awardedDate': Timestamp.fromDate(DateTime.now().subtract(const Duration(days: 12))),
+        },
+      ];
+
+      for (final project in awardedProjects) {
+        await _firestore.collection('tenders').add(project);
+      }
+
+      print('✅ Sample awarded projects created successfully');
+    } catch (e) {
+      print('❌ Error creating sample awarded projects: $e');
+    }
+  }
+
   // Create sample tenders for testing
   static Future<void> createSampleTenders() async {
     try {
@@ -98,9 +164,9 @@ class SampleDataCreator {
           'totalBids': 0,
           'lowestBid': null,
           'highestBid': null,
-          'awardedTo': null,
-          'awardedAmount': null,
-          'awardedDate': null,
+          'awardedTo': 'AutoCare Solutions Ltd.',
+          'awardedAmount': 3200000.0,
+          'awardedDate': Timestamp.fromDate(DateTime.now().subtract(const Duration(days: 15))),
         },
         {
           'title': 'Healthcare Equipment Procurement',
@@ -111,7 +177,7 @@ class SampleDataCreator {
           'deadline': '2024-08-15',
           'category': 'Healthcare',
           'region': 'East',
-          'status': 'active',
+          'status': 'closed',
           'createdBy': user.uid,
           'createdAt': FieldValue.serverTimestamp(),
           'updatedAt': FieldValue.serverTimestamp(),
@@ -120,9 +186,31 @@ class SampleDataCreator {
           'totalBids': 0,
           'lowestBid': null,
           'highestBid': null,
-          'awardedTo': null,
-          'awardedAmount': null,
-          'awardedDate': null,
+          'awardedTo': 'MedTech Solutions Pvt Ltd',
+          'awardedAmount': 14200000.0,
+          'awardedDate': Timestamp.fromDate(DateTime.now().subtract(const Duration(days: 8))),
+        },
+        {
+          'title': 'Road Construction Project',
+          'projectName': 'Highway Development Phase 2',
+          'projectLocation': 'National Highway 44, Karnataka',
+          'description': 'Construction and maintenance of 50km stretch of national highway with modern infrastructure.',
+          'budget': 25000000.0, // 2.5 Crores
+          'deadline': '2024-12-31',
+          'category': 'Infrastructure',
+          'region': 'South',
+          'status': 'closed',
+          'createdBy': user.uid,
+          'createdAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+          'bids': [],
+          'progress': 0.0,
+          'totalBids': 0,
+          'lowestBid': null,
+          'highestBid': null,
+          'awardedTo': 'InfraBuild Construction Ltd',
+          'awardedAmount': 23800000.0,
+          'awardedDate': Timestamp.fromDate(DateTime.now().subtract(const Duration(days: 3))),
         },
       ];
 
