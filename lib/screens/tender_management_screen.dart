@@ -5,6 +5,7 @@ import 'bidder_management_screen.dart';
 import 'edit_tender_screen.dart';
 import '../services/budget_service.dart';
 import '../services/admin_service.dart';
+import '../services/project_service.dart';
 import '../models/user_role.dart';
 
 class TenderManagementScreen extends StatefulWidget {
@@ -881,20 +882,45 @@ class _TenderDetailsSheetState extends State<TenderDetailsSheet> {
          'awardedTo': bidder['bidderName'],
          'awardedAmount': bidder['bidAmount'],
          'awardedDate': FieldValue.serverTimestamp(),
-         'status': 'awarded',
+         'status': 'closed', // Change status to closed instead of awarded
          'updatedAt': FieldValue.serverTimestamp(),
        });
+
+       // Automatically create a project from the closed tender
+       try {
+         await ProjectService.createProjectFromTender(
+           tenderId: widget.tender['id'],
+           tenderData: widget.tender,
+           winningBidder: bidder['bidderName'],
+           winningBidAmount: bidder['bidAmount'],
+         );
+         
+         if (mounted) {
+           ScaffoldMessenger.of(context).showSnackBar(
+             SnackBar(
+               content: Text('✅ Tender awarded to ${bidder['bidderName']} and project created automatically!'),
+               backgroundColor: Colors.green,
+               duration: const Duration(seconds: 4),
+             ),
+           );
+         }
+       } catch (projectError) {
+         print('❌ Error creating project from tender: $projectError');
+         if (mounted) {
+           ScaffoldMessenger.of(context).showSnackBar(
+             SnackBar(
+               content: Text('⚠️ Tender awarded but failed to create project: $projectError'),
+               backgroundColor: Colors.orange,
+               duration: const Duration(seconds: 4),
+             ),
+           );
+         }
+       }
 
        // Reload bidders to reflect the changes
        await _loadBidders();
 
        if (mounted) {
-         ScaffoldMessenger.of(context).showSnackBar(
-           SnackBar(
-             content: Text('${bidder['bidderName']} has been awarded the tender'),
-             backgroundColor: Colors.green,
-           ),
-         );
          widget.onStatusChanged();
        }
      } catch (e) {

@@ -63,7 +63,11 @@ class ProjectService {
           'awardedTo': winningBidder,
           'awardedAmount': winningBidAmount,
           'awardedDate': FieldValue.serverTimestamp(),
+          'imageUrl': tenderData['imageUrl'], // Include tender image
         },
+        
+        // Project image (inherit from tender)
+        'imageUrl': tenderData['imageUrl'],
         
         // Project management information
         'projectManager': tenderData['createdBy'], // Assign to tender creator initially
