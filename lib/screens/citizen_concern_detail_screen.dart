@@ -329,7 +329,7 @@ class _CitizenConcernDetailScreenState extends State<CitizenConcernDetailScreen>
                       stream: FirebaseFirestore.instance
                           .collection('concern_updates')
                           .where('concernId', isEqualTo: widget.concern.id)
-                          .orderBy('timestamp', descending: true)
+                          .orderBy('createdAt', descending: true)
                           .snapshots(),
                       builder: (context, snapshot) {
                         if (snapshot.connectionState == ConnectionState.waiting) {
@@ -559,7 +559,9 @@ class _CitizenConcernDetailScreenState extends State<CitizenConcernDetailScreen>
                 radius: 16,
                 backgroundColor: Colors.blue,
                 child: Text(
-                  (comment['authorName'] as String? ?? 'U')[0].toUpperCase(),
+                  (comment['authorName'] as String? ?? 'U').isNotEmpty 
+                      ? (comment['authorName'] as String)[0].toUpperCase()
+                      : 'U',
                   style: const TextStyle(color: Colors.white, fontSize: 14),
                 ),
               ),
@@ -569,10 +571,24 @@ class _CitizenConcernDetailScreenState extends State<CitizenConcernDetailScreen>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      comment['authorName'] ?? 'Unknown',
+                      (comment['authorName'] as String? ?? 'Unknown').isNotEmpty 
+                          ? comment['authorName'] 
+                          : 'Unknown',
                       style: const TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 14,
+                      ),
+                    ),
+                    Text(
+                      comment['userRole'] ?? (comment['isOfficerComment'] == true 
+                          ? 'Anti-Corruption Officer' 
+                          : 'Citizen'),
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: comment['isOfficerComment'] == true 
+                            ? Colors.blue[600] 
+                            : Colors.grey[600],
+                        fontStyle: FontStyle.italic,
                       ),
                     ),
                     Text(
@@ -597,20 +613,52 @@ class _CitizenConcernDetailScreenState extends State<CitizenConcernDetailScreen>
     );
   }
 
-  Widget _buildTimelineItem(Map<String, dynamic> update) {
-    final timestamp = update['timestamp'] as Timestamp?;
-    final date = timestamp?.toDate();
-    final formattedDate = date != null
-        ? DateFormat('MMM dd, yyyy • hh:mm a').format(date)
-        : 'Unknown date';
+  Widget _buildTimelineItem(Map<String, dynamic> data) {
+    final action = data['action'] ?? '';
+    final description = data['description'] ?? '';
+    final createdAt = data['createdAt'] != null 
+        ? (data['createdAt'] as Timestamp).toDate()
+        : DateTime.now();
+    final officerName = data['officerName'] ?? 'Unknown Officer';
+    final userRole = data['userRole'] ?? 'Officer';
+    
+    // Determine icon and color based on action
+    IconData icon;
+    Color color;
+    
+    switch (action.toLowerCase()) {
+      case 'underreview':
+        icon = Icons.search;
+        color = Colors.blue;
+        break;
+      case 'inprogress':
+        icon = Icons.work;
+        color = Colors.purple;
+        break;
+      case 'resolved':
+        icon = Icons.check_circle;
+        color = Colors.green;
+        break;
+      case 'dismissed':
+        icon = Icons.cancel;
+        color = Colors.grey;
+        break;
+      case 'assigned':
+        icon = Icons.person_add;
+        color = Colors.indigo;
+        break;
+      default:
+        icon = Icons.update;
+        color = Colors.orange;
+    }
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.blue.shade50,
+        color: color.withOpacity(0.1),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.blue.shade200),
+        border: Border.all(color: color.withOpacity(0.3)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -618,10 +666,10 @@ class _CitizenConcernDetailScreenState extends State<CitizenConcernDetailScreen>
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: Colors.blue,
+              color: color,
               borderRadius: BorderRadius.circular(8),
             ),
-            child: const Icon(Icons.update, color: Colors.white, size: 20),
+            child: Icon(icon, color: Colors.white, size: 20),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -629,26 +677,81 @@ class _CitizenConcernDetailScreenState extends State<CitizenConcernDetailScreen>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  update['message'] ?? 'Status updated',
-                  style: const TextStyle(
+                  _formatActionName(action),
+                  style: TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 14,
+                    color: color,
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  formattedDate,
+                  'By: $officerName ($userRole)',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey[600],
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  DateFormat('MMM dd, yyyy • HH:mm').format(createdAt),
                   style: TextStyle(
                     fontSize: 12,
                     color: Colors.grey[600],
                   ),
                 ),
+                if (description.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[50],
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.grey[200]!),
+                    ),
+                    child: Text(
+                      description,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: Colors.black87,
+                      ),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
         ],
       ),
     );
+  }
+
+  String _formatActionName(String action) {
+    switch (action.toLowerCase()) {
+      case 'underreview':
+        return 'Under Review';
+      case 'inprogress':
+        return 'In Progress';
+      case 'resolved':
+        return 'Resolved';
+      case 'dismissed':
+        return 'Dismissed';
+      case 'assigned':
+        return 'Assigned';
+      case 'created':
+        return 'Created';
+      case 'status_update':
+        return 'Status Updated';
+      default:
+        // Fallback: convert camelCase to Title Case
+        return action.replaceAllMapped(
+          RegExp(r'([A-Z])'), 
+          (match) => ' ${match.group(1)}'
+        ).trim().split(' ').map((word) => 
+          word.isNotEmpty ? word[0].toUpperCase() + word.substring(1).toLowerCase() : ''
+        ).join(' ');
+    }
   }
 
   Future<void> _postComment() async {
@@ -675,12 +778,39 @@ class _CitizenConcernDetailScreenState extends State<CitizenConcernDetailScreen>
     }
 
     try {
+      // Get user details from Firestore
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+      
+      String authorName = 'Anonymous';
+      String userRole = 'Citizen';
+      
+      if (userDoc.exists) {
+        final userData = userDoc.data() as Map<String, dynamic>;
+        authorName = userData['firstName'] != null && userData['lastName'] != null
+            ? '${userData['firstName']} ${userData['lastName']}'
+            : userData['firstName'] ?? userData['email'] ?? user.email ?? 'Anonymous';
+        
+        // Get user role from user document
+        if (userData['role'] != null) {
+          final roleData = userData['role'] as Map<String, dynamic>;
+          userRole = roleData['name'] ?? 'Citizen';
+        }
+      } else {
+        // Fallback to Firebase Auth data
+        authorName = user.displayName ?? user.email ?? 'Anonymous';
+      }
+
       await FirebaseFirestore.instance.collection('concern_comments').add({
         'concernId': widget.concern.id,
         'authorId': user.uid,
-        'authorName': user.displayName ?? user.email ?? 'Anonymous',
+        'authorName': authorName,
         'comment': comment,
         'createdAt': FieldValue.serverTimestamp(),
+        'isOfficerComment': false,
+        'userRole': userRole,
       });
 
       _commentController.clear();
@@ -705,5 +835,6 @@ class _CitizenConcernDetailScreenState extends State<CitizenConcernDetailScreen>
       }
     }
   }
+
 }
 

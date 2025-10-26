@@ -543,6 +543,107 @@ exports.sendBulkPushNotifications = functions.https.onCall(async (data, context)
   }
 });
 
+// Firestore trigger: Send push notification to anti-corruption officers when a new concern is created
+exports.onConcernCreate = functions.firestore
+  .document('concerns/{concernId}')
+  .onCreate(async (snapshot, context) => {
+    try {
+      const concernId = context.params.concernId;
+      const concernData = snapshot.data();
+
+      console.log(`🆕 New concern created: ${concernId}`);
+      console.log(`   Title: ${concernData.title}`);
+      console.log(`   Category: ${concernData.category}`);
+      console.log(`   Priority: ${concernData.priority}`);
+
+      // Get all anti-corruption officers
+      const officersSnapshot = await admin.firestore()
+        .collection('users')
+        .where('role.id', '==', 'anticorruption_officer')
+        .get();
+
+      if (officersSnapshot.empty) {
+        console.log('⚠️ No anti-corruption officers found');
+        return null;
+      }
+
+      console.log(`✅ Found ${officersSnapshot.size} anti-corruption officers`);
+
+      // Count attachments
+      const attachmentCount = concernData.attachments ? concernData.attachments.length : 0;
+      const hasEvidence = attachmentCount > 0;
+
+      // Send push notification to each officer
+      const sendPromises = [];
+      
+      officersSnapshot.forEach(officerDoc => {
+        const officerData = officerDoc.data();
+        const fcmToken = officerData.fcmToken;
+
+        if (!fcmToken) {
+          console.log(`⚠️ Officer ${officerDoc.id} has no FCM token`);
+          return;
+        }
+
+        const title = '🚨 New Concern Reported';
+        const body = hasEvidence
+          ? `${concernData.title} - ${concernData.authorName} reported a ${concernData.category} concern with ${attachmentCount} evidence file(s)`
+          : `${concernData.title} - ${concernData.authorName} reported a ${concernData.category} concern`;
+
+        const message = {
+          notification: {
+            title: title,
+            body: body,
+          },
+          data: {
+            concernId: concernId,
+            type: 'new_concern',
+            concernTitle: concernData.title,
+            category: concernData.category,
+            priority: concernData.priority,
+            hasEvidence: hasEvidence.toString(),
+            attachmentCount: attachmentCount.toString(),
+          },
+          token: fcmToken,
+          android: {
+            priority: 'high',
+            notification: {
+              sound: 'default',
+              channelId: 'concern_updates',
+              priority: 'high',
+            },
+          },
+          apns: {
+            payload: {
+              aps: {
+                sound: 'default',
+                badge: 1,
+              },
+            },
+          },
+        };
+
+        sendPromises.push(
+          admin.messaging().send(message)
+            .then(() => {
+              console.log(`✅ Push notification sent to officer ${officerDoc.id}`);
+            })
+            .catch((error) => {
+              console.error(`❌ Failed to send notification to officer ${officerDoc.id}:`, error);
+            })
+        );
+      });
+
+      await Promise.all(sendPromises);
+      console.log(`✅ Sent ${sendPromises.length} push notifications for new concern`);
+
+      return null;
+    } catch (error) {
+      console.error('❌ Error in onConcernCreate:', error);
+      return null;
+    }
+  });
+
 // Firestore trigger: Send notification when concern status changes
 exports.onConcernStatusChange = functions.firestore
   .document('concerns/{concernId}')

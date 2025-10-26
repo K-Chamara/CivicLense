@@ -371,7 +371,7 @@ class BudgetService {
     }
   }
 
-  /// Upload budget file (CSV/Excel processing)
+  /// Upload budget file (CSV/Excel processing) and save to database
   Future<List<BudgetCategory>> uploadBudgetFile(List<int> fileBytes, String fileName) async {
     try {
       print('Uploading budget file: $fileName');
@@ -387,6 +387,10 @@ class BudgetService {
       }
       
       print('Successfully parsed ${categories.length} budget categories from $fileName');
+      
+      // Save categories and their hierarchical structure to database
+      await _saveCategoriesToDatabase(categories);
+      
       return categories;
     } catch (e) {
       print('Error uploading budget file: $e');
@@ -394,7 +398,37 @@ class BudgetService {
     }
   }
 
-  /// Parse CSV file and extract budget categories
+  /// Save categories with their subcategories and items to database
+  Future<void> _saveCategoriesToDatabase(List<BudgetCategory> categories) async {
+    try {
+      print('Saving ${categories.length} categories to database...');
+      
+      for (final category in categories) {
+        // Save main category
+        await createCategory(category);
+        print('✅ Saved category: ${category.name}');
+        
+        // Save subcategories
+        for (final subcategory in category.subcategories) {
+          await createSubcategory(subcategory);
+          print('✅ Saved subcategory: ${subcategory.name} under ${category.name}');
+          
+          // Save items for this subcategory
+          for (final item in subcategory.items) {
+            await createBudgetItem(category.id, subcategory.id, item);
+            print('✅ Saved item: ${item.name} under ${subcategory.name}');
+          }
+        }
+      }
+      
+      print('✅ Successfully saved all hierarchical data to database');
+    } catch (e) {
+      print('❌ Error saving categories to database: $e');
+      throw Exception('Failed to save categories to database: $e');
+    }
+  }
+
+  /// Parse CSV file and extract budget categories with hierarchical structure
   Future<List<BudgetCategory>> _parseCSVFile(List<int> fileBytes, String fileName) async {
     try {
       String csvContent = String.fromCharCodes(fileBytes);
@@ -426,7 +460,11 @@ class BudgetService {
         return [];
       }
       
-      List<BudgetCategory> categories = [];
+      // Parse hierarchical structure
+      Map<String, BudgetCategory> categoryMap = {};
+      Map<String, List<BudgetSubcategory>> subcategoryMap = {};
+      Map<String, List<BudgetItem>> itemMap = {};
+      
       List<String> colors = [
         '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7',
         '#DDA0DD', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E9'
@@ -445,20 +483,175 @@ class BudgetService {
           
           if (categoryName.isNotEmpty && amountStr.isNotEmpty) {
             try {
-              double amount = double.parse(amountStr.replaceAll(',', '').replaceAll('\$', ''));
-              String color = colors[categories.length % colors.length];
+              double amount = _parseAmount(amountStr);
               
-              BudgetCategory category = BudgetCategory(
-                id: DateTime.now().millisecondsSinceEpoch.toString() + '_$i',
-                name: categoryName,
-                description: description,
-                allocatedAmount: amount,
-                spentAmount: 0.0,
-                color: color,
-                createdAt: DateTime.now(),
-              );
+              // Parse hierarchical structure using a tolerant delimiter around '>'
+              // Accepts 'A>B', 'A >B', 'A> B', 'A  >  B'
+              final hierarchy = categoryName.split(RegExp(r"\s*>\s*"));
               
-              categories.add(category);
+              if (hierarchy.length == 1) {
+                // Top-level category
+                String mainCategoryName = hierarchy[0].trim();
+                String categoryId = DateTime.now().millisecondsSinceEpoch.toString() + '_main_$i';
+                
+                if (!categoryMap.containsKey(mainCategoryName)) {
+                  String color = colors[categoryMap.length % colors.length];
+                  
+                  BudgetCategory category = BudgetCategory(
+                    id: categoryId,
+                    name: mainCategoryName,
+                    description: description,
+                    allocatedAmount: amount,
+                    spentAmount: 0.0,
+                    color: color,
+                    createdAt: DateTime.now(),
+                  );
+                  
+                  categoryMap[mainCategoryName] = category;
+                  subcategoryMap[mainCategoryName] = [];
+                  itemMap[mainCategoryName] = [];
+                } else {
+                  // Add amount to existing category
+                  BudgetCategory existing = categoryMap[mainCategoryName]!;
+                  categoryMap[mainCategoryName] = existing.copyWith(
+                    allocatedAmount: existing.allocatedAmount + amount
+                  );
+                }
+                
+              } else if (hierarchy.length == 2) {
+                // Subcategory
+                String mainCategoryName = hierarchy[0].trim();
+                String subcategoryName = hierarchy[1].trim();
+                String categoryId = DateTime.now().millisecondsSinceEpoch.toString() + '_main_$i';
+                String subcategoryId = DateTime.now().millisecondsSinceEpoch.toString() + '_sub_$i';
+                
+                // Ensure main category exists
+                if (!categoryMap.containsKey(mainCategoryName)) {
+                  String color = colors[categoryMap.length % colors.length];
+                  
+                  BudgetCategory category = BudgetCategory(
+                    id: categoryId,
+                    name: mainCategoryName,
+                    description: '',
+                    allocatedAmount: 0.0,
+                    spentAmount: 0.0,
+                    color: color,
+                    createdAt: DateTime.now(),
+                  );
+                  // Provide a helpful default description when CSV doesn't include one
+                  category = category.copyWith(
+                    description: 'Budget programs for ' + mainCategoryName,
+                  );
+                  
+                  categoryMap[mainCategoryName] = category;
+                  subcategoryMap[mainCategoryName] = [];
+                  itemMap[mainCategoryName] = [];
+                }
+                
+                // Create subcategory
+                BudgetSubcategory subcategory = BudgetSubcategory(
+                  id: subcategoryId,
+                  categoryId: categoryMap[mainCategoryName]!.id,
+                  name: subcategoryName,
+                  description: description,
+                  allocatedAmount: amount,
+                  spentAmount: 0.0,
+                  color: colors[subcategoryMap[mainCategoryName]!.length % colors.length],
+                  createdAt: DateTime.now(),
+                );
+                
+                subcategoryMap[mainCategoryName]!.add(subcategory);
+                
+                // Update main category total
+                BudgetCategory mainCategory = categoryMap[mainCategoryName]!;
+                categoryMap[mainCategoryName] = mainCategory.copyWith(
+                  allocatedAmount: mainCategory.allocatedAmount + amount
+                );
+                
+              } else if (hierarchy.length == 3) {
+                // Sub-subcategory (item)
+                String mainCategoryName = hierarchy[0].trim();
+                String subcategoryName = hierarchy[1].trim();
+                String itemName = hierarchy[2].trim();
+                String categoryId = DateTime.now().millisecondsSinceEpoch.toString() + '_main_$i';
+                String subcategoryId = DateTime.now().millisecondsSinceEpoch.toString() + '_sub_$i';
+                String itemId = DateTime.now().millisecondsSinceEpoch.toString() + '_item_$i';
+                
+                // Ensure main category exists
+                if (!categoryMap.containsKey(mainCategoryName)) {
+                  String color = colors[categoryMap.length % colors.length];
+                  
+                  BudgetCategory category = BudgetCategory(
+                    id: categoryId,
+                    name: mainCategoryName,
+                    description: '',
+                    allocatedAmount: 0.0,
+                    spentAmount: 0.0,
+                    color: color,
+                    createdAt: DateTime.now(),
+                  );
+                  
+                  categoryMap[mainCategoryName] = category;
+                  subcategoryMap[mainCategoryName] = [];
+                  itemMap[mainCategoryName] = [];
+                }
+                
+                // Ensure subcategory exists
+                bool subcategoryExists = subcategoryMap[mainCategoryName]!
+                    .any((sub) => sub.name == subcategoryName);
+                
+                if (!subcategoryExists) {
+                BudgetSubcategory subcategory = BudgetSubcategory(
+                    id: subcategoryId,
+                    categoryId: categoryMap[mainCategoryName]!.id,
+                    name: subcategoryName,
+                    description: '',
+                    allocatedAmount: 0.0,
+                    spentAmount: 0.0,
+                    color: colors[subcategoryMap[mainCategoryName]!.length % colors.length],
+                    createdAt: DateTime.now(),
+                  );
+                // Default description if none provided in CSV for this level
+                subcategory = subcategory.copyWith(
+                  description: 'Budget allocations for ' + subcategoryName,
+                );
+                  
+                  subcategoryMap[mainCategoryName]!.add(subcategory);
+                }
+                
+                // Create item
+                BudgetItem item = BudgetItem(
+                  id: itemId,
+                  categoryId: categoryMap[mainCategoryName]!.id,
+                  subcategoryId: subcategoryMap[mainCategoryName]!
+                      .firstWhere((sub) => sub.name == subcategoryName).id,
+                  name: itemName,
+                  description: description,
+                  allocatedAmount: amount,
+                  spentAmount: 0.0,
+                  color: colors[(subcategoryMap[mainCategoryName]!.length + itemMap[mainCategoryName]!.length) % colors.length],
+                  createdAt: DateTime.now(),
+                );
+                
+                itemMap[mainCategoryName]!.add(item);
+                
+                // Update totals
+                BudgetCategory mainCategory = categoryMap[mainCategoryName]!;
+                categoryMap[mainCategoryName] = mainCategory.copyWith(
+                  allocatedAmount: mainCategory.allocatedAmount + amount
+                );
+                
+                // Update subcategory total
+                int subcategoryIndex = subcategoryMap[mainCategoryName]!
+                    .indexWhere((sub) => sub.name == subcategoryName);
+                if (subcategoryIndex != -1) {
+                  BudgetSubcategory subcategory = subcategoryMap[mainCategoryName]![subcategoryIndex];
+                  subcategoryMap[mainCategoryName]![subcategoryIndex] = subcategory.copyWith(
+                    allocatedAmount: subcategory.allocatedAmount + amount
+                  );
+                }
+              }
+              
             } catch (e) {
               print('Error parsing amount for line ${i + 1}: $amountStr');
               continue;
@@ -467,6 +660,27 @@ class BudgetService {
         }
       }
       
+      // Convert map to list and attach items to their respective subcategories
+      List<BudgetCategory> categories = [];
+      categoryMap.forEach((name, category) {
+        // Clone subcategories list to allow edits
+        List<BudgetSubcategory> subcategories = List.from(subcategoryMap[name] ?? []);
+        final items = itemMap[name] ?? [];
+
+        // Attach each item to its subcategory by subcategoryId
+        for (final item in items) {
+          final idx = subcategories.indexWhere((s) => s.id == item.subcategoryId);
+          if (idx != -1) {
+            final s = subcategories[idx];
+            final updatedItems = List<BudgetItem>.from(s.items)..add(item);
+            subcategories[idx] = s.copyWith(items: updatedItems);
+          }
+        }
+
+        categories.add(category.copyWith(subcategories: subcategories));
+      });
+      
+      print('Successfully parsed ${categories.length} main categories with hierarchical structure');
       return categories;
     } catch (e) {
       print('Error parsing CSV file: $e');
@@ -569,6 +783,25 @@ class BudgetService {
     
     result.add(currentField.trim());
     return result;
+  }
+
+  /// Robust amount parser: supports commas, currency symbols, and M/B suffixes
+  double _parseAmount(String raw) {
+    String s = raw.trim();
+    // Remove currency symbols
+    s = s.replaceAll(RegExp(r'[₹₨$]'), '');
+    // Handle million/billion suffixes (e.g., 12M, 3.5B)
+    final match = RegExp(r'^([0-9]+(?:\.[0-9]+)?)\s*([MBmb])?$').firstMatch(s.replaceAll(',', ''));
+    if (match != null) {
+      final numPart = double.parse(match.group(1)!);
+      final suffix = match.group(2)?.toUpperCase();
+      if (suffix == 'M') return numPart * 1e6;
+      if (suffix == 'B') return numPart * 1e9;
+      return numPart.toDouble();
+    }
+    // Fallback: strip non-numeric except dot and minus
+    s = s.replaceAll(RegExp(r'[^0-9.-]'), '');
+    return double.tryParse(s) ?? 0.0;
   }
 
   /// Get budget analytics

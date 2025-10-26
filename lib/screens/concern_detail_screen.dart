@@ -6,6 +6,9 @@ import '../services/concern_management_service.dart';
 import '../services/concern_service.dart';
 import '../services/notification_service.dart';
 import '../services/officer_ai_service.dart';
+import '../services/smart_priority_service.dart';
+import '../widgets/concern_evidence_validation_widget.dart';
+import '../widgets/evidence_viewer_screen.dart';
 import '../l10n/app_localizations.dart';
 import 'user_concern_tracking_screen.dart';
 import 'public_tender_viewer_screen.dart';
@@ -137,60 +140,95 @@ class _ConcernDetailScreenState extends State<ConcernDetailScreen> {
                           child: PopupMenuButton<String>(
                             icon: const Icon(Icons.more_vert, color: Colors.white),
                             onSelected: (value) => _showStatusUpdateDialog(value),
-                            itemBuilder: (context) => [
-                              const PopupMenuItem(
-                                value: 'underReview',
-                                child: Row(
-                                  children: [
-                                    Icon(Icons.search, color: Colors.blue),
-                                    SizedBox(width: 8),
-                                    Text('Mark as Under Review'),
-                                  ],
-                                ),
-                              ),
-                              const PopupMenuItem(
-                                value: 'inProgress',
-                                child: Row(
-                                  children: [
-                                    Icon(Icons.work, color: Colors.purple),
-                                    SizedBox(width: 8),
-                                    Text('Mark as In Progress'),
-                                  ],
-                                ),
-                              ),
-                              const PopupMenuItem(
-                                value: 'resolved',
-                                child: Row(
-                                  children: [
-                                    Icon(Icons.check_circle, color: Colors.green),
-                                    SizedBox(width: 8),
-                                    Text('Mark as Resolved'),
-                                  ],
-                                ),
-                              ),
-                              const PopupMenuItem(
-                                value: 'dismissed',
-                                child: Row(
-                                  children: [
-                                    Icon(Icons.cancel, color: Colors.grey),
-                                    SizedBox(width: 8),
-                                    Text('Dismiss'),
-                                  ],
-                                ),
-                              ),
+                            itemBuilder: (context) {
+                              final validTransitions = _getValidStatusTransitions(widget.concern.status);
+                              final items = <PopupMenuEntry<String>>[];
+                              
+                              // Add valid status transitions
+                              for (final status in validTransitions) {
+                                switch (status) {
+                                  case 'underReview':
+                                    items.add(
+                                      const PopupMenuItem(
+                                        value: 'underReview',
+                                        child: Row(
+                                          children: [
+                                            Icon(Icons.search, color: Colors.blue),
+                                            SizedBox(width: 8),
+                                            Text('Mark as Under Review'),
+                                          ],
+                                        ),
+                                      ),
+                                    );
+                                    break;
+                                  case 'inProgress':
+                                    items.add(
+                                      const PopupMenuItem(
+                                        value: 'inProgress',
+                                        child: Row(
+                                          children: [
+                                            Icon(Icons.work, color: Colors.purple),
+                                            SizedBox(width: 8),
+                                            Text('Mark as In Progress'),
+                                          ],
+                                        ),
+                                      ),
+                                    );
+                                    break;
+                                  case 'resolved':
+                                    items.add(
+                                      const PopupMenuItem(
+                                        value: 'resolved',
+                                        child: Row(
+                                          children: [
+                                            Icon(Icons.check_circle, color: Colors.green),
+                                            SizedBox(width: 8),
+                                            Text('Mark as Resolved'),
+                                          ],
+                                        ),
+                                      ),
+                                    );
+                                    break;
+                                  case 'dismissed':
+                                    items.add(
+                                      const PopupMenuItem(
+                                        value: 'dismissed',
+                                        child: Row(
+                                          children: [
+                                            Icon(Icons.cancel, color: Colors.grey),
+                                            SizedBox(width: 8),
+                                            Text('Dismiss'),
+                                          ],
+                                        ),
+                                      ),
+                                    );
+                                    break;
+                                }
+                              }
+                              
+                              // Add divider if there are status options
+                              if (items.isNotEmpty) {
+                                items.add(const PopupMenuDivider());
+                              }
+                              
                               // Add delete option for users (only if they can delete)
-                              if (_canDeleteConcern())
-                                PopupMenuItem(
-                                  value: 'delete',
-                                  child: Row(
-                                    children: [
-                                      const Icon(Icons.delete, color: Colors.red),
-                                      const SizedBox(width: 8),
-                                      Text(AppLocalizations.of(context)!.deleteConcern),
-                                    ],
+                              if (_canDeleteConcern()) {
+                                items.add(
+                                  PopupMenuItem(
+                                    value: 'delete',
+                                    child: Row(
+                                      children: [
+                                        const Icon(Icons.delete, color: Colors.red),
+                                        const SizedBox(width: 8),
+                                        Text(AppLocalizations.of(context)!.deleteConcern),
+                                      ],
+                                    ),
                                   ),
-                                ),
-                            ],
+                                );
+                              }
+                              
+                              return items;
+                            },
                           ),
                         ),
                       ],
@@ -210,16 +248,12 @@ class _ConcernDetailScreenState extends State<ConcernDetailScreen> {
                   _buildConcernDetailsCard(),
                   const SizedBox(height: 16),
                   
-                  // AI Analysis Card (if available)
-                  if (widget.concern.metadata['aiAnalysis'] != null) ...[
-                    _buildAIAnalysisCard(),
-                    const SizedBox(height: 16),
-                  ],
+                  // AI Analysis Card (always show with SmartPriorityService)
+                  _buildAIAnalysisCard(),
+                  const SizedBox(height: 16),
                   
-                  // Add Comment Section
-                  _buildAddCommentSection(),
-                  // Comments Display Section
-                  _buildCommentsSection(),
+                  // Timeline Section
+                  _buildTimelineSection(),
                 ],
               ),
             ),
@@ -277,16 +311,58 @@ class _ConcernDetailScreenState extends State<ConcernDetailScreen> {
               ],
             ),
           ),
+          const SizedBox(height: 16),
+          
+          // Evidence Buttons (if evidence exists)
+          if (widget.concern.attachments != null && widget.concern.attachments!.isNotEmpty) ...[
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () => _viewEvidence(),
+                    icon: const Icon(Icons.visibility),
+                    label: const Text('View Evidence'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () => _validateEvidence(),
+                    icon: const Icon(Icons.psychology),
+                    label: const Text('AI Validate'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.purple,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );
   }
 
   Widget _buildAIAnalysisCard() {
-    final aiAnalysis = widget.concern.metadata['aiAnalysis'] as Map<String, dynamic>;
-    final confidence = (aiAnalysis['confidence'] as num?)?.toDouble() ?? 0.0;
-    final priority = aiAnalysis['priority'] as String? ?? 'medium';
-    final sentiment = aiAnalysis['sentiment'] as String? ?? 'neutral';
+    // Use SmartPriorityService for real-time analysis
+    final analysis = SmartPriorityService.analyzeConcern(
+      widget.concern.title,
+      widget.concern.description,
+      widget.concern.category,
+    );
     
     return Container(
       padding: const EdgeInsets.all(20),
@@ -346,13 +422,27 @@ class _ConcernDetailScreenState extends State<ConcernDetailScreen> {
                       ),
                     ),
                     Text(
-                      'Powered by Google Gemini • ${(confidence * 100).toStringAsFixed(0)}% Confidence',
+                      'Powered by ${analysis.aiModel} • ${(analysis.confidence * 100).toStringAsFixed(0)}% Confidence',
                       style: TextStyle(
                         fontSize: 12,
                         color: Colors.grey.shade600,
                       ),
                     ),
                   ],
+                ),
+              ),
+              // See Full Detail Button
+              ElevatedButton.icon(
+                onPressed: () => _showFullAIDetail(),
+                icon: const Icon(Icons.visibility, size: 16),
+                label: const Text('See Full Detail'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                 ),
               ),
             ],
@@ -362,11 +452,21 @@ class _ConcernDetailScreenState extends State<ConcernDetailScreen> {
           Row(
             children: [
               Expanded(
-                child: _buildAIMetric('Priority', priority.toUpperCase(), Icons.priority_high, Colors.red),
+                child: _buildAIMetric(
+                  'Priority', 
+                  analysis.priority.priority.name.toUpperCase(), 
+                  Icons.priority_high, 
+                  Colors.red
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: _buildAIMetric('Sentiment', _getSentimentDisplay(sentiment), Icons.sentiment_satisfied, Colors.green),
+                child: _buildAIMetric(
+                  'Sentiment', 
+                  analysis.sentiment.sentimentScore.name.replaceAll(RegExp(r'([A-Z])'), r' $1').trim(), 
+                  Icons.sentiment_satisfied, 
+                  Colors.green
+                ),
               ),
             ],
           ),
@@ -400,6 +500,225 @@ class _ConcernDetailScreenState extends State<ConcernDetailScreen> {
             style: TextStyle(
               fontSize: 11,
               color: Colors.grey.shade600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTimelineSection() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.timeline, color: Colors.orange),
+              const SizedBox(width: 8),
+              const Text(
+                'Timeline',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection('concern_updates')
+                .where('concernId', isEqualTo: widget.concern.id)
+                .orderBy('createdAt', descending: true)
+                .snapshots(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              
+              if (snapshot.hasError) {
+                return Text('Error: ${snapshot.error}');
+              }
+              
+              if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                return Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[50],
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.grey[200]!),
+                  ),
+                  child: const Center(
+                    child: Text(
+                      'No timeline updates yet',
+                      style: TextStyle(
+                        color: Colors.grey,
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                  ),
+                );
+              }
+              
+              return ListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: snapshot.data!.docs.length,
+                itemBuilder: (context, index) {
+                  final update = snapshot.data!.docs[index];
+                  final data = update.data() as Map<String, dynamic>;
+                  
+                  return _buildTimelineItem(data, index == snapshot.data!.docs.length - 1);
+                },
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTimelineItem(Map<String, dynamic> data, bool isLast) {
+    final action = data['action'] ?? '';
+    final description = data['description'] ?? '';
+    final createdAt = data['createdAt'] != null 
+        ? (data['createdAt'] as Timestamp).toDate()
+        : DateTime.now();
+    final officerName = data['officerName'] ?? 'Unknown Officer';
+    final userRole = data['userRole'] ?? 'Officer';
+    
+    // Determine icon and color based on action
+    IconData icon;
+    Color color;
+    
+    switch (action.toLowerCase()) {
+      case 'underreview':
+        icon = Icons.search;
+        color = Colors.blue;
+        break;
+      case 'inprogress':
+        icon = Icons.work;
+        color = Colors.purple;
+        break;
+      case 'resolved':
+        icon = Icons.check_circle;
+        color = Colors.green;
+        break;
+      case 'dismissed':
+        icon = Icons.cancel;
+        color = Colors.grey;
+        break;
+      case 'assigned':
+        icon = Icons.person_add;
+        color = Colors.indigo;
+        break;
+      default:
+        icon = Icons.update;
+        color = Colors.orange;
+    }
+    
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Timeline indicator
+          Column(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: color.withOpacity(0.3)),
+                ),
+                child: Icon(icon, color: color, size: 16),
+              ),
+              if (!isLast)
+                Container(
+                  width: 2,
+                  height: 40,
+                  color: Colors.grey[300],
+                  margin: const EdgeInsets.only(top: 8),
+                ),
+            ],
+          ),
+          const SizedBox(width: 16),
+          // Timeline content
+          Expanded(
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.05),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: color.withOpacity(0.2)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        _formatActionName(action),
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: color,
+                        ),
+                      ),
+                      const Spacer(),
+                      Text(
+                        _formatDateTime(createdAt),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'By: $officerName ($userRole)',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey[600],
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                  if (description.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.grey[50],
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.grey[200]!),
+                      ),
+                      child: Text(
+                        description,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: Colors.black87,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
             ),
           ),
         ],
@@ -576,20 +895,38 @@ class _ConcernDetailScreenState extends State<ConcernDetailScreen> {
                                   : Colors.grey,
                             ),
                             const SizedBox(width: 6),
-                            Text(
-                              data['createdByName'] ?? 'Unknown',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: data['isOfficerComment'] == true 
-                                    ? Colors.blue[700] 
-                                    : Colors.grey[700],
-                                fontSize: 12,
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    data['createdByName'] ?? 'Unknown',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: data['isOfficerComment'] == true 
+                                          ? Colors.blue[700] 
+                                          : Colors.grey[700],
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                  Text(
+                                    data['userRole'] ?? (data['isOfficerComment'] == true 
+                                        ? 'Anti-Corruption Officer' 
+                                        : 'Citizen'),
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      color: data['isOfficerComment'] == true 
+                                          ? Colors.blue[600] 
+                                          : Colors.grey[600],
+                                      fontStyle: FontStyle.italic,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
-                            const Spacer(),
                             Text(
                               data['createdAt'] != null 
-                                  ? _formatDate((data['createdAt'] as Timestamp).toDate())
+                                  ? _formatDateTime((data['createdAt'] as Timestamp).toDate())
                                   : 'Unknown date',
                               style: const TextStyle(
                                 fontSize: 10,
@@ -665,6 +1002,48 @@ class _ConcernDetailScreenState extends State<ConcernDetailScreen> {
     return '${date.day}/${date.month}/${date.year}';
   }
 
+  String _formatDateTime(DateTime date) {
+    final now = DateTime.now();
+    final difference = now.difference(date);
+    
+    if (difference.inDays > 0) {
+      return '${date.day}/${date.month}/${date.year}';
+    } else if (difference.inHours > 0) {
+      return '${difference.inHours}h ago';
+    } else if (difference.inMinutes > 0) {
+      return '${difference.inMinutes}m ago';
+    } else {
+      return 'Just now';
+    }
+  }
+
+  String _formatActionName(String action) {
+    switch (action.toLowerCase()) {
+      case 'underreview':
+        return 'Under Review';
+      case 'inprogress':
+        return 'In Progress';
+      case 'resolved':
+        return 'Resolved';
+      case 'dismissed':
+        return 'Dismissed';
+      case 'assigned':
+        return 'Assigned';
+      case 'created':
+        return 'Created';
+      case 'status_update':
+        return 'Status Updated';
+      default:
+        // Fallback: convert camelCase to Title Case
+        return action.replaceAllMapped(
+          RegExp(r'([A-Z])'), 
+          (match) => ' ${match.group(1)}'
+        ).trim().split(' ').map((word) => 
+          word.isNotEmpty ? word[0].toUpperCase() + word.substring(1).toLowerCase() : ''
+        ).join(' ');
+    }
+  }
+
   void _addComment() async {
     if (_commentController.text.trim().isEmpty) return;
 
@@ -684,6 +1063,7 @@ class _ConcernDetailScreenState extends State<ConcernDetailScreen> {
         'createdByName': widget.officerName,
         'createdAt': FieldValue.serverTimestamp(),
         'isOfficerComment': true,
+        'userRole': 'Anti-Corruption Officer',
       });
       
       _commentController.clear();
@@ -715,6 +1095,30 @@ class _ConcernDetailScreenState extends State<ConcernDetailScreen> {
     }
   }
 
+  // Helper function to get valid status transitions based on current status
+  List<String> _getValidStatusTransitions(ConcernStatus currentStatus) {
+    switch (currentStatus) {
+      case ConcernStatus.pending:
+        // From pending: can only go to underReview or dismissed
+        return ['underReview', 'dismissed'];
+      case ConcernStatus.underReview:
+        // From underReview: can go to inProgress or dismissed
+        return ['inProgress', 'dismissed'];
+      case ConcernStatus.inProgress:
+        // From inProgress: can go to resolved or dismissed
+        return ['resolved', 'dismissed'];
+      case ConcernStatus.resolved:
+        // From resolved: no further transitions allowed
+        return [];
+      case ConcernStatus.dismissed:
+        // From dismissed: no further transitions allowed
+        return [];
+      case ConcernStatus.escalated:
+        // From escalated: can go to underReview or dismissed
+        return ['underReview', 'dismissed'];
+    }
+  }
+
   void _showStatusUpdateDialog(String status) async {
     // Handle delete action
     if (status == 'delete') {
@@ -722,31 +1126,53 @@ class _ConcernDetailScreenState extends State<ConcernDetailScreen> {
       return;
     }
 
+    // Validate status transition
+    final validTransitions = _getValidStatusTransitions(widget.concern.status);
+    if (!validTransitions.contains(status)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('❌ Invalid status transition from ${widget.concern.status.name} to $status'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    // Show dialog to get reason for status change
+    final reason = await _showStatusReasonDialog(status);
+    if (reason == null) return; // User cancelled
+
     try {
       setState(() {
         _isUpdating = true;
       });
 
-      // Update the concern status in Firestore
-      await FirebaseFirestore.instance
-          .collection('concerns')
-          .doc(widget.concern.id)
-          .update({
-        'status': status,
-        'updatedAt': FieldValue.serverTimestamp(),
-        'updatedBy': widget.officerId,
-      });
+      // Convert string status to enum
+      ConcernStatus newStatus;
+      switch (status) {
+        case 'underReview':
+          newStatus = ConcernStatus.underReview;
+          break;
+        case 'inProgress':
+          newStatus = ConcernStatus.inProgress;
+          break;
+        case 'resolved':
+          newStatus = ConcernStatus.resolved;
+          break;
+        case 'dismissed':
+          newStatus = ConcernStatus.dismissed;
+          break;
+        default:
+          newStatus = widget.concern.status;
+      }
 
-      // Send notification to the concern creator
-      await NotificationService.sendNotificationToUser(
-        widget.concern.authorId,
-        'Concern Status Updated',
-        'Your concern "${widget.concern.title}" status has been updated to ${status.replaceAll(RegExp(r'([A-Z])'), r' $1').toLowerCase()}',
-        {
-          'type': 'concern_status_update',
-          'concernId': widget.concern.id,
-          'status': status,
-        },
+      // Update the concern status using the service
+      await _concernService.updateConcernStatus(
+        concernId: widget.concern.id,
+        status: newStatus,
+        officerId: widget.officerId,
+        officerName: widget.officerName,
+        comment: reason,
       );
 
       if (mounted) {
@@ -776,12 +1202,258 @@ class _ConcernDetailScreenState extends State<ConcernDetailScreen> {
     }
   }
 
+  Future<String?> _showStatusReasonDialog(String status) async {
+    final reasonController = TextEditingController();
+    final statusText = status.replaceAll(RegExp(r'([A-Z])'), r' $1').toLowerCase();
+    
+    return showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Update Status to ${statusText.toUpperCase()}'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('Please provide a reason for changing the status:'),
+            const SizedBox(height: 16),
+            TextField(
+              controller: reasonController,
+              maxLines: 3,
+              decoration: InputDecoration(
+                hintText: 'Enter reason for status change...',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final reason = reasonController.text.trim();
+              if (reason.isNotEmpty) {
+                Navigator.of(context).pop(reason);
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Please enter a reason'),
+                    backgroundColor: Colors.orange,
+                  ),
+                );
+              }
+            },
+            child: Text('Update Status'),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showAIAssistant() {
     // AI Assistant logic here
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('🧠 AI Assistant opened!'),
         backgroundColor: Colors.purple,
+      ),
+    );
+  }
+
+  void _viewEvidence() {
+    if (widget.concern.attachments == null || widget.concern.attachments!.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No evidence files to view'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    // Navigate to a full-screen evidence viewer
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => EvidenceViewerScreen(
+          attachments: widget.concern.attachments!,
+          concernTitle: widget.concern.title,
+        ),
+      ),
+    );
+  }
+
+
+  void _validateEvidence() {
+    if (widget.concern.attachments == null || widget.concern.attachments!.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No evidence images to validate'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    showDialog(
+      context: context,
+      builder: (context) => ConcernEvidenceValidationWidget(
+        concernId: widget.concern.id,
+        concernTitle: widget.concern.title,
+        concernDescription: widget.concern.description,
+        evidenceUrls: widget.concern.attachments.map((attachment) => attachment.fileUrl).toList(),
+        onValidationComplete: (result) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Evidence validation completed: ${result.overallRecommendation}'),
+              backgroundColor: result.recommendationColor,
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  void _showFullAIDetail() {
+    // Generate AI analysis using SmartPriorityService
+    final analysis = SmartPriorityService.analyzeConcern(
+      widget.concern.title,
+      widget.concern.description,
+      widget.concern.category,
+    );
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            const Icon(Icons.psychology, color: Colors.blue),
+            const SizedBox(width: 8),
+            const Text('AI Full Analysis'),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Analysis Summary
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.blue.shade200),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Analysis Summary',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.blue.shade800,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(analysis.summary),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              
+              // Sentiment Analysis
+              _buildAnalysisSection(
+                'Sentiment Analysis',
+                Icons.sentiment_satisfied,
+                Colors.green,
+                [
+                  'Sentiment: ${analysis.sentiment.sentimentScore.name.replaceAll(RegExp(r'([A-Z])'), r' $1').trim()}',
+                  'Score: ${analysis.sentiment.score.toStringAsFixed(2)}',
+                  'Magnitude: ${analysis.sentiment.magnitude.toStringAsFixed(2)}',
+                ],
+              ),
+              
+              // Priority Analysis
+              _buildAnalysisSection(
+                'Priority Analysis',
+                Icons.priority_high,
+                Colors.red,
+                [
+                  'Priority: ${analysis.priority.priority.name.toUpperCase()}',
+                  'Score: ${(analysis.priority.score * 100).toStringAsFixed(0)}%',
+                  'Reasoning: ${analysis.priority.reasoning}',
+                ],
+              ),
+              
+              // Topics
+              if (analysis.topics.isNotEmpty)
+                _buildAnalysisSection(
+                  'Key Topics',
+                  Icons.topic,
+                  Colors.purple,
+                  analysis.topics.map((topic) => '• $topic').toList(),
+                ),
+              
+              // Confidence
+              _buildAnalysisSection(
+                'Analysis Confidence',
+                Icons.analytics,
+                Colors.orange,
+                [
+                  'Confidence: ${(analysis.confidence * 100).toStringAsFixed(0)}%',
+                  'AI Model: ${analysis.aiModel}',
+                  'Analyzed: ${analysis.analyzedAt.toString().split('.')[0]}',
+                ],
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAnalysisSection(String title, IconData icon, Color color, List<String> items) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, color: color, size: 16),
+              const SizedBox(width: 8),
+              Text(
+                title,
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: color.withOpacity(0.8),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          ...items.map((item) => Padding(
+            padding: const EdgeInsets.only(bottom: 4),
+            child: Text(
+              item,
+              style: const TextStyle(fontSize: 14),
+            ),
+          )),
+        ],
       ),
     );
   }

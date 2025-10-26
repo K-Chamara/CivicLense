@@ -228,21 +228,17 @@ class AdminService {
         throw Exception('Cannot delete admin users');
       }
 
-      // Delete from Firestore
+      // Delete from Firestore only (Firebase Auth deletion requires billing)
       await _firestore.collection('users').doc(uid).delete();
-      print('🗑️ Deleted user document from Firestore: $uid');
+      print('🗑️ User deleted from Firestore: $uid');
       
-      // Note: User still exists in Firebase Auth
+      // Note: User still exists in Firebase Auth but cannot login through the app
+      // since their user document is deleted from Firestore
       print('⚠️ Note: User still exists in Firebase Auth');
-      print('💡 To fully delete from Firebase Auth, you need to:');
-      print('   1. Deploy Firebase Functions (see firebase_functions/README.md)');
-      print('   2. Or manually delete from Firebase Console');
-      print('   3. Or implement a backend service with Admin SDK');
-      
-      // Show success message but inform about the limitation
-      print('✅ User deleted from database successfully');
-      print('📋 The user can no longer log in through the app');
+      print('💡 User can no longer login through the app (no user document in Firestore)');
       print('🔧 For complete cleanup, manually delete from Firebase Auth console');
+      
+      print('✅ User deleted successfully from database');
       
     } catch (e) {
       print('❌ Error deleting user: $e');

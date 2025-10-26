@@ -36,6 +36,9 @@ class AppLocalizationsSi extends AppLocalizations {
   String get dashboard => 'ඩෑෂ්බෝඩ්';
 
   @override
+  String get communityLeaderDashboard => 'ප්‍රජාතන්ත්‍ර නායක ඩෑෂ්බෝඩ්';
+
+  @override
   String get profile => 'පැතිකඩ';
 
   @override
@@ -78,7 +81,7 @@ class AppLocalizationsSi extends AppLocalizations {
   String get ngo => 'එන්.ජී.ඕ/පුද්ගලික ගිවිසුම්කරු';
 
   @override
-  String get journalist => 'ප්‍රවෘත්තිකරු';
+  String get journalist => 'මාධ්‍යවේදී';
 
   @override
   String get communityLeader => 'ප්‍රජා නායක';
@@ -447,7 +450,7 @@ class AppLocalizationsSi extends AppLocalizations {
   String get currency => 'ව්‍යවහාර මුදල';
 
   @override
-  String get allocations => 'වෙන් කිරීම්';
+  String get allocations => 'වෙන්කිරීම්';
 
   @override
   String get activeTenders => 'සක්‍රිය ටෙන්ඩර්';
@@ -635,7 +638,7 @@ class AppLocalizationsSi extends AppLocalizations {
   String get governmentBudgetOverview => 'රජයේ අයවැය දළ විශ්ලේෂණය';
 
   @override
-  String get budgetCategories => 'අයවැය ප්‍රවර්ග';
+  String get budgetCategories => 'අයවැය කාණ්ඩ';
 
   @override
   String get spent => 'වියදම් කරන ලද';
@@ -687,7 +690,7 @@ class AppLocalizationsSi extends AppLocalizations {
 
   @override
   String get connectWithLocalCommunitiesAndCivicGroups =>
-      'දේශීය ප්‍රජා සහ සිවිල් කණ්ඩායම් සමඟ සම්බන්ධ වන්න';
+      'පළාත් ප්‍රජා සහ සිවිල් කණ්ඩායම් සමඟ සම්බන්ධ වන්න';
 
   @override
   String get reportAndTrackPublicIssuesAndConcerns =>
@@ -723,7 +726,7 @@ class AppLocalizationsSi extends AppLocalizations {
       'පවත්නා සහ සම්පූර්ණ කළ රජයේ ව්‍යාපෘති බලන්න';
 
   @override
-  String get priorityConcerns => 'ප්‍රමුඛ කරදර';
+  String get priorityConcerns => 'ප්‍රමුඛතා ගැටළු';
 
   @override
   String get subcategories => 'උප කාණ්ඩ';
@@ -847,7 +850,7 @@ class AppLocalizationsSi extends AppLocalizations {
       'නවතම පුවත් ලිපි කියවා අන්තර්ගතය සමඟ සම්බන්ධ වන්න';
 
   @override
-  String get trackPublicSpending => 'රජයේ වියදම් නිරීක්ෂණය කරන්න';
+  String get trackPublicSpending => 'පොදු වියදම් නිරීක්ෂණය';
 
   @override
   String get monitorGovernmentBudgetsAndExpenditures =>
@@ -888,4 +891,215 @@ class AppLocalizationsSi extends AppLocalizations {
 
   @override
   String get tenderBudgetOverview => 'ටෙන්ඩර් සහ අයවැය දළ විශ්ලේෂණය';
+
+  @override
+  String get stayUpdatedWithLatestNewsAndMedia =>
+      'නවතම ප්‍රවෘත්ති සහ මාධ්‍ය සමඟ යාවත්කාලීනව සිටින්න';
+
+  @override
+  String get accessMediaResourcesAndForums =>
+      'මාධ්‍ය සම්පත් සහ සංසද වෙත ප්‍රවේශ වන්න';
+
+  @override
+  String get joinAndManageCommunityGroups =>
+      'ප්‍රජා කණ්ඩායම් සම්බන්ධ වී කළමනාකරණය කරන්න';
+
+  @override
+  String get viewDetailedReportsAndAnalytics =>
+      'විස්තරාත්මක වාර්තා සහ විශ්ලේෂණ බලන්න';
+
+  @override
+  String get submitAndReportPublicConcerns =>
+      'පොදු ගැටළු ඉදිරිපත් කර වාර්තා කරන්න';
+
+  @override
+  String get trackYourSubmittedConcerns =>
+      'ඔබ ඉදිරිපත් කළ ගැටළු නිරීක්ෂණය කරන්න';
+
+  @override
+  String get browseAllPublicConcerns => 'සියලුම පොදු ගැටළු පිරික්සන්න';
+
+  @override
+  String get configureAppSettingsAndPreferences =>
+      'යෙදුම් සැකසීම් සහ මනාපයන් වින්‍යාස කරන්න';
+
+  @override
+  String get learnMoreAboutCivicLense => 'Civic Lense ගැන වැඩිදුර දැනගන්න';
+
+  @override
+  String get ongoing => 'ක්‍රියාත්මක';
+
+  @override
+  String get weekOne => 'සතිය 1';
+
+  @override
+  String get weekTwo => 'සතිය 2';
+
+  @override
+  String get weekThree => 'සතිය 3';
+
+  @override
+  String get weekFour => 'සතිය 4';
+
+  @override
+  String get civicLense => 'Civic Lense';
+
+  @override
+  String get budgetAllocations => 'අයවැය වෙන්කිරීම්';
+
+  @override
+  String get recentTenders => 'මෑත ටෙන්ඩර්';
+
+  @override
+  String get noBudgetAllocationsAvailable => 'අයවැය වෙන්කිරීම් නැත';
+
+  @override
+  String get noRecentTenders => 'මෑත ටෙන්ඩර් නැත';
+
+  @override
+  String get unknown => 'නොදන්නා';
+
+  @override
+  String get noDescription => 'විස්තරයක් නැත';
+
+  @override
+  String get tenderManagement => 'ටෙන්ඩර් කළමනාකරණය';
+
+  @override
+  String get viewAndMonitorGovernmentTenders =>
+      'රජයේ ටෙන්ඩර් බලා නිරීක්ෂණය කරන්න';
+
+  @override
+  String get reportIssuesAndTrackResolution =>
+      'ගැටළු වාර්තා කර විසඳුම් නිරීක්ෂණය කරන්න';
+
+  @override
+  String get viewReports => 'වාර්තා බලන්න';
+
+  @override
+  String get accessTransparencyReportsAndAnalytics =>
+      'විනිවිදභාවය වාර්තා සහ විශ්ලේෂණ ලබාගන්න';
+
+  @override
+  String get professionalToolsForInvestigativeReporting =>
+      'විමර්ශන වාර්තාකරණය සඳහා වෘත්තීය මෙවලම්';
+
+  @override
+  String get coreTools => 'ප්‍රධාන මෙවලම්';
+
+  @override
+  String get publishArticle => 'ලිපිය ප්‍රකාශයට පත් කරන්න';
+
+  @override
+  String get createAndPublishInvestigativeReports =>
+      'විමර්ශන වාර්තා නිර්මාණය කර ප්‍රකාශයට පත් කරන්න';
+
+  @override
+  String get saveAndOrganizeArticles => 'ලිපි සුරකින්න සහ සංවිධානය කරන්න';
+
+  @override
+  String get browseLatestArticles => 'නවතම ලිපි පිරික්සන්න';
+
+  @override
+  String get tenderWatch => 'ටෙන්ඩර් නිරීක්ෂණය';
+
+  @override
+  String get monitorGovernmentTenders => 'රජයේ ටෙන්ඩර් නිරීක්ෂණය කරන්න';
+
+  @override
+  String get recentArticles => 'මෑත ලිපි';
+
+  @override
+  String get recentSavedArticles => 'මෑත සුරකින ලද ලිපි';
+
+  @override
+  String get communityLeaderTools => 'ප්‍රජා නායක මෙවලම්';
+
+  @override
+  String get manageCommunityGroupsAndInitiatives =>
+      'ප්‍රජා කණ්ඩායම් සහ මුලපිරීම් කළමනාකරණය කරන්න';
+
+  @override
+  String get organizeEvents => 'සිදුවීම් සංවිධානය කරන්න';
+
+  @override
+  String get planAndCoordinateCommunityEvents =>
+      'ප්‍රජා සිදුවීම් සැලසුම් කර සම්බන්ධීකරණය කරන්න';
+
+  @override
+  String get engagementTools => 'සම්බන්ධ වීමේ මෙවලම්';
+
+  @override
+  String get toolsForCommunityEngagement => 'ප්‍රජා සම්බන්ධතාව සඳහා මෙවලම්';
+
+  @override
+  String get researchTools => 'පර්යේෂණ මෙවලම්';
+
+  @override
+  String get researchData => 'පර්යේෂණ දත්ත';
+
+  @override
+  String get accessAnonymizedDatasetsForResearch =>
+      'පර්යේෂණ සඳහා නිර්නාමික දත්ත කට්ටල ලබාගන්න';
+
+  @override
+  String get generateReports => 'වාර්තා උත්පාදනය කරන්න';
+
+  @override
+  String get createResearchReportsAndAnalytics =>
+      'පර්යේෂණ වාර්තා සහ විශ්ලේෂණ නිර්මාණය කරන්න';
+
+  @override
+  String get projectConvertedFromTender => 'ටෙන්ඩරයෙන් පරිවර්තනය කළ ව්‍යාපෘතිය';
+
+  @override
+  String get central => 'මධ්‍යම';
+
+  @override
+  String get active => 'සක්‍රිය';
+
+  @override
+  String get upcomingEvents => 'ඉදිරි සිදුවීම්';
+
+  @override
+  String get mostSupportedConcerns => 'වැඩිපුරම සහාය දක්වන ගැටළු';
+
+  @override
+  String get noTendersAvailable => 'ටෙන්ඩර් නොමැත';
+
+  @override
+  String get searchTendersPlaceholder => 'ටෙන්ඩර් සොයන්න...';
+
+  @override
+  String get searchAcrossServicesPlaceholder => 'සේවා හරහා සොයන්න';
+
+  @override
+  String get locationNotSpecified => 'ස්ථානය සඳහන් කර නැත';
+
+  @override
+  String get closed => 'වසා ඇත';
+
+  @override
+  String get bidReceived => 'ලංසුව ලැබුණි';
+
+  @override
+  String get bidsReceived => 'ලංසු ලැබුණි';
+
+  @override
+  String get daysLeft => 'දින ඉතිරිය';
+
+  @override
+  String get dueToday => 'අද නිමාවේ';
+
+  @override
+  String get dueTomorrow => 'හෙට නිමාවේ';
+
+  @override
+  String get invalidDate => 'වලංගු නොවන දිනය';
+
+  @override
+  String get awarded => 'ප්‍රදානය කළා';
+
+  @override
+  String get cancelled => 'අවලංගු කරන ලදී';
 }

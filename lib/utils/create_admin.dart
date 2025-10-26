@@ -33,6 +33,10 @@ class AdminCreator {
         'isGovernmentUser': true, // Admin is a government user and needs OTP verification
         'securityLevel': 'high', // Admin has high security level
         'otpEnabled': true, // Admin needs OTP verification
+        'status': 'approved', // Admin is automatically approved
+        'createdBy': userCredential.user!.uid, // Self-created
+        'reviewedBy': userCredential.user!.uid, // Self-reviewed
+        'reviewedAt': FieldValue.serverTimestamp(),
       });
 
       print('✅ Admin user created successfully!');

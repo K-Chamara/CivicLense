@@ -19,6 +19,7 @@ import 'settings_screen.dart';
 import 'about_screen.dart';
 import 'citizen_tender_screen.dart';
 import 'public_tender_viewer_screen.dart';
+import '../widgets/notifications_drawer.dart';
 import 'ongoing_tenders_screen.dart';
 import 'raise_concern_screen.dart';
 import 'public_concerns_screen.dart';
@@ -58,6 +59,7 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
   List<Map<String, dynamic>> _filteredServices = [];
   bool _showSearchResults = false;
   final FocusNode _searchFocusNode = FocusNode();
+  bool _searchServicesInitialized = false;
   
   // Dashboard statistics
   int allocationsCount = 0;
@@ -79,15 +81,25 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
   late Animation<double> _chartAnimation;
 
   int _currentIndex = 0;
+  bool _isNavigating = false;
 
   @override
   void initState() {
     super.initState();
     _initializeAnimations();
     _initializeData();
-    _initializeSearchServices();
     _searchController.addListener(_onSearchChanged);
     _searchFocusNode.addListener(_onFocusChanged);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Initialize search services here because it needs localization context
+    if (!_searchServicesInitialized) {
+      _initializeSearchServices();
+      _searchServicesInitialized = true;
+    }
   }
 
   Future<void> _initializeData() async {
@@ -125,9 +137,9 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
     print('🔍 Initializing search services...');
     _availableServices = [
       {
-        'title': 'Budget Overview',
+        'title': AppLocalizations.of(context)!.budgetOverview,
         'icon': Icons.account_balance,
-        'description': 'View budget allocations and financial data',
+        'description': AppLocalizations.of(context)!.trackGovernmentBudgetAllocationsAndSpending,
         'onTap': () {
           Navigator.pop(context);
           Navigator.push(
@@ -137,9 +149,9 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
         },
       },
       {
-        'title': 'Tenders',
+        'title': AppLocalizations.of(context)!.tenders,
         'icon': Icons.shopping_cart,
-        'description': 'Browse and participate in public tenders',
+        'description': AppLocalizations.of(context)!.browseAndApplyForGovernmentTendersAndContracts,
         'onTap': () {
           Navigator.pop(context);
           Navigator.push(
@@ -149,27 +161,27 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
         },
       },
       {
-        'title': 'News & Media',
+        'title': AppLocalizations.of(context)!.newsMedia,
         'icon': Icons.article,
-        'description': 'Stay updated with latest news and media',
+        'description': AppLocalizations.of(context)!.stayUpdatedWithLatestNewsAndMedia,
         'onTap': () {
           Navigator.pop(context);
           Navigator.pushNamed(context, '/news');
         },
       },
       {
-        'title': 'Media Hub',
+        'title': AppLocalizations.of(context)!.mediaHub,
         'icon': Icons.forum,
-        'description': 'Access media resources and forums',
+        'description': AppLocalizations.of(context)!.accessMediaResourcesAndForums,
         'onTap': () {
           Navigator.pop(context);
           Navigator.pushNamed(context, '/media-hub');
         },
       },
       {
-        'title': 'Communities',
+        'title': AppLocalizations.of(context)!.communities,
         'icon': Icons.people,
-        'description': 'Join and manage community groups',
+        'description': AppLocalizations.of(context)!.joinAndManageCommunityGroups,
         'onTap': () {
           Navigator.pop(context);
           Navigator.push(
@@ -179,9 +191,9 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
         },
       },
       {
-        'title': 'Reports & Analytics',
+        'title': AppLocalizations.of(context)!.reportsAnalytics,
         'icon': Icons.analytics,
-        'description': 'View detailed reports and analytics',
+        'description': AppLocalizations.of(context)!.viewDetailedReportsAndAnalytics,
         'onTap': () {
           Navigator.pop(context);
           Navigator.push(
@@ -191,9 +203,9 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
         },
       },
       {
-        'title': 'Raise Concerns',
+        'title': AppLocalizations.of(context)!.raiseConcerns,
         'icon': Icons.report_problem,
-        'description': 'Submit and report public concerns',
+        'description': AppLocalizations.of(context)!.submitAndReportPublicConcerns,
         'onTap': () => Navigator.push(
           context,
           MaterialPageRoute(
@@ -202,9 +214,9 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
         ),
       },
       {
-        'title': 'My Concerns',
+        'title': AppLocalizations.of(context)!.myConcerns,
         'icon': Icons.track_changes,
-        'description': 'Track your submitted concerns',
+        'description': AppLocalizations.of(context)!.trackYourSubmittedConcerns,
         'onTap': () => Navigator.push(
           context,
           MaterialPageRoute(
@@ -213,9 +225,9 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
         ),
       },
       {
-        'title': 'View Public Concerns',
+        'title': AppLocalizations.of(context)!.viewPublicConcerns,
         'icon': Icons.people_alt,
-        'description': 'Browse all public concerns',
+        'description': AppLocalizations.of(context)!.browseAllPublicConcerns,
         'onTap': () => Navigator.push(
           context,
           MaterialPageRoute(
@@ -224,9 +236,9 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
         ),
       },
       {
-        'title': 'Settings',
+        'title': AppLocalizations.of(context)!.settings,
         'icon': Icons.settings,
-        'description': 'Configure app settings and preferences',
+        'description': AppLocalizations.of(context)!.configureAppSettingsAndPreferences,
         'onTap': () {
           Navigator.pop(context);
           Navigator.push(
@@ -236,9 +248,9 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
         },
       },
       {
-        'title': 'About',
+        'title': AppLocalizations.of(context)!.about,
         'icon': Icons.info,
-        'description': 'Learn more about CivicLense',
+        'description': AppLocalizations.of(context)!.learnMoreAboutCivicLense,
         'onTap': () {
           Navigator.pop(context);
           Navigator.push(
@@ -255,27 +267,21 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
 
   void _onSearchChanged() {
     final query = _searchController.text.toLowerCase().trim();
-    print('🔍 Search query: "$query"');
-    print('🔍 Available services count: ${_availableServices.length}');
     
     if (query.isEmpty) {
       setState(() {
         _filteredServices = [];
         _showSearchResults = false;
       });
-      print('🔍 Search cleared, hiding results');
     } else {
       setState(() {
         _filteredServices = _availableServices.where((service) {
           final titleMatch = service['title'].toLowerCase().contains(query);
           final descMatch = service['description'].toLowerCase().contains(query);
-          print('🔍 Checking "${service['title']}" - title: $titleMatch, desc: $descMatch');
           return titleMatch || descMatch;
         }).toList();
         _showSearchResults = _filteredServices.isNotEmpty;
       });
-      print('🔍 Filtered services count: ${_filteredServices.length}');
-      print('🔍 Show search results: $_showSearchResults');
     }
   }
 
@@ -288,7 +294,6 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
   }
 
   void _selectService(Map<String, dynamic> service) {
-    print('🔍 Service selected: ${service['title']}');
     service['onTap']();
     _searchController.clear();
     setState(() {
@@ -527,7 +532,7 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
           'title': project['projectName'] ?? '',
           'projectName': project['projectName'] ?? '',
           'projectLocation': project['projectLocation'] ?? '',
-          'description': project['projectDescription'] ?? 'Project converted from tender',
+          'description': project['projectDescription'] ?? AppLocalizations.of(context)!.projectConvertedFromTender,
           'budget': _safeDouble(project['projectBudget']),
           'originalBudget': _safeDouble(project['originalTenderBudget']),
           'winningBidder': winningBidder?['name'] ?? '',
@@ -536,7 +541,7 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
           'deadline': project['expectedCompletionDate'] ?? '',
           'handoverDate': project['handoverDate'] ?? '',
           'category': project['projectCategory'] ?? '',
-          'region': project['projectLocation'] ?? 'Central',
+          'region': project['projectLocation'] ?? AppLocalizations.of(context)!.central,
           'status': project['projectStatus'] ?? 'ongoing',
           'totalBids': 0,
           'createdAt': project['createdAt'],
@@ -630,24 +635,29 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
         print('  ${tender['title']}: status="${tender['status']}"');
       }
 
-      // Sort by creation date (newest first) - handle cases where createdAt might not exist
-      activeTenders.sort((a, b) {
-        final aCreatedAt = a['createdAt'];
-        final bCreatedAt = b['createdAt'];
-        
-        if (aCreatedAt == null && bCreatedAt == null) return 0;
-        if (aCreatedAt == null) return 1;
-        if (bCreatedAt == null) return -1;
-        
-        if (aCreatedAt is Timestamp && bCreatedAt is Timestamp) {
-          return bCreatedAt.compareTo(aCreatedAt);
+      // Keep only tenders with a valid, non-expired deadline
+      final now = DateTime.now();
+      final upcomingActive = activeTenders.where((tender) {
+        try {
+          final deadlineStr = tender['deadline']?.toString() ?? '';
+          if (deadlineStr.isEmpty) return false;
+          final deadline = DateTime.parse(deadlineStr);
+          return deadline.isAfter(now);
+        } catch (_) {
+          return false;
         }
-        
-        return 0;
+      }).toList();
+
+      // Sort by nearest deadline (ascending)
+      upcomingActive.sort((a, b) {
+        DateTime parse(String s) => DateTime.parse(s);
+        final aDeadline = parse(a['deadline'].toString());
+        final bDeadline = parse(b['deadline'].toString());
+        return aDeadline.compareTo(bDeadline);
       });
 
-      // Take top 3 active tenders (newest first)
-      List<Map<String, dynamic>> topTenders = activeTenders.take(3).toList();
+      // Take up to 3 closest upcoming tenders
+      List<Map<String, dynamic>> topTenders = upcomingActive.take(3).toList();
       
       // If no active tenders found, return empty list (don't show closed tenders)
       if (topTenders.isEmpty) {
@@ -908,7 +918,7 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
       }
     }
     
-    Navigator.push(
+    Navigator.pushReplacement(
       context,
       MaterialPageRoute(builder: (context) => dashboard),
     );
@@ -1066,8 +1076,11 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
                 ),
                 const SizedBox(height: 30),
                     // Search Bar with Floating Results
-                    Stack(
-                      children: [
+                    Container(
+                      height: 80, // Fixed height for the search area
+                      child: Stack(
+                        clipBehavior: Clip.none,
+                        children: [
                         // Search Bar
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
@@ -1090,16 +1103,18 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
                                 child: TextField(
                                   controller: _searchController,
                                   focusNode: _searchFocusNode,
-                                  decoration: const InputDecoration(
-                                    hintText: 'Search across services',
+                                  decoration: InputDecoration(
+                                    hintText: AppLocalizations.of(context)!.searchAcrossServicesPlaceholder,
                                     border: InputBorder.none,
                                     hintStyle: TextStyle(color: Colors.grey),
                                   ),
                                   onTap: () {
-                                    print('🔍 Search field tapped');
                                     setState(() {
                                       _showSearchResults = _searchController.text.isNotEmpty;
                                     });
+                                  },
+                                  onChanged: (value) {
+                                    _onSearchChanged();
                                   },
                                 ),
                               ),
@@ -1110,85 +1125,78 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
                         // Floating Search Results Dropdown
                         if (_showSearchResults && _filteredServices.isNotEmpty)
                           Positioned(
-                            top: 60, // Position below search bar
+                            top: 60, // directly below the search bar
                             left: 0,
                             right: 0,
-                            child: Container(
-                              height: 200, // Fixed height to prevent overflow
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(12),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(0.15),
-                                    blurRadius: 12,
-                                    offset: const Offset(0, 4),
-                                  ),
-                                ],
-                              ),
-                              child: SingleChildScrollView(
-                                child: Column(
-                                  children: _filteredServices.map((service) {
-                                    return InkWell(
-                                      onTap: () => _selectService(service),
-                                      borderRadius: BorderRadius.circular(12),
-                                      child: Container(
-                                        padding: const EdgeInsets.all(16),
-                                        child: Row(
-                                          children: [
-                                            Container(
-                                              padding: const EdgeInsets.all(8),
-                                              decoration: BoxDecoration(
-                                                color: Colors.blue.shade50,
-                                                borderRadius: BorderRadius.circular(8),
-                                              ),
-                                              child: Icon(
-                                                service['icon'],
-                                                color: Colors.blue.shade700,
-                                                size: 20,
-                                              ),
-                                            ),
-                                            const SizedBox(width: 12),
-                                            Expanded(
-                                              child: Column(
-                                                crossAxisAlignment: CrossAxisAlignment.start,
-                                                children: [
-                                                  Text(
-                                                    service['title'],
-                                                    style: const TextStyle(
-                                                      fontSize: 16,
-                                                      fontWeight: FontWeight.w600,
-                                                      color: Colors.black87,
-                                                    ),
-                                                  ),
-                                                  const SizedBox(height: 2),
-                                                  Text(
-                                                    service['description'],
-                                                    style: TextStyle(
-                                                      fontSize: 12,
-                                                      color: Colors.grey[600],
-                                                    ),
-                                                    maxLines: 1,
-                                                    overflow: TextOverflow.ellipsis,
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
-                                            Icon(
-                                              Icons.arrow_forward_ios,
-                                              color: Colors.grey[400],
-                                              size: 16,
-                                            ),
-                                          ],
+                            child: Material(
+                              elevation: 12,
+                              borderRadius: BorderRadius.circular(12),
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: Colors.blue.shade200, width: 1.5),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.2),
+                                      blurRadius: 15,
+                                      offset: const Offset(0, 5),
+                                    ),
+                                  ],
+                                ),
+                                constraints: const BoxConstraints(
+                                  maxHeight: 80, // Show only one service at a time
+                                ),
+                                child: ListView.builder(
+                                  padding: EdgeInsets.zero,
+                                  shrinkWrap: true,
+                                  itemCount: _filteredServices.length,
+                                  itemBuilder: (context, index) {
+                                    final service = _filteredServices[index];
+                                    return ListTile(
+                                      leading: Container(
+                                        padding: const EdgeInsets.all(8),
+                                        decoration: BoxDecoration(
+                                          color: Colors.blue.shade50,
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                        child: Icon(
+                                          service['icon'],
+                                          color: Colors.blue.shade700,
+                                          size: 20,
                                         ),
                                       ),
+                                      title: Text(
+                                        service['title'],
+                                        style: const TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w600,
+                                          color: Colors.black87,
+                                        ),
+                                      ),
+                                      subtitle: Text(
+                                        service['description'],
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.grey[600],
+                                        ),
+                                      ),
+                                      trailing: Icon(
+                                        Icons.arrow_forward_ios,
+                                        color: Colors.grey[400],
+                                        size: 16,
+                                      ),
+                                      onTap: () => _selectService(service),
                                     );
-                                  }).toList(),
+                                  },
                                 ),
                               ),
                             ),
                           ),
                       ],
+                      ),
                     ),
               ],
             ),
@@ -1210,7 +1218,7 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
               allocationsCount.toString(),
               Icons.account_balance_wallet,
               Colors.orange,
-              'Budget items',
+              AppLocalizations.of(context)!.budgetItems,
             ),
           ),
           const SizedBox(width: 12),
@@ -1232,7 +1240,7 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
               projectsCount.toString(),
               Icons.work,
               Colors.green,
-              'Ongoing',
+              AppLocalizations.of(context)!.ongoing,
             ),
           ),
         ],
@@ -1347,7 +1355,7 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
         children: [
           Expanded(
             child: _buildQuickAccessCard(
-              'Home',
+              AppLocalizations.of(context)!.home,
               Icons.home,
               Colors.blue,
               () => setState(() => _currentIndex = 0),
@@ -1356,7 +1364,7 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
           const SizedBox(width: 12),
           Expanded(
             child: _buildQuickAccessCard(
-              'Budget',
+              AppLocalizations.of(context)!.budget,
               Icons.account_balance,
               Colors.green,
               () => Navigator.push(
@@ -1368,7 +1376,7 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
           const SizedBox(width: 12),
           Expanded(
             child: _buildQuickAccessCard(
-              'Tenders',
+              AppLocalizations.of(context)!.tenders,
               Icons.shopping_cart,
               Colors.orange,
               () => Navigator.push(
@@ -1380,7 +1388,7 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
           const SizedBox(width: 12),
           Expanded(
             child: _buildQuickAccessCard(
-              'Dashboard',
+              AppLocalizations.of(context)!.dashboard,
               Icons.dashboard,
               Colors.purple,
               _navigateToDashboard,
@@ -1519,74 +1527,74 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
           Column(
             children: [
               _buildServiceCard(
-                'Community',
+                AppLocalizations.of(context)!.community,
                 Icons.people,
                 Colors.blue,
                 () => Navigator.pushNamed(context, '/communities'),
-                description: 'Connect with local communities and civic groups',
+                description: AppLocalizations.of(context)!.connectWithLocalCommunitiesAndCivicGroups,
               ),
               const SizedBox(height: 12),
               _buildServiceCard(
-                'Concerns',
+                AppLocalizations.of(context)!.concerns,
                 Icons.report_problem,
                 Colors.red,
                 () => Navigator.push(
                   context,
                   MaterialPageRoute(builder: (context) => const PublicConcernsScreen()),
                 ),
-                description: 'Report and track public issues and concerns',
+                description: AppLocalizations.of(context)!.reportAndTrackPublicIssuesAndConcerns,
               ),
               const SizedBox(height: 12),
               _buildServiceCard(
-                'News',
+                AppLocalizations.of(context)!.news,
                 Icons.article,
                 Colors.green,
                 () => Navigator.pushNamed(context, '/news'),
-                description: 'Stay updated with latest government news and announcements',
+                description: AppLocalizations.of(context)!.stayUpdatedWithLatestGovernmentNewsAndAnnouncements,
               ),
               const SizedBox(height: 12),
               _buildServiceCard(
-                'Reports',
+                AppLocalizations.of(context)!.reports,
                 Icons.analytics,
                 Colors.purple,
                 () => Navigator.push(
                   context,
                   MaterialPageRoute(builder: (context) => const ReportsAnalyticsScreen()),
                 ),
-                description: 'View detailed analytics and government reports',
+                description: AppLocalizations.of(context)!.viewDetailedAnalyticsAndGovernmentReports,
               ),
               const SizedBox(height: 12),
               _buildServiceCard(
-                'Budget',
+                AppLocalizations.of(context)!.budget,
                 Icons.account_balance,
                 Colors.orange,
                 () => Navigator.push(
                   context,
                   MaterialPageRoute(builder: (context) => const BudgetViewerScreen()),
                 ),
-                description: 'Track government budget allocations and spending',
+                description: AppLocalizations.of(context)!.trackGovernmentBudgetAllocationsAndSpending,
               ),
               const SizedBox(height: 12),
               _buildServiceCard(
-                'Tenders',
+                AppLocalizations.of(context)!.tenders,
                 Icons.shopping_cart,
                 Colors.teal,
                 () => Navigator.push(
                   context,
                   MaterialPageRoute(builder: (context) => const PublicTenderViewerScreen()),
                 ),
-                description: 'Browse and apply for government tenders and contracts',
+                description: AppLocalizations.of(context)!.browseAndApplyForGovernmentTendersAndContracts,
               ),
               const SizedBox(height: 12),
               _buildServiceCard(
-                'Projects',
+                AppLocalizations.of(context)!.projects,
                 Icons.work,
                 Colors.indigo,
                 () => Navigator.push(
                   context,
                   MaterialPageRoute(builder: (context) => const OngoingTendersScreen()),
                 ),
-                description: 'View ongoing and completed government projects',
+                description: AppLocalizations.of(context)!.viewOngoingAndCompletedGovernmentProjects,
               ),
             ],
           ),
@@ -1762,9 +1770,9 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                'News',
-                style: TextStyle(
+              Text(
+                AppLocalizations.of(context)!.news,
+                style: const TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
                   color: Colors.black87,
@@ -1772,7 +1780,7 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
               ),
               TextButton(
                 onPressed: () => Navigator.pushNamed(context, '/news'),
-                child: const Text('See all'),
+                child: Text(AppLocalizations.of(context)!.seeAll),
               ),
             ],
           ),
@@ -1991,9 +1999,9 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                'Projects',
-                style: TextStyle(
+              Text(
+                AppLocalizations.of(context)!.projects,
+                style: const TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
                   color: Colors.black87,
@@ -2004,7 +2012,7 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
                   context,
                   MaterialPageRoute(builder: (context) => const OngoingTendersScreen()),
                 ),
-                child: const Text('See all'),
+                child: Text(AppLocalizations.of(context)!.seeAll),
               ),
             ],
           ),
@@ -2253,9 +2261,9 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                'Upcoming Events',
-                style: TextStyle(
+              Text(
+                AppLocalizations.of(context)!.upcomingEvents,
+                style: const TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
                   color: Colors.black87,
@@ -2266,7 +2274,7 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
                   context,
                   MaterialPageRoute(builder: (context) => const PublicTenderViewerScreen()),
                 ),
-                child: const Text('See all'),
+                child: Text(AppLocalizations.of(context)!.seeAll),
               ),
             ],
           ),
@@ -2482,9 +2490,9 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                'Most Supported Concerns',
-                style: TextStyle(
+              Text(
+                AppLocalizations.of(context)!.priorityConcerns,
+                style: const TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
                   color: Colors.black87,
@@ -2495,7 +2503,7 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
                   context,
                   MaterialPageRoute(builder: (context) => const PublicConcernsScreen()),
                 ),
-                child: const Text('See all'),
+                child: Text(AppLocalizations.of(context)!.seeAll),
               ),
             ],
           ),
@@ -2528,6 +2536,42 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
 
   Map<String, dynamic> _getConcernCategoryInfo(String category) {
     switch (category.toLowerCase()) {
+      case 'budget':
+        return {
+          'icon': Icons.account_balance_wallet,
+          'color': Colors.green,
+        };
+      case 'tender':
+        return {
+          'icon': Icons.gavel,
+          'color': Colors.blue,
+        };
+      case 'community':
+        return {
+          'icon': Icons.people,
+          'color': Colors.purple,
+        };
+      case 'system':
+        return {
+          'icon': Icons.settings,
+          'color': Colors.orange,
+        };
+      case 'corruption':
+        return {
+          'icon': Icons.warning,
+          'color': Colors.red,
+        };
+      case 'transparency':
+        return {
+          'icon': Icons.visibility,
+          'color': Colors.cyan,
+        };
+      case 'other':
+        return {
+          'icon': Icons.more_horiz,
+          'color': Colors.grey,
+        };
+      // Legacy categories for backward compatibility
       case 'infrastructure':
         return {
           'icon': Icons.construction,
@@ -3150,7 +3194,18 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
           ),
           child: IconButton(
             icon: const Icon(Icons.notifications_outlined, size: 20),
-            onPressed: () => _showFeatureComingSoon('Notifications'),
+            onPressed: () {
+              showGeneralDialog(
+                context: context,
+                barrierDismissible: true,
+                barrierLabel: 'Notifications',
+                transitionDuration: const Duration(milliseconds: 300),
+                pageBuilder: (_, __, ___) => const NotificationsDrawer(),
+                transitionBuilder: (context, anim1, anim2, child) {
+                  return FadeTransition(opacity: anim1, child: child);
+                },
+              );
+            },
             tooltip: 'Notifications',
           ),
         ),
@@ -3232,7 +3287,7 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
                 ),
                 _buildDrawerItem(
                   icon: Icons.account_balance,
-                  title: 'Budget Overview',
+                  title: AppLocalizations.of(context)!.budgetOverview,
                   onTap: () {
                     Navigator.pop(context);
                     Navigator.push(
@@ -3243,7 +3298,7 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
                 ),
                 _buildDrawerItem(
                   icon: Icons.shopping_cart,
-                  title: 'Tenders',
+                  title: AppLocalizations.of(context)!.tenders,
                   onTap: () {
                     Navigator.pop(context);
                     Navigator.push(
@@ -3254,7 +3309,7 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
                 ),
                 _buildDrawerItem(
                   icon: Icons.article,
-                  title: 'News & Media',
+                  title: AppLocalizations.of(context)!.newsMedia,
                   onTap: () {
                     Navigator.pop(context);
                     Navigator.pushNamed(context, '/news');
@@ -3262,7 +3317,7 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
                 ),
                 _buildDrawerItem(
                   icon: Icons.forum,
-                  title: 'Media Hub',
+                  title: AppLocalizations.of(context)!.mediaHub,
                   onTap: () {
                     Navigator.pop(context);
                     Navigator.pushNamed(context, '/media-hub');
@@ -3270,7 +3325,7 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
                 ),
                 _buildDrawerItem(
                   icon: Icons.people,
-                  title: 'Communities',
+                  title: AppLocalizations.of(context)!.communities,
                   onTap: () {
                     Navigator.pop(context);
                     Navigator.push(
@@ -3281,7 +3336,7 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
                 ),
                 _buildDrawerItem(
                   icon: Icons.analytics,
-                  title: 'Reports & Analytics',
+                  title: AppLocalizations.of(context)!.reportsAnalytics,
                   onTap: () {
                     Navigator.pop(context);
                     Navigator.push(
@@ -3292,7 +3347,7 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
                 ),
                 _buildDrawerItem(
                   icon: Icons.report_problem,
-                  title: 'Raise Concerns',
+                  title: AppLocalizations.of(context)!.raiseConcerns,
                   onTap: () => Navigator.push(
                     context,
                     MaterialPageRoute(
@@ -3302,7 +3357,7 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
                 ),
                 _buildDrawerItem(
                   icon: Icons.track_changes,
-                  title: 'My Concerns',
+                  title: AppLocalizations.of(context)!.myConcerns,
                   onTap: () => Navigator.push(
                     context,
                     MaterialPageRoute(
@@ -3312,7 +3367,7 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
                 ),
                 _buildDrawerItem(
                   icon: Icons.people_alt,
-                  title: 'View Public Concerns',
+                  title: AppLocalizations.of(context)!.viewPublicConcerns,
                   onTap: () => Navigator.push(
                     context,
                     MaterialPageRoute(
@@ -3331,7 +3386,7 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
                 const Divider(),
                 _buildDrawerItem(
                   icon: Icons.info,
-                  title: 'About',
+                  title: AppLocalizations.of(context)!.about,
                   onTap: () {
                     Navigator.pop(context);
                     Navigator.push(
@@ -3429,7 +3484,7 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
                   size: _currentIndex == 0 ? 24 : 22,
                 ),
               ),
-              label: 'Home',
+              label: AppLocalizations.of(context)!.home,
             ),
             BottomNavigationBarItem(
               icon: AnimatedContainer(
@@ -3444,7 +3499,7 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
                   size: _currentIndex == 1 ? 24 : 22,
                 ),
               ),
-              label: 'Budget',
+              label: AppLocalizations.of(context)!.budget,
             ),
             BottomNavigationBarItem(
               icon: AnimatedContainer(
@@ -3459,7 +3514,7 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
                   size: _currentIndex == 2 ? 24 : 22,
                 ),
               ),
-              label: 'Tenders',
+              label: AppLocalizations.of(context)!.tenders,
             ),
             BottomNavigationBarItem(
               icon: AnimatedContainer(
@@ -3474,7 +3529,7 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
                   size: _currentIndex == 3 ? 24 : 22,
                 ),
               ),
-              label: 'Dashboard',
+              label: AppLocalizations.of(context)!.dashboard,
             ),
           ],
         ),
@@ -3514,13 +3569,14 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
         return _buildHomePage();
       case 3:
         // Navigate to Dashboard
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          _navigateToDashboard();
-          // Reset to home page after navigation
-          setState(() {
-            _currentIndex = 0;
+        if (!_isNavigating) {
+          _isNavigating = true;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              _navigateToDashboard();
+            }
           });
-        });
+        }
         return _buildHomePage();
       default:
         return _buildHomePage();
@@ -3528,49 +3584,55 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
   }
 
   Widget _buildHomePage() {
-    return GestureDetector(
-      onTap: () {
-        // Close search results when tapping outside
-        if (_showSearchResults) {
-          setState(() {
-            _showSearchResults = false;
-          });
-          _searchFocusNode.unfocus();
-        }
-      },
-      child: RefreshIndicator(
-        onRefresh: _refreshData,
-        child: SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-            // Government Portal Header with Image
-            _buildGovernmentHeader(),
-            
-            // Quick Access Icons (4 horizontal squares)
-            _buildQuickAccessIcons(),
-            
-            // Services Section
-            _buildServicesSection(),
-            
-            // News Section with Images
-            _buildNewsSection(),
-            
-            // Projects Section (Awarded Tenders)
-            _buildProjectsSection(),
-            
-            // Upcoming Events Section (Top Tenders)
-            _buildUpcomingEventsSection(),
-            
-            // Concerns Section
-            _buildConcernsSection(),
-            
-            const SizedBox(height: 20),
-          ],
+    return Stack(
+      children: [
+        // Main content
+        GestureDetector(
+          onTap: () {
+            // Close search results when tapping outside
+            if (_showSearchResults) {
+              setState(() {
+                _showSearchResults = false;
+              });
+              _searchFocusNode.unfocus();
+            }
+          },
+          child: RefreshIndicator(
+            onRefresh: _refreshData,
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                // Government Portal Header with Image
+                _buildGovernmentHeader(),
+                
+                // Quick Access Icons (4 horizontal squares)
+                _buildQuickAccessIcons(),
+                
+                // Services Section
+                _buildServicesSection(),
+                
+                // News Section with Images
+                _buildNewsSection(),
+                
+                // Projects Section (Awarded Tenders)
+                _buildProjectsSection(),
+                
+                // Upcoming Events Section (Top Tenders)
+                _buildUpcomingEventsSection(),
+                
+                // Concerns Section
+                _buildConcernsSection(),
+                
+                const SizedBox(height: 20),
+                ],
+              ),
+            ),
+          ),
         ),
-      ),
-      ),
+        
+      ],
     );
   }
 
@@ -3588,11 +3650,11 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
                 return Transform.scale(
                   scale: _pulseAnimation.value,
                   child: _buildStatCard(
-                    'Allocations',
+                    AppLocalizations.of(context)!.allocations,
                     allocationsCount.toString(),
                     Icons.account_balance_wallet,
                     Colors.orange,
-                    'Budget items',
+                    AppLocalizations.of(context)!.budgetItems,
                   ),
                 );
               },
@@ -3624,11 +3686,11 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
                 return Transform.scale(
                   scale: _pulseAnimation.value * 0.9,
                   child: _buildStatCard(
-                    'Projects',
+                    AppLocalizations.of(context)!.projects,
                     projectsCount.toString(),
                     Icons.work,
                     Colors.green,
-                    'Ongoing',
+                    AppLocalizations.of(context)!.ongoing,
                   ),
                 );
               },
@@ -3777,13 +3839,13 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
                       Widget text;
                       switch (value.toInt()) {
                         case 0:
-                          text = const Text('Allocations', style: style);
+                          text = Text(AppLocalizations.of(context)!.allocations, style: style);
                           break;
                         case 1:
-                          text = const Text('Tenders', style: style);
+                          text = Text(AppLocalizations.of(context)!.tenders, style: style);
                           break;
                         case 2:
-                          text = const Text('Projects', style: style);
+                          text = Text(AppLocalizations.of(context)!.projects, style: style);
                           break;
                         default:
                           text = const Text('', style: style);
@@ -3891,16 +3953,16 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
                       Widget text;
                       switch (value.toInt()) {
                         case 0:
-                          text = const Text('Week 1', style: style);
+                          text = Text(AppLocalizations.of(context)!.weekOne, style: style);
                           break;
                         case 1:
-                          text = const Text('Week 2', style: style);
+                          text = Text(AppLocalizations.of(context)!.weekTwo, style: style);
                           break;
                         case 2:
-                          text = const Text('Week 3', style: style);
+                          text = Text(AppLocalizations.of(context)!.weekThree, style: style);
                           break;
                         case 3:
-                          text = const Text('Week 4', style: style);
+                          text = Text(AppLocalizations.of(context)!.weekFour, style: style);
                           break;
                         default:
                           text = const Text('', style: style);
@@ -3963,7 +4025,7 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
-        title: const Text('Account Pending Approval'),
+        title: Text(AppLocalizations.of(context)!.accountPendingApproval),
         backgroundColor: Colors.orange,
         foregroundColor: Colors.white,
         elevation: 0,
@@ -3992,7 +4054,7 @@ class _CommonHomeScreenState extends State<CommonHomeScreen>
               
               // Title
               Text(
-                'Account Pending Approval',
+                AppLocalizations.of(context)!.accountPendingApproval,
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,

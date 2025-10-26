@@ -154,6 +154,12 @@ abstract class AppLocalizations {
   /// **'Dashboard'**
   String get dashboard;
 
+  /// No description provided for @communityLeaderDashboard.
+  ///
+  /// In en, this message translates to:
+  /// **'Community Leader Dashboard'**
+  String get communityLeaderDashboard;
+
   /// No description provided for @profile.
   ///
   /// In en, this message translates to:
@@ -1809,6 +1815,396 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Tender & Budget Overview'**
   String get tenderBudgetOverview;
+
+  /// No description provided for @stayUpdatedWithLatestNewsAndMedia.
+  ///
+  /// In en, this message translates to:
+  /// **'Stay updated with latest news and media'**
+  String get stayUpdatedWithLatestNewsAndMedia;
+
+  /// No description provided for @accessMediaResourcesAndForums.
+  ///
+  /// In en, this message translates to:
+  /// **'Access media resources and forums'**
+  String get accessMediaResourcesAndForums;
+
+  /// No description provided for @joinAndManageCommunityGroups.
+  ///
+  /// In en, this message translates to:
+  /// **'Join and manage community groups'**
+  String get joinAndManageCommunityGroups;
+
+  /// No description provided for @viewDetailedReportsAndAnalytics.
+  ///
+  /// In en, this message translates to:
+  /// **'View detailed reports and analytics'**
+  String get viewDetailedReportsAndAnalytics;
+
+  /// No description provided for @submitAndReportPublicConcerns.
+  ///
+  /// In en, this message translates to:
+  /// **'Submit and report public concerns'**
+  String get submitAndReportPublicConcerns;
+
+  /// No description provided for @trackYourSubmittedConcerns.
+  ///
+  /// In en, this message translates to:
+  /// **'Track your submitted concerns'**
+  String get trackYourSubmittedConcerns;
+
+  /// No description provided for @browseAllPublicConcerns.
+  ///
+  /// In en, this message translates to:
+  /// **'Browse all public concerns'**
+  String get browseAllPublicConcerns;
+
+  /// No description provided for @configureAppSettingsAndPreferences.
+  ///
+  /// In en, this message translates to:
+  /// **'Configure app settings and preferences'**
+  String get configureAppSettingsAndPreferences;
+
+  /// No description provided for @learnMoreAboutCivicLense.
+  ///
+  /// In en, this message translates to:
+  /// **'Learn more about CivicLense'**
+  String get learnMoreAboutCivicLense;
+
+  /// No description provided for @ongoing.
+  ///
+  /// In en, this message translates to:
+  /// **'Ongoing'**
+  String get ongoing;
+
+  /// No description provided for @weekOne.
+  ///
+  /// In en, this message translates to:
+  /// **'Week 1'**
+  String get weekOne;
+
+  /// No description provided for @weekTwo.
+  ///
+  /// In en, this message translates to:
+  /// **'Week 2'**
+  String get weekTwo;
+
+  /// No description provided for @weekThree.
+  ///
+  /// In en, this message translates to:
+  /// **'Week 3'**
+  String get weekThree;
+
+  /// No description provided for @weekFour.
+  ///
+  /// In en, this message translates to:
+  /// **'Week 4'**
+  String get weekFour;
+
+  /// No description provided for @civicLense.
+  ///
+  /// In en, this message translates to:
+  /// **'Civic Lense'**
+  String get civicLense;
+
+  /// No description provided for @budgetAllocations.
+  ///
+  /// In en, this message translates to:
+  /// **'Budget Allocations'**
+  String get budgetAllocations;
+
+  /// No description provided for @recentTenders.
+  ///
+  /// In en, this message translates to:
+  /// **'Recent Tenders'**
+  String get recentTenders;
+
+  /// No description provided for @noBudgetAllocationsAvailable.
+  ///
+  /// In en, this message translates to:
+  /// **'No budget allocations available'**
+  String get noBudgetAllocationsAvailable;
+
+  /// No description provided for @noRecentTenders.
+  ///
+  /// In en, this message translates to:
+  /// **'No recent tenders'**
+  String get noRecentTenders;
+
+  /// No description provided for @unknown.
+  ///
+  /// In en, this message translates to:
+  /// **'Unknown'**
+  String get unknown;
+
+  /// No description provided for @noDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'No description'**
+  String get noDescription;
+
+  /// No description provided for @tenderManagement.
+  ///
+  /// In en, this message translates to:
+  /// **'Tender Management'**
+  String get tenderManagement;
+
+  /// No description provided for @viewAndMonitorGovernmentTenders.
+  ///
+  /// In en, this message translates to:
+  /// **'View and monitor government tenders'**
+  String get viewAndMonitorGovernmentTenders;
+
+  /// No description provided for @reportIssuesAndTrackResolution.
+  ///
+  /// In en, this message translates to:
+  /// **'Report issues and track their resolution'**
+  String get reportIssuesAndTrackResolution;
+
+  /// No description provided for @viewReports.
+  ///
+  /// In en, this message translates to:
+  /// **'View Reports'**
+  String get viewReports;
+
+  /// No description provided for @accessTransparencyReportsAndAnalytics.
+  ///
+  /// In en, this message translates to:
+  /// **'Access transparency reports and analytics'**
+  String get accessTransparencyReportsAndAnalytics;
+
+  /// No description provided for @professionalToolsForInvestigativeReporting.
+  ///
+  /// In en, this message translates to:
+  /// **'Professional tools for investigative reporting'**
+  String get professionalToolsForInvestigativeReporting;
+
+  /// No description provided for @coreTools.
+  ///
+  /// In en, this message translates to:
+  /// **'Core Tools'**
+  String get coreTools;
+
+  /// No description provided for @publishArticle.
+  ///
+  /// In en, this message translates to:
+  /// **'Publish Article'**
+  String get publishArticle;
+
+  /// No description provided for @createAndPublishInvestigativeReports.
+  ///
+  /// In en, this message translates to:
+  /// **'Create and publish investigative reports'**
+  String get createAndPublishInvestigativeReports;
+
+  /// No description provided for @saveAndOrganizeArticles.
+  ///
+  /// In en, this message translates to:
+  /// **'Save and organize articles'**
+  String get saveAndOrganizeArticles;
+
+  /// No description provided for @browseLatestArticles.
+  ///
+  /// In en, this message translates to:
+  /// **'Browse latest articles'**
+  String get browseLatestArticles;
+
+  /// No description provided for @tenderWatch.
+  ///
+  /// In en, this message translates to:
+  /// **'Tender Watch'**
+  String get tenderWatch;
+
+  /// No description provided for @monitorGovernmentTenders.
+  ///
+  /// In en, this message translates to:
+  /// **'Monitor government tenders'**
+  String get monitorGovernmentTenders;
+
+  /// No description provided for @recentArticles.
+  ///
+  /// In en, this message translates to:
+  /// **'Recent Articles'**
+  String get recentArticles;
+
+  /// No description provided for @recentSavedArticles.
+  ///
+  /// In en, this message translates to:
+  /// **'Recent Saved Articles'**
+  String get recentSavedArticles;
+
+  /// No description provided for @communityLeaderTools.
+  ///
+  /// In en, this message translates to:
+  /// **'Community Leader Tools'**
+  String get communityLeaderTools;
+
+  /// No description provided for @manageCommunityGroupsAndInitiatives.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage community groups and initiatives'**
+  String get manageCommunityGroupsAndInitiatives;
+
+  /// No description provided for @organizeEvents.
+  ///
+  /// In en, this message translates to:
+  /// **'Organize Events'**
+  String get organizeEvents;
+
+  /// No description provided for @planAndCoordinateCommunityEvents.
+  ///
+  /// In en, this message translates to:
+  /// **'Plan and coordinate community events'**
+  String get planAndCoordinateCommunityEvents;
+
+  /// No description provided for @engagementTools.
+  ///
+  /// In en, this message translates to:
+  /// **'Engagement Tools'**
+  String get engagementTools;
+
+  /// No description provided for @toolsForCommunityEngagement.
+  ///
+  /// In en, this message translates to:
+  /// **'Tools for community engagement'**
+  String get toolsForCommunityEngagement;
+
+  /// No description provided for @researchTools.
+  ///
+  /// In en, this message translates to:
+  /// **'Research Tools'**
+  String get researchTools;
+
+  /// No description provided for @researchData.
+  ///
+  /// In en, this message translates to:
+  /// **'Research Data'**
+  String get researchData;
+
+  /// No description provided for @accessAnonymizedDatasetsForResearch.
+  ///
+  /// In en, this message translates to:
+  /// **'Access anonymized datasets for research'**
+  String get accessAnonymizedDatasetsForResearch;
+
+  /// No description provided for @generateReports.
+  ///
+  /// In en, this message translates to:
+  /// **'Generate Reports'**
+  String get generateReports;
+
+  /// No description provided for @createResearchReportsAndAnalytics.
+  ///
+  /// In en, this message translates to:
+  /// **'Create research reports and analytics'**
+  String get createResearchReportsAndAnalytics;
+
+  /// No description provided for @projectConvertedFromTender.
+  ///
+  /// In en, this message translates to:
+  /// **'Project converted from tender'**
+  String get projectConvertedFromTender;
+
+  /// No description provided for @central.
+  ///
+  /// In en, this message translates to:
+  /// **'Central'**
+  String get central;
+
+  /// No description provided for @active.
+  ///
+  /// In en, this message translates to:
+  /// **'Active'**
+  String get active;
+
+  /// No description provided for @upcomingEvents.
+  ///
+  /// In en, this message translates to:
+  /// **'Upcoming Events'**
+  String get upcomingEvents;
+
+  /// No description provided for @mostSupportedConcerns.
+  ///
+  /// In en, this message translates to:
+  /// **'Most Supported Concerns'**
+  String get mostSupportedConcerns;
+
+  /// No description provided for @noTendersAvailable.
+  ///
+  /// In en, this message translates to:
+  /// **'No tenders available'**
+  String get noTendersAvailable;
+
+  /// No description provided for @searchTendersPlaceholder.
+  ///
+  /// In en, this message translates to:
+  /// **'Search tenders...'**
+  String get searchTendersPlaceholder;
+
+  /// No description provided for @searchAcrossServicesPlaceholder.
+  ///
+  /// In en, this message translates to:
+  /// **'Search across services'**
+  String get searchAcrossServicesPlaceholder;
+
+  /// No description provided for @locationNotSpecified.
+  ///
+  /// In en, this message translates to:
+  /// **'Location not specified'**
+  String get locationNotSpecified;
+
+  /// No description provided for @closed.
+  ///
+  /// In en, this message translates to:
+  /// **'Closed'**
+  String get closed;
+
+  /// No description provided for @bidReceived.
+  ///
+  /// In en, this message translates to:
+  /// **'bid received'**
+  String get bidReceived;
+
+  /// No description provided for @bidsReceived.
+  ///
+  /// In en, this message translates to:
+  /// **'bids received'**
+  String get bidsReceived;
+
+  /// No description provided for @daysLeft.
+  ///
+  /// In en, this message translates to:
+  /// **'days left'**
+  String get daysLeft;
+
+  /// No description provided for @dueToday.
+  ///
+  /// In en, this message translates to:
+  /// **'Due today'**
+  String get dueToday;
+
+  /// No description provided for @dueTomorrow.
+  ///
+  /// In en, this message translates to:
+  /// **'Due tomorrow'**
+  String get dueTomorrow;
+
+  /// No description provided for @invalidDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Invalid date'**
+  String get invalidDate;
+
+  /// No description provided for @awarded.
+  ///
+  /// In en, this message translates to:
+  /// **'Awarded'**
+  String get awarded;
+
+  /// No description provided for @cancelled.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancelled'**
+  String get cancelled;
 }
 
 class _AppLocalizationsDelegate

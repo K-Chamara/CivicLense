@@ -77,24 +77,24 @@ class _CommunityPostsScreenState extends State<CommunityPostsScreen> {
             itemBuilder: (context) {
               List<PopupMenuItem<String>> items = [];
               
-              // Community creator (can delete AND leave)
+              // Community creator - show disband option
               if (_isCreator && _canDeleteCommunity) {
                 items.add(
                   const PopupMenuItem(
-                    value: 'delete',
+                    value: 'disband',
                     child: Row(
                       children: [
                         Icon(Icons.delete_forever, color: Colors.red),
                         SizedBox(width: 8),
-                        Text('Remove Community', style: TextStyle(color: Colors.red)),
+                        Text('Disband Community', style: TextStyle(color: Colors.red)),
                       ],
                     ),
                   ),
                 );
               }
               
-              // Show leave option if user is a member
-              if (_isMember) {
+              // Show leave option if user is a member but NOT the creator
+              if (_isMember && !_isCreator) {
                 items.add(
                   const PopupMenuItem(
                     value: 'leave',
@@ -128,113 +128,117 @@ class _CommunityPostsScreenState extends State<CommunityPostsScreen> {
           ),
         ],
       ),
-      body: StreamBuilder<List<CommunityPost>>(
-        stream: _communityService.getCommunityPosts(widget.community.id),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(
-              child: CircularProgressIndicator(),
-            );
-          }
+      body: _isMember || _isCreator
+          ? StreamBuilder<List<CommunityPost>>(
+              stream: _communityService.getCommunityPosts(widget.community.id),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(
+                    child: CircularProgressIndicator(),
+                  );
+                }
 
-          if (snapshot.hasError) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.error_outline,
-                    size: 64,
-                    color: Colors.red[300],
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Error loading posts',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.red[700],
+                if (snapshot.hasError) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.error_outline,
+                          size: 64,
+                          color: Colors.red[300],
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Error loading posts',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.red[700],
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Exception: ${snapshot.error}',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.red[600],
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 16),
+                        ElevatedButton(
+                          onPressed: () {
+                            setState(() {});
+                          },
+                          child: const Text('Retry'),
+                        ),
+                      ],
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Exception: ${snapshot.error}',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.red[600],
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 16),
-                  ElevatedButton(
-                    onPressed: () {
-                      setState(() {});
-                    },
-                    child: const Text('Retry'),
-                  ),
-                ],
-              ),
-            );
-          }
+                  );
+                }
 
-          if (!snapshot.hasData || snapshot.data!.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.forum_outlined,
-                    size: 64,
-                    color: Colors.grey[400],
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'No posts yet',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.grey[600],
+                if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.forum_outlined,
+                          size: 64,
+                          color: Colors.grey[400],
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'No posts yet',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Be the first to start a discussion!',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey[500],
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Be the first to start a discussion!',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey[500],
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              ),
-            );
-          }
+                  );
+                }
 
-          final posts = snapshot.data!;
+                final posts = snapshot.data!;
 
-          return ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: posts.length,
-            itemBuilder: (context, index) {
-              final post = posts[index];
-              return _buildPostCard(post);
-            },
-          );
-        },
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => CreateCommunityPostScreen(community: widget.community),
-            ),
-          );
-        },
-        backgroundColor: Colors.blue,
-        child: const Icon(Icons.add, color: Colors.white),
-        tooltip: 'Create Post',
-      ),
+                return ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: posts.length,
+                  itemBuilder: (context, index) {
+                    final post = posts[index];
+                    return _buildPostCard(post);
+                  },
+                );
+              },
+            )
+          : _buildJoinCommunityScreen(),
+      floatingActionButton: (_isMember || _isCreator)
+          ? FloatingActionButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => CreateCommunityPostScreen(community: widget.community),
+                  ),
+                );
+              },
+              backgroundColor: Colors.blue,
+              child: const Icon(Icons.add, color: Colors.white),
+              tooltip: 'Create Post',
+            )
+          : null,
     );
   }
 
@@ -483,6 +487,207 @@ class _CommunityPostsScreenState extends State<CommunityPostsScreen> {
     );
   }
 
+  Widget _buildJoinCommunityScreen() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // Lock Icon
+            Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                color: Colors.blue.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(40),
+              ),
+              child: Icon(
+                Icons.lock_outline,
+                size: 40,
+                color: Colors.blue.shade400,
+              ),
+            ),
+            const SizedBox(height: 24),
+            
+            // Title
+            Text(
+              'Join ${widget.community.name}',
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey.shade800,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            
+            // Description
+            Text(
+              'You need to join this community to view and participate in discussions.',
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.grey.shade600,
+                height: 1.5,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 32),
+            
+            // Community Info Card
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.grey.withOpacity(0.1),
+                    spreadRadius: 1,
+                    blurRadius: 5,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Column(
+                children: [
+                  // Community Description
+                  Text(
+                    widget.community.description,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey.shade700,
+                      height: 1.4,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
+                  
+                  // Stats
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
+                      _buildStatItem(
+                        '${widget.community.memberCount}',
+                        'Members',
+                        Icons.people,
+                      ),
+                      _buildStatItem(
+                        '${widget.community.postCount}',
+                        'Posts',
+                        Icons.forum,
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 32),
+            
+            // Join Button
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: _joinCommunity,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: const Text(
+                  'Join Community',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            
+            // Back Button
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(
+                'Go Back',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey.shade600,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatItem(String value, String label, IconData icon) {
+    return Column(
+      children: [
+        Icon(
+          icon,
+          color: Colors.blue.shade400,
+          size: 20,
+        ),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: Colors.grey.shade800,
+          ),
+        ),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            color: Colors.grey.shade600,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _joinCommunity() async {
+    try {
+      final success = await _communityService.joinCommunity(widget.community.id);
+      
+      if (success && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Successfully joined ${widget.community.name}!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        
+        // Refresh the screen to show posts
+        _checkPermissions();
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to join community. Please try again.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error joining community: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   String _formatDate(DateTime date) {
     final now = DateTime.now();
     final difference = now.difference(date);
@@ -576,20 +781,34 @@ class _CommunityPostsScreenState extends State<CommunityPostsScreen> {
                     }
 
                     if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                      return const Center(
-                        child: Text('No comments yet'),
+                      return Column(
+                        children: [
+                          const Expanded(
+                            child: Center(
+                              child: Text('No comments yet'),
+                            ),
+                          ),
+                          _buildCommentInput(post),
+                        ],
                       );
                     }
 
                     final comments = snapshot.data!;
-                    return ListView.builder(
-                      controller: scrollController,
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      itemCount: comments.length,
-                      itemBuilder: (context, index) {
-                        final comment = comments[index];
-                        return _buildCommentItem(comment);
-                      },
+                    return Column(
+                      children: [
+                        Expanded(
+                          child: ListView.builder(
+                            controller: scrollController,
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            itemCount: comments.length,
+                            itemBuilder: (context, index) {
+                              final comment = comments[index];
+                              return _buildCommentItem(comment);
+                            },
+                          ),
+                        ),
+                        _buildCommentInput(post),
+                      ],
                     );
                   },
                 ),
@@ -652,9 +871,16 @@ class _CommunityPostsScreenState extends State<CommunityPostsScreen> {
     );
   }
 
+  Widget _buildCommentInput(CommunityPost post) {
+    return _CommentInputWidget(
+      post: post,
+      communityService: _communityService,
+    );
+  }
+
   void _handleMenuAction(String action) {
-    if (action == 'delete') {
-      _showDeleteConfirmation();
+    if (action == 'disband') {
+      _showDisbandConfirmation();
     } else if (action == 'leave') {
       _showLeaveConfirmation();
     } else if (action == 'info') {
@@ -843,6 +1069,86 @@ class _CommunityPostsScreenState extends State<CommunityPostsScreen> {
     }
   }
 
+  void _showDisbandConfirmation() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.delete_forever, color: Colors.red[700]),
+            const SizedBox(width: 12),
+            const Text('Disband Community'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Are you sure you want to disband "${widget.community.name}"?',
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.red[50],
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.red[200]!),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.warning, color: Colors.red[700], size: 20),
+                      const SizedBox(width: 8),
+                      Text(
+                        'This action will:',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.red[700],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '• Delete the community permanently\n'
+                    '• Remove all posts and comments\n'
+                    '• Remove all members from the community\n'
+                    '• This action cannot be undone',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.red[600],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _disbandCommunity();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Disband Community'),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showLeaveConfirmation() {
     showDialog(
       context: context,
@@ -901,6 +1207,62 @@ class _CommunityPostsScreenState extends State<CommunityPostsScreen> {
         ],
       ),
     );
+  }
+
+  Future<void> _disbandCommunity() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    try {
+      // Show loading dialog
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const AlertDialog(
+          content: Row(
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(width: 16),
+              Text('Disbanding community...'),
+            ],
+          ),
+        ),
+      );
+
+      // Disband the community
+      await _communityService.disbandCommunity(widget.community.id, user.uid);
+
+      // Close loading dialog
+      if (mounted) Navigator.pop(context);
+
+      // Show success message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('✅ Community "${widget.community.name}" has been disbanded'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+
+      // Navigate back to community list
+      if (mounted) {
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      // Close loading dialog
+      if (mounted) Navigator.pop(context);
+
+      // Show error message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Error disbanding community: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _leaveCommunity() async {
@@ -1005,6 +1367,145 @@ class _CommunityPostsScreenState extends State<CommunityPostsScreen> {
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: const Text('Got it'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CommentInputWidget extends StatefulWidget {
+  final CommunityPost post;
+  final CommunityService communityService;
+
+  const _CommentInputWidget({
+    required this.post,
+    required this.communityService,
+  });
+
+  @override
+  State<_CommentInputWidget> createState() => _CommentInputWidgetState();
+}
+
+class _CommentInputWidgetState extends State<_CommentInputWidget> {
+  final TextEditingController _commentController = TextEditingController();
+  bool _isPosting = false;
+
+  @override
+  void dispose() {
+    _commentController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _postComment() async {
+    if (_commentController.text.trim().isEmpty || _isPosting) return;
+
+    setState(() {
+      _isPosting = true;
+    });
+
+    try {
+      await widget.communityService.createComment(
+        postId: widget.post.id,
+        content: _commentController.text.trim(),
+      );
+
+      // Clear the input field
+      _commentController.clear();
+
+      // Show success message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✅ Comment posted successfully!'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Error posting comment: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isPosting = false;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        border: Border(
+          top: BorderSide(color: Colors.grey[200]!),
+        ),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: TextField(
+              controller: _commentController,
+              decoration: InputDecoration(
+                hintText: 'Add a comment...',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(20),
+                  borderSide: BorderSide(color: Colors.grey[300]!),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(20),
+                  borderSide: BorderSide(color: Colors.grey[300]!),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(20),
+                  borderSide: const BorderSide(color: Colors.blue),
+                ),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
+                filled: true,
+                fillColor: Colors.white,
+              ),
+              maxLines: null,
+              textInputAction: TextInputAction.send,
+              onSubmitted: (value) {
+                if (value.trim().isNotEmpty && !_isPosting) {
+                  _postComment();
+                }
+              },
+              onChanged: (value) {
+                setState(() {}); // Rebuild to update button state
+              },
+            ),
+          ),
+          const SizedBox(width: 8),
+          IconButton(
+            onPressed: _isPosting || _commentController.text.trim().isEmpty
+                ? null
+                : _postComment,
+            icon: _isPosting
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.send, color: Colors.blue),
+            style: IconButton.styleFrom(
+              backgroundColor: Colors.blue.withOpacity(0.1),
+              shape: const CircleBorder(),
+            ),
           ),
         ],
       ),

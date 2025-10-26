@@ -480,6 +480,8 @@ class _BudgetItemsScreenState extends State<BudgetItemsScreen> with TickerProvid
                   try {
                     final item = BudgetItem(
                       id: DateTime.now().millisecondsSinceEpoch.toString(),
+                      categoryId: widget.category.id,
+                      subcategoryId: widget.subcategory.id,
                       name: nameController.text,
                       description: descriptionController.text,
                       allocatedAmount: double.parse(allocatedAmountController.text),
@@ -617,6 +619,8 @@ class _BudgetItemsScreenState extends State<BudgetItemsScreen> with TickerProvid
                   try {
                     final updatedItem = BudgetItem(
                       id: item.id,
+                      categoryId: widget.category.id,
+                      subcategoryId: widget.subcategory.id,
                       name: nameController.text,
                       description: descriptionController.text,
                       allocatedAmount: double.parse(allocatedAmountController.text),

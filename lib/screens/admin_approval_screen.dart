@@ -3,6 +3,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import '../services/notification_service.dart';
+import '../services/document_validation_ai_service.dart';
+import '../widgets/document_ai_validation_widget.dart';
 import 'document_viewer_screen.dart';
 
 class AdminApprovalScreen extends StatefulWidget {
@@ -19,6 +21,10 @@ class _AdminApprovalScreenState extends State<AdminApprovalScreen>
   String _selectedFilter = 'all';
   bool _isLoading = false;
   final NotificationService _notificationService = NotificationService();
+  
+  // AI Validation state
+  final Map<String, BatchValidationResult> _aiValidationResults = {};
+  final Map<String, bool> _isAnalyzing = {};
 
   @override
   void initState() {
@@ -153,6 +159,252 @@ class _AdminApprovalScreenState extends State<AdminApprovalScreen>
         );
       }
     }
+  }
+
+  /// AI Validate Documents
+  Future<void> _aiValidateDocuments(String userId, List<String> documentUrls, String userRole) async {
+    setState(() {
+      _isAnalyzing[userId] = true;
+    });
+
+    try {
+      print('🤖 Starting AI validation for user: $userId');
+      
+      final result = await DocumentValidationAIService.analyzeBatchDocuments(
+        documentUrls: documentUrls,
+        userRole: userRole,
+      );
+      
+      setState(() {
+        _aiValidationResults[userId] = result;
+        _isAnalyzing[userId] = false;
+      });
+      
+      // Show summary notification
+      if (mounted) {
+        final icon = result.overallRecommendation == 'APPROVE' 
+            ? Icons.check_circle
+            : result.overallRecommendation == 'REJECT'
+                ? Icons.cancel
+                : Icons.warning;
+        
+        final color = result.overallRecommendation == 'APPROVE'
+            ? Colors.green
+            : result.overallRecommendation == 'REJECT'
+                ? Colors.red
+                : Colors.orange;
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(icon, color: Colors.white),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'AI Recommendation: ${result.overallRecommendation}\n'
+                    'Confidence: ${(result.overallConfidence * 100).toStringAsFixed(0)}%',
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: color,
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      }
+      
+    } catch (e) {
+      print('❌ AI validation error: $e');
+      setState(() {
+        _isAnalyzing[userId] = false;
+      });
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('AI validation failed: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Widget _buildBatchValidationResults(BatchValidationResult result) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: result.overallRecommendation == 'APPROVE'
+              ? [Colors.green.shade700, Colors.green.shade900]
+              : result.overallRecommendation == 'REJECT'
+                  ? [Colors.red.shade700, Colors.red.shade900]
+                  : [Colors.orange.shade700, Colors.orange.shade900],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.psychology, color: Colors.white, size: 24),
+              SizedBox(width: 8),
+              Text(
+                '🤖 AI Validation Summary',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Recommendation: ${result.overallRecommendation}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Text(
+                      '${(result.overallConfidence * 100).toStringAsFixed(0)}%',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                LinearProgressIndicator(
+                  value: result.overallConfidence,
+                  backgroundColor: Colors.white24,
+                  valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    _buildStatChip('Total', result.totalDocuments.toString()),
+                    _buildStatChip('Analyzed', result.analyzedDocuments.toString()),
+                    if (result.failedDocuments > 0)
+                      _buildStatChip('Failed', result.failedDocuments.toString(), isError: true),
+                    if (result.hasHighRiskDocuments)
+                      _buildStatChip('⚠️', 'High Risk', isError: true),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          // Individual document results
+          ...result.individualResults.asMap().entries.map((entry) {
+            final index = entry.key;
+            final docResult = entry.value;
+            return ExpansionTile(
+              title: Text(
+                'Document ${index + 1}: ${docResult.verdict}',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              subtitle: Text(
+                'Risk: ${docResult.riskLevel.toUpperCase()} | Confidence: ${(docResult.confidenceScore * 100).toStringAsFixed(0)}%',
+                style: const TextStyle(color: Colors.white70, fontSize: 12),
+              ),
+              iconColor: Colors.white,
+              collapsedIconColor: Colors.white,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Document Type: ${docResult.documentType}',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Confidence: ${(docResult.confidenceScore * 100).toStringAsFixed(1)}%',
+                        style: const TextStyle(color: Colors.white70),
+                      ),
+                      Text(
+                        'Risk Level: ${docResult.riskLevel}',
+                        style: const TextStyle(color: Colors.white70),
+                      ),
+                      Text(
+                        'Verdict: ${docResult.verdict}',
+                        style: const TextStyle(color: Colors.white70),
+                      ),
+                      if (docResult.adminNotes.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          'Admin Notes: ${docResult.adminNotes}',
+                          style: const TextStyle(color: Colors.white70),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+            );
+          }),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatChip(String label, String value, {bool isError = false}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: isError ? Colors.red.withOpacity(0.3) : Colors.white.withOpacity(0.2),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        children: [
+          Text(
+            value,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          Text(
+            label,
+            style: const TextStyle(
+              color: Colors.white70,
+              fontSize: 11,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   String _getRoleDisplayName(String roleId) {
@@ -294,13 +546,42 @@ class _AdminApprovalScreenState extends State<AdminApprovalScreen>
             
             // Documents section
             if (documents.isNotEmpty) ...[
-              const Text(
-                'Uploaded Documents:',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.black87,
-                ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Uploaded Documents:',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black87,
+                    ),
+                  ),
+                  ElevatedButton.icon(
+                    onPressed: (_isAnalyzing[userId] ?? false)
+                        ? null
+                        : () => _aiValidateDocuments(userId, documents, userRole),
+                    icon: (_isAnalyzing[userId] ?? false)
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Icon(Icons.psychology, size: 18),
+                    label: Text(
+                      (_isAnalyzing[userId] ?? false) ? 'Analyzing...' : '🤖 AI Validate',
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.purple,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 8),
               ...documents.asMap().entries.map((entry) => 
@@ -340,6 +621,35 @@ class _AdminApprovalScreenState extends State<AdminApprovalScreen>
                   ),
                 ),
               ),
+              // AI Validation Results
+              if (_isAnalyzing[userId] ?? false)
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.purple.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.purple.withOpacity(0.3)),
+                  ),
+                  child: Row(
+                    children: [
+                      const CircularProgressIndicator(
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.purple),
+                      ),
+                      const SizedBox(width: 12),
+                      const Text(
+                        'AI is analyzing documents...',
+                        style: TextStyle(
+                          color: Colors.purple,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              if (_aiValidationResults.containsKey(userId) && !(_isAnalyzing[userId] ?? false)) ...[
+                const SizedBox(height: 12),
+                _buildBatchValidationResults(_aiValidationResults[userId]!),
+              ],
             ],
             
             const SizedBox(height: 16),

@@ -37,6 +37,7 @@ class CommunityService {
         'createdByName': creatorName,
         'createdAt': FieldValue.serverTimestamp(),
         'memberCount': 1,
+        'postCount': 0,
         'isActive': true,
         'rules': rules,
         'tags': tags,
@@ -103,9 +104,14 @@ class CommunityService {
     return _firestore
         .collection('communities')
         .where('createdBy', isEqualTo: userId)
-        .orderBy('createdAt', descending: true)
+        .where('isActive', isEqualTo: true)
         .snapshots()
-        .map((snapshot) => snapshot.docs.map((doc) => Community.fromFirestore(doc)).toList());
+        .map((snapshot) {
+          final communities = snapshot.docs.map((doc) => Community.fromFirestore(doc)).toList();
+          // Sort by creation date in descending order (newest first)
+          communities.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+          return communities;
+        });
   }
 
   // Join a community
@@ -153,6 +159,12 @@ class CommunityService {
       final user = _auth.currentUser;
       if (user == null) throw Exception('User not authenticated');
 
+      // Check if user is the creator of this community
+      final isCreator = await isCommunityCreator(communityId, user.uid);
+      if (isCreator) {
+        throw Exception('Community creators cannot leave their own community. Use disband instead.');
+      }
+
       // Remove from members collection
       final memberQuery = await _firestore
           .collection('community_members')
@@ -173,7 +185,7 @@ class CommunityService {
       return true;
     } catch (e) {
       print('❌ Error leaving community: $e');
-      return false;
+      rethrow;
     }
   }
 
@@ -247,7 +259,7 @@ class CommunityService {
       
       // Increment post count in community
       await _firestore.collection('communities').doc(communityId).update({
-        // Note: We'll need to add a postCount field to the Community model
+        'postCount': FieldValue.increment(1),
       });
 
       print('✅ Community post created successfully: ${docRef.id}');
@@ -320,9 +332,13 @@ class CommunityService {
         .collection('community_comments')
         .where('postId', isEqualTo: postId)
         .where('status', isEqualTo: 'active')
-        .orderBy('createdAt', descending: false)
         .snapshots()
-        .map((snapshot) => snapshot.docs.map((doc) => CommunityComment.fromFirestore(doc)).toList());
+        .map((snapshot) {
+          final comments = snapshot.docs.map((doc) => CommunityComment.fromFirestore(doc)).toList();
+          // Sort by creation date in ascending order (oldest first)
+          comments.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+          return comments;
+        });
   }
 
   // Create a comment
@@ -506,6 +522,71 @@ class CommunityService {
       print('✅ Community deleted successfully: $communityId');
     } catch (e) {
       print('❌ Error deleting community: $e');
+      rethrow;
+    }
+  }
+
+  // Check if user is the creator of a community
+  Future<bool> isCommunityCreator(String communityId, String userId) async {
+    try {
+      final communityDoc = await _firestore.collection('communities').doc(communityId).get();
+      if (!communityDoc.exists) return false;
+      
+      final communityData = communityDoc.data()!;
+      final createdBy = communityData['createdBy'] ?? '';
+      return createdBy == userId;
+    } catch (e) {
+      print('❌ Error checking community creator: $e');
+      return false;
+    }
+  }
+
+  // Disband community (delete community and remove all members)
+  Future<void> disbandCommunity(String communityId, String userId) async {
+    try {
+      // First check if user is the creator
+      final isCreator = await isCommunityCreator(communityId, userId);
+      if (!isCreator) {
+        throw Exception('Only the community creator can disband the community');
+      }
+
+      // Get community details to check if user is the creator
+      final communityDoc = await _firestore.collection('communities').doc(communityId).get();
+      if (!communityDoc.exists) {
+        throw Exception('Community not found');
+      }
+
+      // Delete all community posts first
+      final postsQuery = await _firestore
+          .collection('community_posts')
+          .where('communityId', isEqualTo: communityId)
+          .get();
+
+      final batch = _firestore.batch();
+      
+      // Delete all posts
+      for (final doc in postsQuery.docs) {
+        batch.delete(doc.reference);
+      }
+
+      // Delete all community members
+      final membersQuery = await _firestore
+          .collection('community_members')
+          .where('communityId', isEqualTo: communityId)
+          .get();
+
+      for (final doc in membersQuery.docs) {
+        batch.delete(doc.reference);
+      }
+
+      // Delete the community itself
+      batch.delete(_firestore.collection('communities').doc(communityId));
+
+      await batch.commit();
+      
+      print('✅ Community disbanded successfully: $communityId');
+    } catch (e) {
+      print('❌ Error disbanding community: $e');
       rethrow;
     }
   }

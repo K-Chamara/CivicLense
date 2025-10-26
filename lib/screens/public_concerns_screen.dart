@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/concern_models.dart';
 import '../services/concern_service.dart';
+import '../services/smart_priority_service.dart';
 import 'citizen_concern_detail_screen.dart';
 
 class PublicConcernsScreen extends StatefulWidget {
@@ -113,13 +114,24 @@ class _PublicConcernsScreenState extends State<PublicConcernsScreen>
                       color: _getCategoryColor(concern.category),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: Text(
-                      concern.category.name.toUpperCase(),
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                      ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          _getCategoryIcon(concern.category),
+                          color: Colors.white,
+                          size: 14,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          concern.category.name.toUpperCase(),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -300,6 +312,25 @@ class _PublicConcernsScreenState extends State<PublicConcernsScreen>
         return Colors.teal;
       case ConcernCategory.other:
         return Colors.grey;
+    }
+  }
+
+  IconData _getCategoryIcon(ConcernCategory category) {
+    switch (category) {
+      case ConcernCategory.budget:
+        return Icons.account_balance_wallet;
+      case ConcernCategory.tender:
+        return Icons.gavel;
+      case ConcernCategory.community:
+        return Icons.people;
+      case ConcernCategory.system:
+        return Icons.settings;
+      case ConcernCategory.corruption:
+        return Icons.warning;
+      case ConcernCategory.transparency:
+        return Icons.visibility;
+      case ConcernCategory.other:
+        return Icons.more_horiz;
     }
   }
 

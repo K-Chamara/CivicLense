@@ -11,6 +11,7 @@ import 'enhanced_concern_management_screen.dart';
 import 'enhanced_concern_detail_screen.dart';
 import 'community_management_officer_screen.dart';
 import 'public_tender_viewer_screen.dart';
+import 'concern_reports_screen.dart';
 
 class AntiCorruptionOfficerDashboardScreen extends StatefulWidget {
   const AntiCorruptionOfficerDashboardScreen({super.key});
@@ -714,7 +715,13 @@ class _AntiCorruptionOfficerDashboardScreenState extends State<AntiCorruptionOff
                 _buildDrawerItem(
                   icon: Icons.analytics,
                   title: 'Reports & Analytics',
-                  onTap: () => _showFeatureComingSoon('Reports & Analytics'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const ConcernReportsScreen()),
+                    );
+                  },
                 ),
                 const Divider(),
                 _buildDrawerItem(

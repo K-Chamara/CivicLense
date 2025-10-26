@@ -5,6 +5,7 @@ import '../models/community_models.dart';
 import '../services/community_service.dart';
 import 'create_community_screen.dart';
 import 'community_posts_screen.dart';
+import 'community_detail_screen.dart';
 
 class CommunityListScreen extends StatefulWidget {
   const CommunityListScreen({super.key});
@@ -846,7 +847,7 @@ class _CommunityListScreenState extends State<CommunityListScreen>
     await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => CommunityPostsScreen(community: community),
+        builder: (context) => CommunityDetailScreen(community: community),
       ),
     );
   }

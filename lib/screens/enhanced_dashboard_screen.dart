@@ -23,7 +23,7 @@ import 'anticorruption_officer_dashboard_screen.dart';
 import 'public_user_dashboard_screen.dart';
 import 'budget_allocations_view_screen.dart';
 import 'reports_analytics_screen.dart';
-import 'article_detail_screen.dart';
+import 'community_leader_dashboard_screen.dart';
 
 class EnhancedDashboardScreen extends StatefulWidget {
   const EnhancedDashboardScreen({super.key});
@@ -127,7 +127,7 @@ class _EnhancedDashboardScreenState extends State<EnhancedDashboardScreen>
       recentTenders = tendersSnapshot.docs.map((doc) {
         final data = doc.data();
         return {
-          'title': data['title'] ?? 'Unknown',
+          'title': data['title'] ?? AppLocalizations.of(context)!.unknown,
           'budget': data['budget'] ?? 0.0,
           'status': data['status'] ?? 'unknown',
         };
@@ -151,7 +151,7 @@ class _EnhancedDashboardScreenState extends State<EnhancedDashboardScreen>
       for (var doc in budgetSnapshot.docs) {
         final data = doc.data();
         final allocated = data['allocated'];
-        final name = data['name'] ?? 'Unknown';
+        final name = data['name'] ?? AppLocalizations.of(context)!.unknown;
         
         if (allocated != null) {
           final amount = (allocated is int ? allocated.toDouble() : allocated);
@@ -180,8 +180,8 @@ class _EnhancedDashboardScreenState extends State<EnhancedDashboardScreen>
       budgetAllocations = allocationsSnapshot.docs.map((doc) {
         final data = doc.data();
         return {
-          'name': data['name'] ?? 'Unknown',
-          'description': data['description'] ?? 'No description',
+          'name': data['name'] ?? AppLocalizations.of(context)!.unknown,
+          'description': data['description'] ?? AppLocalizations.of(context)!.noDescription,
           'allocated': data['allocated'] ?? 0.0,
           'spent': data['spent'] ?? 0.0,
         };
@@ -319,7 +319,7 @@ class _EnhancedDashboardScreenState extends State<EnhancedDashboardScreen>
                   ),
                 ),
                 Text(
-                  userRole?.name ?? 'Dashboard',
+                  userRole?.name ?? AppLocalizations.of(context)!.dashboard,
                   style: const TextStyle(
                     fontSize: 12,
                     color: Colors.white70,
@@ -340,7 +340,7 @@ class _EnhancedDashboardScreenState extends State<EnhancedDashboardScreen>
           child: IconButton(
             icon: const Icon(Icons.logout, size: 20),
             onPressed: _signOut,
-            tooltip: 'Sign Out',
+            tooltip: AppLocalizations.of(context)!.signOut,
           ),
         ),
       ],
@@ -408,12 +408,12 @@ class _EnhancedDashboardScreenState extends State<EnhancedDashboardScreen>
               children: [
                 _buildDrawerItem(
                   icon: Icons.dashboard,
-                  title: 'Dashboard',
+                  title: AppLocalizations.of(context)!.dashboard,
                   onTap: () => Navigator.pop(context),
                 ),
                 _buildDrawerItem(
                   icon: Icons.account_balance,
-                  title: 'Budget Overview',
+                  title: AppLocalizations.of(context)!.budgetOverview,
                   onTap: () {
                     Navigator.pop(context);
                     Navigator.push(
@@ -424,7 +424,7 @@ class _EnhancedDashboardScreenState extends State<EnhancedDashboardScreen>
                 ),
                 _buildDrawerItem(
                   icon: Icons.assignment,
-                  title: 'Budget Allocations',
+                  title: AppLocalizations.of(context)!.budgetAllocations,
                   onTap: () {
                     Navigator.pop(context);
                     Navigator.push(
@@ -435,7 +435,7 @@ class _EnhancedDashboardScreenState extends State<EnhancedDashboardScreen>
                 ),
                 _buildDrawerItem(
                   icon: Icons.shopping_cart,
-                  title: 'Tenders',
+                  title: AppLocalizations.of(context)!.tenders,
                   onTap: () {
                     Navigator.pop(context);
                     Navigator.push(
@@ -454,7 +454,7 @@ class _EnhancedDashboardScreenState extends State<EnhancedDashboardScreen>
                 ),
                 _buildDrawerItem(
                   icon: Icons.forum,
-                  title: 'Media Hub',
+                  title: AppLocalizations.of(context)!.mediaHub,
                   onTap: () {
                     Navigator.pop(context);
                     Navigator.pushNamed(context, '/media-hub');
@@ -462,7 +462,7 @@ class _EnhancedDashboardScreenState extends State<EnhancedDashboardScreen>
                 ),
                 _buildDrawerItem(
                   icon: Icons.people,
-                  title: 'Communities',
+                  title: AppLocalizations.of(context)!.communities,
                   onTap: () {
                     Navigator.pop(context);
                     Navigator.pushNamed(context, '/communities');
@@ -481,7 +481,7 @@ class _EnhancedDashboardScreenState extends State<EnhancedDashboardScreen>
                 ),
                 _buildDrawerItem(
                   icon: Icons.report_problem,
-                  title: 'Raise Concerns',
+                  title: AppLocalizations.of(context)!.raiseConcerns,
                   onTap: () => Navigator.push(
                     context,
                     MaterialPageRoute(
@@ -491,7 +491,7 @@ class _EnhancedDashboardScreenState extends State<EnhancedDashboardScreen>
                 ),
                 _buildDrawerItem(
                   icon: Icons.track_changes,
-                  title: 'My Concerns',
+                  title: AppLocalizations.of(context)!.myConcerns,
                   onTap: () => Navigator.push(
                     context,
                     MaterialPageRoute(
@@ -511,7 +511,7 @@ class _EnhancedDashboardScreenState extends State<EnhancedDashboardScreen>
                 ),
                 _buildDrawerItem(
                   icon: Icons.settings,
-                  title: 'Settings',
+                  title: AppLocalizations.of(context)!.settings,
                   onTap: () => Navigator.push(
                     context,
                     MaterialPageRoute(
@@ -522,7 +522,7 @@ class _EnhancedDashboardScreenState extends State<EnhancedDashboardScreen>
                 const Divider(),
                 _buildDrawerItem(
                   icon: Icons.logout,
-                  title: 'Sign Out',
+                  title: AppLocalizations.of(context)!.signOut,
                   onTap: () {
                     Navigator.pop(context);
                     _signOut();
@@ -535,7 +535,7 @@ class _EnhancedDashboardScreenState extends State<EnhancedDashboardScreen>
                 ),
                 _buildDrawerItem(
                   icon: Icons.info,
-                  title: 'About',
+                  title: AppLocalizations.of(context)!.about,
                   onTap: () {
                     Navigator.pop(context);
                     Navigator.push(
@@ -644,14 +644,7 @@ class _EnhancedDashboardScreenState extends State<EnhancedDashboardScreen>
         Expanded(
           child: _buildStatCard(
             AppLocalizations.of(context)!.activeTenders,
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
             activeTendersCount.toString(),
-=======
-=======
->>>>>>> Stashed changes
-            '24',
->>>>>>> Stashed changes
             Icons.shopping_cart,
             Colors.orange,
           ),
@@ -660,15 +653,7 @@ class _EnhancedDashboardScreenState extends State<EnhancedDashboardScreen>
         Expanded(
           child: _buildStatCard(
             AppLocalizations.of(context)!.budgetAllocated,
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
             _formatBudget(totalBudgetAllocated),
-=======
-            '₨2.4M',
->>>>>>> Stashed changes
-=======
-            '₨2.4M',
->>>>>>> Stashed changes
             Icons.account_balance_wallet,
             Colors.green,
           ),
@@ -677,14 +662,7 @@ class _EnhancedDashboardScreenState extends State<EnhancedDashboardScreen>
         Expanded(
           child: _buildStatCard(
             AppLocalizations.of(context)!.projects,
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
             projectsCount.toString(),
-=======
-=======
->>>>>>> Stashed changes
-            '12',
->>>>>>> Stashed changes
             Icons.construction,
             Colors.purple,
           ),
@@ -768,7 +746,7 @@ class _EnhancedDashboardScreenState extends State<EnhancedDashboardScreen>
     }).toList();
     
     if (tendersList.isEmpty) {
-      tendersList = ['No recent tenders'];
+      tendersList = [AppLocalizations.of(context)!.noRecentTenders];
     }
     
     // Prepare budget categories list
@@ -779,7 +757,7 @@ class _EnhancedDashboardScreenState extends State<EnhancedDashboardScreen>
     }).toList();
     
     if (categoriesList.isEmpty) {
-      categoriesList = ['No budget categories'];
+      categoriesList = [AppLocalizations.of(context)!.budgetCategories];
     }
     
     return Column(
@@ -798,7 +776,7 @@ class _EnhancedDashboardScreenState extends State<EnhancedDashboardScreen>
           children: [
             Expanded(
               child: _buildOverviewCard(
-                'Recent Tenders',
+                AppLocalizations.of(context)!.recentTenders,
                 tendersList,
                 Icons.shopping_cart,
                 Colors.orange,
@@ -807,7 +785,7 @@ class _EnhancedDashboardScreenState extends State<EnhancedDashboardScreen>
             const SizedBox(width: 16),
             Expanded(
               child: _buildOverviewCard(
-                'Budget Categories',
+                AppLocalizations.of(context)!.budgetCategories,
                 categoriesList,
                 Icons.pie_chart,
                 Colors.blue,
@@ -827,9 +805,9 @@ class _EnhancedDashboardScreenState extends State<EnhancedDashboardScreen>
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                'Budget Allocations',
-                style: TextStyle(
+              Text(
+                AppLocalizations.of(context)!.budgetAllocations,
+                style: const TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
                   color: Colors.black87,
@@ -853,7 +831,7 @@ class _EnhancedDashboardScreenState extends State<EnhancedDashboardScreen>
             ],
           ),
           const SizedBox(height: 16),
-          const Text('No budget allocations available', style: TextStyle(color: Colors.grey)),
+          Text(AppLocalizations.of(context)!.noBudgetAllocationsAvailable, style: const TextStyle(color: Colors.grey)),
         ],
       );
     }
@@ -864,9 +842,9 @@ class _EnhancedDashboardScreenState extends State<EnhancedDashboardScreen>
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text(
-              'Budget Allocations',
-              style: TextStyle(
+            Text(
+              AppLocalizations.of(context)!.budgetAllocations,
+              style: const TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
                 color: Colors.black87,
@@ -1348,6 +1326,15 @@ class _EnhancedDashboardScreenState extends State<EnhancedDashboardScreen>
       case 'researcher':
         return _buildResearcherContent();
       case 'community_leader':
+        // Navigate to community leader dashboard
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const CommunityLeaderDashboardScreen(),
+            ),
+          );
+        });
         return _buildCommunityLeaderContent();
       case 'ngo':
         return _buildNGOContent();
@@ -1779,7 +1766,7 @@ class _EnhancedDashboardScreenState extends State<EnhancedDashboardScreen>
             const SizedBox(width: 12),
             Expanded(
               child: _buildJournalistToolCard(
-                'Media Hub',
+                AppLocalizations.of(context)!.mediaHub,
                 'Save and organize articles',
                 Icons.bookmark_add,
                 const Color(0xFF8B5CF6), // Purple
@@ -2127,22 +2114,22 @@ class _EnhancedDashboardScreenState extends State<EnhancedDashboardScreen>
             break;
         }
       },
-      items: const [
+      items: [
         BottomNavigationBarItem(
-          icon: Icon(Icons.home),
-          label: 'Home',
+          icon: const Icon(Icons.home),
+          label: AppLocalizations.of(context)!.home,
         ),
         BottomNavigationBarItem(
-          icon: Icon(Icons.account_balance),
-          label: 'Budget',
+          icon: const Icon(Icons.account_balance),
+          label: AppLocalizations.of(context)!.budget,
         ),
         BottomNavigationBarItem(
-          icon: Icon(Icons.shopping_cart),
-          label: 'Tenders',
+          icon: const Icon(Icons.shopping_cart),
+          label: AppLocalizations.of(context)!.tenders,
         ),
         BottomNavigationBarItem(
-          icon: Icon(Icons.dashboard),
-          label: 'Dashboard',
+          icon: const Icon(Icons.dashboard),
+          label: AppLocalizations.of(context)!.dashboard,
         ),
       ],
     );

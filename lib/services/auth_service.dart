@@ -43,6 +43,8 @@ class AuthService {
         // Check if account is deactivated
         final userData = userDoc.data()!;
         final isActive = userData['isActive'] ?? true;
+        final status = userData['status'] ?? 'pending';
+        final role = userData['role'];
         
         if (!isActive) {
           // Sign out the user immediately
@@ -51,7 +53,45 @@ class AuthService {
           // Throw a custom error for deactivated account
           throw FirebaseAuthException(
             code: 'account-deactivated',
-            message: 'Your account has been deactivated. Please contact the administrator for assistance.',
+            message: 'Your account has been temporarily deactivated by the admin. Please wait until the admin activates it again.',
+          );
+        }
+        
+        // Check if user is pending approval (special users only)
+        if (status == 'pending') {
+          // Extract role information
+          String roleId = 'citizen';
+          if (role is Map) {
+            roleId = role['id']?.toString().toLowerCase() ?? 'citizen';
+          } else if (role is String) {
+            roleId = role.toLowerCase();
+          }
+          
+          // Only block special users (not citizens/admins) from logging in when pending
+          if (roleId != 'citizen' && roleId != 'admin') {
+            // Sign out the user immediately
+            await _auth.signOut();
+            
+            // Throw a custom error for pending account
+            throw FirebaseAuthException(
+              code: 'account-pending',
+              message: 'Your account is still under pending status. Please wait for the system administrator to approve your account. Until then, you can use the app by registering as a citizen/taxpayer.',
+            );
+          }
+        }
+        
+        // Check if user is rejected
+        if (status == 'rejected') {
+          // Sign out the user immediately
+          await _auth.signOut();
+          
+          // Get rejection message if available
+          final rejectionMessage = userData['rejectionMessage'] ?? 'No specific reason provided.';
+          
+          // Throw a custom error for rejected account
+          throw FirebaseAuthException(
+            code: 'account-rejected',
+            message: 'Your account creation request was rejected because: $rejectionMessage',
           );
         }
         
@@ -166,6 +206,7 @@ class AuthService {
         // Check if account is deactivated
         final userData = userDoc.data()!;
         final isActive = userData['isActive'] ?? true;
+        final status = userData['status'] ?? 'pending';
         
         if (!isActive) {
           // Sign out the user immediately
@@ -174,7 +215,34 @@ class AuthService {
           // Throw a custom error for deactivated account
           throw FirebaseAuthException(
             code: 'account-deactivated',
-            message: 'Your account has been deactivated. Please contact the administrator for assistance.',
+            message: 'Your account has been temporarily deactivated by the admin. Please wait until the admin activates it again.',
+          );
+        }
+        
+        // Check if user is pending approval
+        if (status == 'pending') {
+          // Sign out the user immediately
+          await _auth.signOut();
+          
+          // Throw a custom error for pending account
+          throw FirebaseAuthException(
+            code: 'account-pending',
+            message: 'Your account is still under pending status. Please wait for the system administrator to approve your account.',
+          );
+        }
+        
+        // Check if user is rejected
+        if (status == 'rejected') {
+          // Sign out the user immediately
+          await _auth.signOut();
+          
+          // Get rejection message if available
+          final rejectionMessage = userData['rejectionMessage'] ?? 'No specific reason provided.';
+          
+          // Throw a custom error for rejected account
+          throw FirebaseAuthException(
+            code: 'account-rejected',
+            message: 'Your account creation request was rejected because: $rejectionMessage',
           );
         }
       }

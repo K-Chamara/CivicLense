@@ -150,10 +150,32 @@ class _LoginScreenState extends State<LoginScreen> {
           } catch (e) {
             // If credentials are invalid, show error and don't navigate to OTP screen
             print('❌ Government user credentials verification failed: $e');
+            String message = 'Invalid credentials. Please try again.';
+            if (e is FirebaseAuthException) {
+              switch (e.code) {
+                case 'user-not-found':
+                  message = 'No user found with this email address.';
+                  break;
+                case 'wrong-password':
+                  message = 'Incorrect password.';
+                  break;
+                case 'account-deactivated':
+                  message = 'Your account has been deactivated. Please contact the administrator for assistance.';
+                  break;
+                case 'account-pending':
+                  message = 'Your account is still under pending status. Please wait for the system administrator to approve your account.';
+                  break;
+                case 'account-rejected':
+                  message = e.message ?? 'Your account has been rejected. Please contact the administrator for more information.';
+                  break;
+                default:
+                  message = e.message ?? 'Invalid credentials. Please try again.';
+              }
+            }
             if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text('Invalid credentials: ${e.toString()}'),
+                  content: Text(message),
                   backgroundColor: Colors.red,
                 ),
               );
@@ -201,6 +223,12 @@ class _LoginScreenState extends State<LoginScreen> {
                   break;
                 case 'account-deactivated':
                   message = 'Your account has been deactivated. Please contact the administrator for assistance.';
+                  break;
+                case 'account-pending':
+                  message = 'Your account is still under pending status. Please wait for the system administrator to approve your account. Until then, you can use the app by registering as a citizen/taxpayer.';
+                  break;
+                case 'account-rejected':
+                  message = e.message ?? 'Your account has been rejected. Please contact the administrator for more information or register as a citizen/taxpayer.';
                   break;
                 case 'too-many-requests':
                   message = 'Too many failed attempts. Please try again later.';

@@ -4,7 +4,6 @@ import '../services/admin_service.dart';
 import '../services/auth_service.dart';
 import '../models/user_role.dart';
 import 'login_screen.dart';
-import 'concern_management_screen.dart';
 import 'public_tender_viewer_screen.dart';
 import 'user_management_screen.dart';
 import 'about_screen.dart';
@@ -367,19 +366,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                   },
                 ),
                 _buildDrawerItem(
-                  icon: Icons.report_problem,
-                  title: 'Concern Management',
-                  onTap: () {
-                    Navigator.pop(context);
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const ConcernManagementScreen(),
-                      ),
-                    );
-                  },
-                ),
-                _buildDrawerItem(
                   icon: Icons.account_balance,
                   title: 'Budget Overview',
                   onTap: () {
@@ -504,24 +490,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                     context,
                     MaterialPageRoute(
                       builder: (context) => const UserManagementScreen(),
-                    ),
-                  );
-                },
-              ),
-            ),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: _buildManagementCard(
-                'Concern Management',
-                'Review and manage public concerns',
-                Icons.report_problem,
-                Colors.orange,
-                () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const ConcernManagementScreen(),
                     ),
                   );
                 },
@@ -1199,25 +1167,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                             ],
                           ),
                         ),
-                        const PopupMenuItem(
-                          value: 'delete',
-                          child: Row(
-                            children: [
-                              Icon(
-                                Icons.delete,
-                                color: Colors.red,
-                                size: 18,
-                              ),
-                              SizedBox(width: 8),
-                              Text(
-                                'Delete',
-                                style: TextStyle(
-                                  color: Colors.red,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
                       ],
                     ),
                   ],
@@ -1285,42 +1234,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
             !(user['isActive'] ?? true),
           );
           break;
-        case 'delete':
-          // Prevent admin from deleting their own account
-          if (user['uid'] == currentUserId) {
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('⚠️ You cannot delete your own account'),
-                  backgroundColor: Color(0xFFF57C00),
-                  duration: Duration(seconds: 3),
-                ),
-              );
-            }
-            return;
-          }
-          
-          final confirmed = await _showDeleteConfirmation(user);
-          if (confirmed) {
-            await _adminService.deleteUser(user['uid']);
-            
-            // Show success message with additional information
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: const Text('User deleted from database successfully'),
-                  backgroundColor: Colors.green,
-                  duration: const Duration(seconds: 3),
-                  action: SnackBarAction(
-                    label: 'Info',
-                    textColor: Colors.white,
-                    onPressed: () => _showDeleteInfoDialog(),
-                  ),
-                ),
-              );
-            }
-          }
-          break;
       }
       _loadData();
     } catch (e) {
@@ -1335,75 +1248,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     }
   }
 
-  void _showDeleteInfoDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Row(
-          children: [
-            Icon(Icons.info, color: Colors.blue),
-            SizedBox(width: 8),
-            Text('User Deletion Info'),
-          ],
-        ),
-        content: const Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'The user has been deleted from the database and can no longer log in through the app.',
-              style: TextStyle(fontSize: 16),
-            ),
-            SizedBox(height: 16),
-            Text(
-              'Important Notes:',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            SizedBox(height: 8),
-            Text('• The user still exists in Firebase Authentication'),
-            Text('• For complete cleanup, manually delete from Firebase Console'),
-            Text('• Or deploy Firebase Functions for automatic deletion'),
-            SizedBox(height: 8),
-            Text(
-              'This is a limitation of client-side Firebase SDK.',
-              style: TextStyle(fontStyle: FontStyle.italic, color: Colors.grey),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('OK'),
-          ),
-        ],
-      ),
-    );
-  }
 
 
 
-
-
-  Future<bool> _showDeleteConfirmation(Map<String, dynamic> user) async {
-    return await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Confirm Delete'),
-        content: Text('Are you sure you want to delete ${user['firstName']} ${user['lastName']}?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Delete'),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-          ),
-        ],
-      ),
-    ) ?? false;
-  }
 
   void _refreshData() {
     _loadData();

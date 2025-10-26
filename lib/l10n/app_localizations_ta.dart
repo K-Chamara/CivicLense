@@ -37,6 +37,9 @@ class AppLocalizationsTa extends AppLocalizations {
   String get dashboard => 'டாஷ்போர்டு';
 
   @override
+  String get communityLeaderDashboard => 'சமூக தலைவர் டாஷ்போர்டு';
+
+  @override
   String get profile => 'சுயவிவரம்';
 
   @override
@@ -79,7 +82,7 @@ class AppLocalizationsTa extends AppLocalizations {
   String get ngo => 'என்.ஜி.ஓ/தனியார் ஒப்பந்ததாரர்';
 
   @override
-  String get journalist => 'இதழியலாளர்';
+  String get journalist => 'பத்திரிகையாளர்';
 
   @override
   String get communityLeader => 'சமூகத் தலைவர்';
@@ -121,7 +124,7 @@ class AppLocalizationsTa extends AppLocalizations {
   String get remainingAmount => 'மீதமுள்ள தொகை';
 
   @override
-  String get category => 'பிரிவு';
+  String get category => 'வகை';
 
   @override
   String get type => 'வகை';
@@ -691,7 +694,7 @@ class AppLocalizationsTa extends AppLocalizations {
 
   @override
   String get connectWithLocalCommunitiesAndCivicGroups =>
-      'உள்ளூர் சமூகங்கள் மற்றும் குடிமை குழுக்களுடன் இணைக்கவும்';
+      'உள்ளூர் சமூகங்கள் மற்றும் குடிமை குழுக்களுடன் இணையுங்கள்';
 
   @override
   String get reportAndTrackPublicIssuesAndConcerns =>
@@ -854,7 +857,7 @@ class AppLocalizationsTa extends AppLocalizations {
       'சமீபத்திய செய்திக் கட்டுரைகளைப் படித்து உள்ளடக்கத்துடன் ஈடுபடுங்கள்';
 
   @override
-  String get trackPublicSpending => 'பொது செலவினங்களைக் கண்காணிக்கவும்';
+  String get trackPublicSpending => 'பொது செலவைக் கண்காணிக்கவும்';
 
   @override
   String get monitorGovernmentBudgetsAndExpenditures =>
@@ -895,4 +898,216 @@ class AppLocalizationsTa extends AppLocalizations {
 
   @override
   String get tenderBudgetOverview => 'டெண்டர் & பட்ஜெட் கண்ணோட்டம்';
+
+  @override
+  String get stayUpdatedWithLatestNewsAndMedia =>
+      'சமீபத்தைய செய்திகள் மற்றும் ஊடகங்களுடன் புதுப்பித்த நிலையில் இருங்கள்';
+
+  @override
+  String get accessMediaResourcesAndForums =>
+      'ஊடக வளங்கள் மற்றும் மன்றங்களை அணுகவும்';
+
+  @override
+  String get joinAndManageCommunityGroups =>
+      'சமூக குழுக்களில் சேர்ந்து நிர்வகிக்கவும்';
+
+  @override
+  String get viewDetailedReportsAndAnalytics =>
+      'விரிவான அறிக்கைகள் மற்றும் பகுப்பாய்வுகளைக் காணவும்';
+
+  @override
+  String get submitAndReportPublicConcerns =>
+      'பொது கவலைகளை சமர்ப்பித்து அறிக்கை செய்யவும்';
+
+  @override
+  String get trackYourSubmittedConcerns =>
+      'நீங்கள் சமர்ப்பித்த கவலைகளைக் கண்காணிக்கவும்';
+
+  @override
+  String get browseAllPublicConcerns => 'அனைத்து பொது கவலைகளையும் உலாவவும்';
+
+  @override
+  String get configureAppSettingsAndPreferences =>
+      'பயன்பாட்டு அமைப்புகள் மற்றும் விருப்பங்களை உள்ளமைக்கவும்';
+
+  @override
+  String get learnMoreAboutCivicLense => 'Civic Lense பற்றி மேலும் அறியவும்';
+
+  @override
+  String get ongoing => 'நடைபெறும்';
+
+  @override
+  String get weekOne => 'வாரம் 1';
+
+  @override
+  String get weekTwo => 'வாரம் 2';
+
+  @override
+  String get weekThree => 'வாரம் 3';
+
+  @override
+  String get weekFour => 'வாரம் 4';
+
+  @override
+  String get civicLense => 'Civic Lense';
+
+  @override
+  String get budgetAllocations => 'பட்ஜெட் ஒதுக்கீடுகள்';
+
+  @override
+  String get recentTenders => 'சமீபத்திய டெண்டர்கள்';
+
+  @override
+  String get noBudgetAllocationsAvailable => 'பட்ஜெட் ஒதுக்கீடுகள் இல்லை';
+
+  @override
+  String get noRecentTenders => 'சமீபத்திய டெண்டர்கள் இல்லை';
+
+  @override
+  String get unknown => 'தெரியாத';
+
+  @override
+  String get noDescription => 'விளக்கம் இல்லை';
+
+  @override
+  String get tenderManagement => 'டெண்டர் மேலாண்மை';
+
+  @override
+  String get viewAndMonitorGovernmentTenders =>
+      'அரசாங்க டெண்டர்களைப் பார்த்து கண்காணிக்கவும்';
+
+  @override
+  String get reportIssuesAndTrackResolution =>
+      'சிக்கல்களை அறிக்கை செய்து தீர்வைக் கண்காணிக்கவும்';
+
+  @override
+  String get viewReports => 'அறிக்கைகளைக் காண்க';
+
+  @override
+  String get accessTransparencyReportsAndAnalytics =>
+      'வெளிப்படைத்தன்மை அறிக்கைகள் மற்றும் பகுப்பாய்வுகளை அணுகவும்';
+
+  @override
+  String get professionalToolsForInvestigativeReporting =>
+      'புலனாய்வு அறிக்கைக்கான தொழில்முறை கருவிகள்';
+
+  @override
+  String get coreTools => 'முக்கிய கருவிகள்';
+
+  @override
+  String get publishArticle => 'கட்டுரையை வெளியிடவும்';
+
+  @override
+  String get createAndPublishInvestigativeReports =>
+      'புலனாய்வு அறிக்கைகளை உருவாக்கி வெளியிடவும்';
+
+  @override
+  String get saveAndOrganizeArticles => 'கட்டுரைகளைச் சேமித்து ஒழுங்கமைக்கவும்';
+
+  @override
+  String get browseLatestArticles => 'சமீபத்திய கட்டுரைகளை உலாவவும்';
+
+  @override
+  String get tenderWatch => 'டெண்டர் கண்காணிப்பு';
+
+  @override
+  String get monitorGovernmentTenders => 'அரசாங்க டெண்டர்களைக் கண்காணிக்கவும்';
+
+  @override
+  String get recentArticles => 'சமீபத்திய கட்டுரைகள்';
+
+  @override
+  String get recentSavedArticles => 'சமீபத்தில் சேமித்த கட்டுரைகள்';
+
+  @override
+  String get communityLeaderTools => 'சமூக தலைவர் கருவிகள்';
+
+  @override
+  String get manageCommunityGroupsAndInitiatives =>
+      'சமூக குழுக்கள் மற்றும் முயற்சிகளை நிர்வகிக்கவும்';
+
+  @override
+  String get organizeEvents => 'நிகழ்வுகளை ஒழுங்கமைக்கவும்';
+
+  @override
+  String get planAndCoordinateCommunityEvents =>
+      'சமூக நிகழ்வுகளைத் திட்டமிட்டு ஒருங்கிணைக்கவும்';
+
+  @override
+  String get engagementTools => 'ஈடுபாட்டு கருவிகள்';
+
+  @override
+  String get toolsForCommunityEngagement => 'சமூக ஈடுபாட்டிற்கான கருவிகள்';
+
+  @override
+  String get researchTools => 'ஆராய்ச்சி கருவிகள்';
+
+  @override
+  String get researchData => 'ஆராய்ச்சி தரவு';
+
+  @override
+  String get accessAnonymizedDatasetsForResearch =>
+      'ஆராய்ச்சிக்காக அடையாளமற்ற தரவுத்தளங்களை அணுகவும்';
+
+  @override
+  String get generateReports => 'அறிக்கைகளை உருவாக்கவும்';
+
+  @override
+  String get createResearchReportsAndAnalytics =>
+      'ஆராய்ச்சி அறிக்கைகள் மற்றும் பகுப்பாய்வுகளை உருவாக்கவும்';
+
+  @override
+  String get projectConvertedFromTender =>
+      'டெண்டரிலிருந்து மாற்றப்பட்ட திட்டம்';
+
+  @override
+  String get central => 'மத்திய';
+
+  @override
+  String get active => 'செயலில்';
+
+  @override
+  String get upcomingEvents => 'வரவிருக்கும் நிகழ்வுகள்';
+
+  @override
+  String get mostSupportedConcerns => 'அதிக ஆதரவு பெற்ற கவலைகள்';
+
+  @override
+  String get noTendersAvailable => 'டெண்டர்கள் இல்லை';
+
+  @override
+  String get searchTendersPlaceholder => 'டெண்டர்களைத் தேடுங்கள்...';
+
+  @override
+  String get searchAcrossServicesPlaceholder => 'சேவைகள் முழுவதும் தேடுங்கள்';
+
+  @override
+  String get locationNotSpecified => 'இடம் குறிப்பிடப்படவில்லை';
+
+  @override
+  String get closed => 'மூடப்பட்டது';
+
+  @override
+  String get bidReceived => 'ஏலம் பெறப்பட்டது';
+
+  @override
+  String get bidsReceived => 'ஏலங்கள் பெறப்பட்டன';
+
+  @override
+  String get daysLeft => 'நாட்கள் உள்ளன';
+
+  @override
+  String get dueToday => 'இன்று முடிவடையும்';
+
+  @override
+  String get dueTomorrow => 'நாளை முடிவடையும்';
+
+  @override
+  String get invalidDate => 'தவறான தேதி';
+
+  @override
+  String get awarded => 'வழங்கப்பட்டது';
+
+  @override
+  String get cancelled => 'ரத்து செய்யப்பட்டது';
 }

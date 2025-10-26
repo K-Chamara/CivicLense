@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 import '../services/budget_service.dart';
 import 'bidder_management_screen.dart';
+import '../l10n/app_localizations.dart';
 
 class CitizenTenderScreen extends StatefulWidget {
   const CitizenTenderScreen({super.key});
@@ -112,7 +113,7 @@ class _CitizenTenderScreenState extends State<CitizenTenderScreen> {
     return Scaffold(
       backgroundColor: Colors.grey[50],
       appBar: AppBar(
-        title: const Text('Tender Management'),
+        title: Text(AppLocalizations.of(context)!.governmentTenders),
         backgroundColor: Colors.lightBlue,
         foregroundColor: Colors.white,
         elevation: 0,
@@ -378,9 +379,9 @@ class _CitizenTenderScreenState extends State<CitizenTenderScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          'Budget',
-                          style: TextStyle(
+                        Text(
+                          AppLocalizations.of(context)!.budget,
+                          style: const TextStyle(
                             fontSize: 12,
                             color: Colors.grey,
                             fontWeight: FontWeight.w500,
@@ -523,7 +524,7 @@ class _CitizenTenderScreenState extends State<CitizenTenderScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
                       Text(
-                        'Budget: ₨${NumberFormat('#,##0').format(tender['budget'] ?? 0)}',
+                        '${AppLocalizations.of(context)!.budget}: ₨${NumberFormat('#,##0').format(tender['budget'] ?? 0)}',
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
                           color: Colors.blue,

@@ -21,6 +21,10 @@ import 'screens/login_screen.dart';
 import 'screens/common_home_screen.dart';
 import 'screens/document_upload_screen.dart';
 import 'screens/email_verification_screen.dart';
+import 'screens/admin_dashboard_screen.dart';
+import 'screens/finance_officer_dashboard_screen.dart';
+import 'screens/procurement_officer_dashboard_screen.dart';
+import 'screens/anticorruption_officer_dashboard_screen.dart';
 import 'services/user_service.dart';
 import 'utils/create_admin.dart';
 import 'screens/admin_setup_screen.dart';
@@ -401,10 +405,11 @@ class AuthWrapper extends StatelessWidget {
                 return const LoginScreen();
               }
               
-              print('🏠 AuthWrapper: Proceeding to CommonHomeScreen');
-
-              // All users (approved and pending) can use the app
-              // Pending users will get limited functionality in the CommonHomeScreen
+              // Route ALL users to CommonHomeScreen first
+              print('🏠 AuthWrapper: Routing user to CommonHomeScreen');
+              print('🏠 AuthWrapper: User role: $roleId, userType: $userType, isApproved: $isApproved');
+              
+              // All users (government and public) start at CommonHomeScreen
               return const CommonHomeScreen();
             },
           );
