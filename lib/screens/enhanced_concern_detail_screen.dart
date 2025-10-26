@@ -493,12 +493,13 @@ class _EnhancedConcernDetailScreenState extends State<EnhancedConcernDetailScree
           Wrap(
             spacing: 8,
             runSpacing: 8,
-            children: ConcernStatus.values.map((status) {
+            children: _getValidStatusTransitions(widget.concern.status).map((statusString) {
+              final status = _stringToConcernStatus(statusString);
               final isCurrentStatus = status == widget.concern.status;
               return FilterChip(
                 label: Text(status.name.replaceAll(RegExp(r'([A-Z])'), ' \$1').trim()),
                 selected: isCurrentStatus,
-                onSelected: isCurrentStatus ? null : (_) => _updateStatus(status.name),
+                onSelected: isCurrentStatus ? null : (_) => _updateStatus(statusString),
                 selectedColor: Colors.purple.withOpacity(0.2),
                 checkmarkColor: Colors.purple,
                 labelStyle: TextStyle(
@@ -1194,7 +1195,63 @@ class _EnhancedConcernDetailScreenState extends State<EnhancedConcernDetailScree
     }
   }
 
+  // Helper function to get valid status transitions based on current status
+  List<String> _getValidStatusTransitions(ConcernStatus currentStatus) {
+    switch (currentStatus) {
+      case ConcernStatus.pending:
+        // From pending: can only go to underReview or dismissed
+        return ['underReview', 'dismissed'];
+      case ConcernStatus.underReview:
+        // From underReview: can go to inProgress or dismissed
+        return ['inProgress', 'dismissed'];
+      case ConcernStatus.inProgress:
+        // From inProgress: can go to resolved or dismissed
+        return ['resolved', 'dismissed'];
+      case ConcernStatus.resolved:
+        // From resolved: no further transitions allowed
+        return [];
+      case ConcernStatus.dismissed:
+        // From dismissed: no further transitions allowed
+        return [];
+      case ConcernStatus.escalated:
+        // From escalated: can go to underReview or dismissed
+        return ['underReview', 'dismissed'];
+    }
+  }
+
+  // Helper function to convert string to ConcernStatus enum
+  ConcernStatus _stringToConcernStatus(String statusString) {
+    switch (statusString) {
+      case 'pending':
+        return ConcernStatus.pending;
+      case 'underReview':
+        return ConcernStatus.underReview;
+      case 'inProgress':
+        return ConcernStatus.inProgress;
+      case 'resolved':
+        return ConcernStatus.resolved;
+      case 'dismissed':
+        return ConcernStatus.dismissed;
+      case 'escalated':
+        return ConcernStatus.escalated;
+      default:
+        return ConcernStatus.pending;
+    }
+  }
+
   void _updateStatus(String status) async {
+    // Validate status transition
+    final validTransitions = _getValidStatusTransitions(widget.concern.status);
+    if (!validTransitions.contains(status)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('❌ Invalid status transition from ${widget.concern.status.name} to $status'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     try {
       setState(() {
         _isUpdating = true;
@@ -1253,6 +1310,7 @@ class _EnhancedConcernDetailScreenState extends State<EnhancedConcernDetailScree
         'createdByName': widget.officerName,
         'createdAt': FieldValue.serverTimestamp(),
         'isOfficerComment': true,
+        'userRole': 'Anti-Corruption Officer',
       });
       
       _commentController.clear();

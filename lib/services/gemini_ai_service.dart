@@ -12,6 +12,89 @@ class GeminiAIService {
     apiKey: _apiKey,
   );
 
+  /// Generate content using Gemini AI
+  static Future<String> generateContent(String prompt) async {
+    try {
+      final content = [Content.text(prompt)];
+      final response = await _model.generateContent(content);
+      return response.text?.trim() ?? '';
+    } catch (e) {
+      print('❌ Gemini content generation failed: $e');
+      rethrow;
+    }
+  }
+
+  /// OPTIMIZED: Generate all concern suggestions in ONE API call
+  static Future<ComprehensiveSuggestions> generateAllSuggestions({
+    required String description,
+  }) async {
+    try {
+      final prompt = '''
+Analyze this concern description and provide comprehensive suggestions:
+
+Description: $description
+
+Provide your analysis in this EXACT JSON format:
+{
+  "suggestedTitle": "Clear, concise title (max 100 characters)",
+  "suggestedCategory": "budget|tender|corruption|transparency|community|system|other",
+  "suggestedType": "complaint|suggestion|question|report",
+  "priority": "critical|high|medium|low",
+  "sentiment": "veryNegative|negative|neutral|positive|veryPositive",
+  "confidence": 0.92,
+  "topics": ["topic1", "topic2", "topic3"],
+  "descriptionFeedback": {
+    "strengths": ["Good: Description is detailed", "Good: Includes specific location"],
+    "improvements": ["Add specific dates/timeframe", "Include monetary amounts if available"],
+    "overallQuality": "good|fair|needs_improvement"
+  }
+}
+
+Consider:
+- Sri Lankan context and laws
+- Corruption severity
+- Public impact
+- Financial amounts mentioned
+- Urgency indicators
+- Location specifics
+
+IMPORTANT: 
+- For category: Choose the most relevant category based on keywords
+- For type: complaint (negative), suggestion (positive), report (urgent), question (neutral)
+- For feedback: Be specific and actionable
+- Return ONLY valid JSON, no other text
+
+Available categories:
+- budget: Budget allocation issues, fund misuse
+- tender: Tender fraud, contract irregularities  
+- corruption: Bribery, embezzlement, fraud
+- transparency: Access to information issues
+- community: Community-related concerns
+- system: Technical or system issues
+- other: General concerns
+''';
+
+      final content = [Content.text(prompt)];
+      final response = await _model.generateContent(content);
+      final responseText = response.text ?? '{}';
+      
+      // Extract JSON from response
+      String jsonText = responseText.trim();
+      if (jsonText.contains('{')) {
+        final startIndex = jsonText.indexOf('{');
+        final endIndex = jsonText.lastIndexOf('}') + 1;
+        jsonText = jsonText.substring(startIndex, endIndex);
+      }
+      
+      final data = jsonDecode(jsonText);
+      
+      return ComprehensiveSuggestions.fromJson(data);
+    } catch (e) {
+      print('❌ Comprehensive suggestions failed: $e');
+      rethrow;
+    }
+  }
+
   /// Analyze concern and return comprehensive AI analysis
   static Future<GeminiAnalysisResult> analyzeConcern({
     required String title,
@@ -344,6 +427,22 @@ Only include similarities above 70% (0.70). If none found, return [].
         return SentimentScore.neutral;
     }
   }
+
+  /// Parse concern type string to ConcernType enum
+  static ConcernType _parseConcernType(String? type) {
+    switch (type?.toLowerCase()) {
+      case 'complaint':
+        return ConcernType.complaint;
+      case 'suggestion':
+        return ConcernType.suggestion;
+      case 'question':
+        return ConcernType.question;
+      case 'report':
+        return ConcernType.report;
+      default:
+        return ConcernType.complaint;
+    }
+  }
 }
 
 // Data Models
@@ -439,5 +538,82 @@ class SimilarConcern {
     required this.similarity,
     required this.reason,
   });
+}
+
+/// OPTIMIZED: Comprehensive suggestions from a single API call
+class ComprehensiveSuggestions {
+  final String suggestedTitle;
+  final ConcernCategory suggestedCategory;
+  final ConcernType suggestedType;
+  final ConcernPriority priority;
+  final SentimentScore sentiment;
+  final double confidence;
+  final List<String> topics;
+  final DescriptionFeedback descriptionFeedback;
+
+  ComprehensiveSuggestions({
+    required this.suggestedTitle,
+    required this.suggestedCategory,
+    required this.suggestedType,
+    required this.priority,
+    required this.sentiment,
+    required this.confidence,
+    required this.topics,
+    required this.descriptionFeedback,
+  });
+
+  factory ComprehensiveSuggestions.fromJson(Map<String, dynamic> json) {
+    return ComprehensiveSuggestions(
+      suggestedTitle: json['suggestedTitle'] as String? ?? 'Untitled Concern',
+      suggestedCategory: GeminiAIService._parseConcernCategory(json['suggestedCategory']),
+      suggestedType: GeminiAIService._parseConcernType(json['suggestedType']),
+      priority: GeminiAIService.parsePriority(json['priority']),
+      sentiment: GeminiAIService.parseSentiment(json['sentiment']),
+      confidence: (json['confidence'] as num?)?.toDouble() ?? 0.0,
+      topics: (json['topics'] as List?)?.map((e) => e.toString()).toList() ?? [],
+      descriptionFeedback: DescriptionFeedback.fromJson(json['descriptionFeedback'] ?? {}),
+    );
+  }
+}
+
+class DescriptionFeedback {
+  final List<String> strengths;
+  final List<String> improvements;
+  final String overallQuality;
+
+  DescriptionFeedback({
+    required this.strengths,
+    required this.improvements,
+    required this.overallQuality,
+  });
+
+  factory DescriptionFeedback.fromJson(Map<String, dynamic> json) {
+    return DescriptionFeedback(
+      strengths: (json['strengths'] as List?)?.map((e) => e.toString()).toList() ?? [],
+      improvements: (json['improvements'] as List?)?.map((e) => e.toString()).toList() ?? [],
+      overallQuality: json['overallQuality'] as String? ?? 'fair',
+    );
+  }
+
+  String get formattedFeedback {
+    final buffer = StringBuffer();
+    
+    if (strengths.isNotEmpty) {
+      buffer.writeln('✅ Strengths:');
+      for (final strength in strengths) {
+        buffer.writeln('  • $strength');
+      }
+      buffer.writeln();
+    }
+    
+    if (improvements.isNotEmpty) {
+      buffer.writeln('💡 Suggestions for Improvement:');
+      for (final improvement in improvements) {
+        buffer.writeln('  • $improvement');
+      }
+    }
+    
+    return buffer.toString().trim();
+  }
 }
 

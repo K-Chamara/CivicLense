@@ -239,10 +239,10 @@ class Concern {
       engagementScore: data['engagementScore'] ?? 0,
       isFlaggedByCitizens: data['isFlaggedByCitizens'] ?? false,
       comments: (data['comments'] as List<dynamic>? ?? [])
-          .map((c) => ConcernComment.fromFirestore(c as DocumentSnapshot))
+          .map((c) => ConcernComment.fromMap(c as Map<String, dynamic>))
           .toList(),
       attachments: (data['attachments'] as List<dynamic>? ?? [])
-          .map((a) => ConcernAttachment.fromFirestore(a as DocumentSnapshot))
+          .map((a) => ConcernAttachment.fromMap(a as Map<String, dynamic>))
           .toList(),
       relatedBudgetId: data['relatedBudgetId'],
       relatedTenderId: data['relatedTenderId'],
@@ -255,7 +255,7 @@ class Concern {
       supportCount: data['supportCount'] ?? 0,
       commentCount: data['commentCount'] ?? 0,
       updates: (data['updates'] as List<dynamic>? ?? [])
-          .map((u) => ConcernUpdate.fromFirestore(u as DocumentSnapshot))
+          .map((u) => ConcernUpdate.fromMap(u as Map<String, dynamic>))
           .toList(),
       metadata: Map<String, dynamic>.from(data['metadata'] ?? {}),
     );
@@ -352,6 +352,7 @@ class ConcernUpdate {
   final String concernId;
   final String officerId;
   final String officerName;
+  final String? userRole;
   final String action;
   final String description;
   final DateTime createdAt;
@@ -362,6 +363,7 @@ class ConcernUpdate {
     required this.concernId,
     required this.officerId,
     required this.officerName,
+    this.userRole,
     required this.action,
     required this.description,
     required this.createdAt,
@@ -374,6 +376,7 @@ class ConcernUpdate {
       'concernId': concernId,
       'officerId': officerId,
       'officerName': officerName,
+      'userRole': userRole,
       'action': action,
       'description': description,
       'createdAt': Timestamp.fromDate(createdAt),
@@ -388,9 +391,26 @@ class ConcernUpdate {
       concernId: data['concernId'] ?? '',
       officerId: data['officerId'] ?? '',
       officerName: data['officerName'] ?? '',
+      userRole: data['userRole'],
       action: data['action'] ?? '',
       description: data['description'] ?? '',
       createdAt: (data['createdAt'] as Timestamp).toDate(),
+      changes: Map<String, dynamic>.from(data['changes'] ?? {}),
+    );
+  }
+
+  static ConcernUpdate fromMap(Map<String, dynamic> data) {
+    return ConcernUpdate(
+      id: data['id'] ?? '',
+      concernId: data['concernId'] ?? '',
+      officerId: data['officerId'] ?? '',
+      officerName: data['officerName'] ?? '',
+      userRole: data['userRole'],
+      action: data['action'] ?? '',
+      description: data['description'] ?? '',
+      createdAt: data['createdAt'] is Timestamp 
+          ? (data['createdAt'] as Timestamp).toDate()
+          : DateTime.now(),
       changes: Map<String, dynamic>.from(data['changes'] ?? {}),
     );
   }
@@ -537,6 +557,21 @@ class ConcernComment {
       officerId: data['officerId'],
     );
   }
+
+  static ConcernComment fromMap(Map<String, dynamic> data) {
+    return ConcernComment(
+      id: data['id'] ?? '',
+      concernId: data['concernId'] ?? '',
+      authorId: data['authorId'] ?? '',
+      authorName: data['authorName'] ?? '',
+      content: data['content'] ?? '',
+      createdAt: data['createdAt'] is Timestamp 
+          ? (data['createdAt'] as Timestamp).toDate()
+          : DateTime.now(),
+      isOfficial: data['isOfficial'] ?? false,
+      officerId: data['officerId'],
+    );
+  }
 }
 
 class ConcernAttachment {
@@ -583,6 +618,21 @@ class ConcernAttachment {
       fileType: data['fileType'] ?? '',
       fileSize: data['fileSize'] ?? 0,
       uploadedAt: (data['uploadedAt'] as Timestamp).toDate(),
+      uploadedBy: data['uploadedBy'] ?? '',
+    );
+  }
+
+  static ConcernAttachment fromMap(Map<String, dynamic> data) {
+    return ConcernAttachment(
+      id: data['id'] ?? '',
+      concernId: data['concernId'] ?? '',
+      fileName: data['fileName'] ?? '',
+      fileUrl: data['fileUrl'] ?? '',
+      fileType: data['fileType'] ?? '',
+      fileSize: data['fileSize'] ?? 0,
+      uploadedAt: data['uploadedAt'] is Timestamp 
+          ? (data['uploadedAt'] as Timestamp).toDate()
+          : DateTime.now(),
       uploadedBy: data['uploadedBy'] ?? '',
     );
   }

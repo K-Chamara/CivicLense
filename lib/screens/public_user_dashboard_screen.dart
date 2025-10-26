@@ -1,13 +1,19 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
-import '../services/news_service.dart';
-import '../services/media_hub_service.dart';
+import '../services/budget_service.dart';
 import '../models/user_role.dart';
-import '../models/report.dart';
-import 'enhanced_dashboard_screen.dart';
+import '../l10n/app_localizations.dart';
 import 'login_screen.dart';
 import 'raise_concern_screen.dart';
-import 'article_detail_screen.dart';
+import 'budget_viewer_screen.dart';
+import 'public_tender_viewer_screen.dart';
+import 'community_list_screen.dart';
+import 'public_concerns_screen.dart';
+import 'user_concern_tracking_screen.dart';
+import 'citizen_tender_screen.dart';
+import 'settings_screen.dart';
+import 'about_screen.dart';
+import 'common_home_screen.dart';
 
 class PublicUserDashboardScreen extends StatefulWidget {
   const PublicUserDashboardScreen({super.key});
@@ -18,11 +24,21 @@ class PublicUserDashboardScreen extends StatefulWidget {
 
 class _PublicUserDashboardScreenState extends State<PublicUserDashboardScreen> {
   final AuthService _authService = AuthService();
-  final NewsService _newsService = NewsService();
-  final MediaHubService _mediaHubService = MediaHubService();
+  final BudgetService _budgetService = BudgetService();
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   UserRole? userRole;
   Map<String, dynamic>? userData;
   bool isLoading = true;
+  
+  // Bottom navigation
+  int _currentIndex = 3; // Start with Dashboard tab selected
+  bool _isNavigating = false;
+  
+  // Dashboard stats
+  int totalBudgetAllocations = 0;
+  int activeTenders = 0;
+  int ongoingProjects = 0;
+  int totalConcerns = 0;
 
   @override
   void initState() {
@@ -36,11 +52,34 @@ class _PublicUserDashboardScreenState extends State<PublicUserDashboardScreen> {
       final role = await _authService.getUserRole(user.uid);
       final data = await _authService.getUserData(user.uid);
       
+      // Load dashboard stats
+      await _loadDashboardStats();
+      
       setState(() {
         userRole = role;
         userData = data;
         isLoading = false;
       });
+    }
+  }
+
+  Future<void> _loadDashboardStats() async {
+    try {
+      // Load budget categories count
+      final categories = await _budgetService.getBudgetCategories();
+      totalBudgetAllocations = categories.length;
+
+      // Load active tenders count (simplified - you might need to implement this in a service)
+      activeTenders = 0; // Placeholder - implement tender service if needed
+
+      // Load projects count (simplified - you might need to implement this in a service)
+      ongoingProjects = 0; // Placeholder - implement project service if needed
+
+      // Load total concerns count (simplified - you might need to implement this)
+      totalConcerns = 0; // Placeholder - implement concern service if needed
+
+    } catch (e) {
+      print('Error loading dashboard stats: $e');
     }
   }
 
@@ -67,8 +106,69 @@ class _PublicUserDashboardScreenState extends State<PublicUserDashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Use the enhanced dashboard for public users
-    return const EnhancedDashboardScreen();
+    if (isLoading) {
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
+    return Scaffold(
+      key: _scaffoldKey,
+      backgroundColor: Colors.grey.shade50,
+      appBar: AppBar(
+        title: Text(
+          AppLocalizations.of(context)!.dashboard,
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
+        backgroundColor: userRole?.color ?? Colors.blue,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.menu, color: Colors.white),
+          onPressed: () {
+            _scaffoldKey.currentState?.openDrawer();
+          },
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh, color: Colors.white),
+            onPressed: () {
+              setState(() {
+                isLoading = true;
+              });
+              _loadUserData();
+            },
+          ),
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert, color: Colors.white),
+            onSelected: (value) {
+              if (value == 'logout') {
+                _signOut();
+              }
+            },
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'logout',
+                child: Row(
+                  children: [
+                    Icon(Icons.logout, color: Colors.red),
+                    SizedBox(width: 8),
+                    Text('Sign Out'),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+      drawer: _buildDrawer(),
+      bottomNavigationBar: _buildBottomNavigationBar(),
+      body: _buildCurrentPage(),
+    );
   }
 
   Widget _buildWelcomeCard() {
@@ -133,613 +233,67 @@ class _PublicUserDashboardScreenState extends State<PublicUserDashboardScreen> {
     );
   }
 
-  Widget _buildRoleSpecificContent() {
-    switch (userRole?.id) {
-      case 'citizen':
-        return _buildCitizenContent();
-      case 'journalist':
-        return _buildJournalistContent();
-      case 'community_leader':
-        return _buildCommunityLeaderContent();
-      case 'researcher':
-        return _buildResearcherContent();
-      case 'ngo':
-        return _buildNGOContent();
-      default:
-        return _buildDefaultContent();
-    }
-  }
-
-  Widget _buildCitizenContent() {
+  Widget _buildStatsOverview() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Citizen Tools',
+        Text(
+          'Overview',
           style: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.bold,
-            color: Colors.black87,
+            color: Colors.grey.shade800,
           ),
         ),
-        const SizedBox(height: 16),
-        _buildFeatureCard(
-          'Tender Management',
-          'View and monitor government tenders',
-          Icons.shopping_cart,
-          Colors.orange,
-          () => Navigator.pushNamed(context, '/tender-management'),
-        ),
-        _buildFeatureCard(
-          'Track Public Spending',
-          'Monitor government budgets and expenditures',
-          Icons.account_balance,
-          Colors.blue,
-          () => _showFeatureComingSoon('Track Public Spending'),
-        ),
-        _buildFeatureCard(
-          'Raise Concerns',
-          'Report issues and track their resolution',
-          Icons.report_problem,
-          Colors.orange,
-          () => Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const RaiseConcernScreen(),
-            ),
-          ),
-        ),
-        _buildFeatureCard(
-          'View Reports',
-          'Access transparency reports and analytics',
-          Icons.analytics,
-          Colors.green,
-          () => _showFeatureComingSoon('View Reports'),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildJournalistContent() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Media & Journalism Hub Section
-        Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Colors.teal.shade600, Colors.teal.shade400],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.teal.withOpacity(0.3),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(
-                  Icons.article,
-                  color: Colors.white,
-                  size: 28,
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Welcome, ${userData?['name'] ?? 'Journalist'}',
-                      style: const TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    const Text(
-                      'Media & Journalism Hub',
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: Colors.white,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Professional tools for investigative reporting',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.white.withOpacity(0.9),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 24),
-
-        // Quick Stats Section
-        _buildJournalistStats(),
-        const SizedBox(height: 24),
-
-        // Main Tools Section
-        const Text(
-          'Core Tools',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: Colors.black87,
-          ),
-        ),
-        const SizedBox(height: 16),
-        
-        // Primary Tools Grid
+        const SizedBox(height: 12),
         Row(
           children: [
             Expanded(
-              child: _buildJournalistToolCard(
-                'Publish Article',
-                'Create and publish investigative reports',
-                Icons.edit_document,
-                Colors.green,
-                () => Navigator.pushNamed(context, '/publish'),
-                isPrimary: true,
+              child: _buildStatCard(
+                'Budget Allocations',
+                totalBudgetAllocations.toString(),
+                Icons.account_balance_wallet,
+                Colors.blue,
               ),
             ),
             const SizedBox(width: 12),
             Expanded(
-              child: _buildJournalistToolCard(
-                'Media Hub',
-                'Save and organize articles',
-                Icons.bookmark,
-                Colors.purple,
-                () => Navigator.pushNamed(context, '/media-hub'),
-                isPrimary: true,
+              child: _buildStatCard(
+                'Active Tenders',
+                activeTenders.toString(),
+                Icons.assignment,
+                Colors.orange,
               ),
             ),
           ],
         ),
         const SizedBox(height: 12),
-        
         Row(
           children: [
             Expanded(
-              child: _buildJournalistToolCard(
-                'News Feed',
-                'Browse latest articles',
-                Icons.feed,
-                Colors.blue,
-                () => Navigator.pushNamed(context, '/news'),
-                isPrimary: true,
+              child: _buildStatCard(
+                'Ongoing Projects',
+                ongoingProjects.toString(),
+                Icons.construction,
+                Colors.green,
               ),
             ),
             const SizedBox(width: 12),
             Expanded(
-              child: _buildJournalistToolCard(
-                'Tender Watch',
-                'Monitor government tenders',
-                Icons.shopping_cart,
-                Colors.orange,
-                () => Navigator.pushNamed(context, '/tender-management'),
-                isPrimary: true,
+              child: _buildStatCard(
+                'Total Concerns',
+                totalConcerns.toString(),
+                Icons.warning,
+                Colors.red,
               ),
             ),
           ],
         ),
-        const SizedBox(height: 24),
-
-        // Recent Articles Section
-        const Text(
-          'Recent Articles',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: Colors.black87,
-          ),
-        ),
-        const SizedBox(height: 16),
-        _buildRecentArticlesSection(),
-        const SizedBox(height: 24),
-
-        // Recent Saved Articles Section
-        const Text(
-          'Recent Saved Articles',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: Colors.black87,
-          ),
-        ),
-        const SizedBox(height: 16),
-        _buildRecentSavedArticlesSection(),
       ],
     );
   }
 
-  Widget _buildCommunityLeaderContent() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Community Leader Tools',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-            color: Colors.black87,
-          ),
-        ),
-        const SizedBox(height: 16),
-        _buildFeatureCard(
-          'Tender Management',
-          'View and monitor government tenders',
-          Icons.shopping_cart,
-          Colors.orange,
-          () => Navigator.pushNamed(context, '/tender-management'),
-        ),
-        _buildFeatureCard(
-          'Community Management',
-          'Manage community groups and initiatives',
-          Icons.people,
-          Colors.orange,
-          () => _showFeatureComingSoon('Community Management'),
-        ),
-        _buildFeatureCard(
-          'Organize Events',
-          'Plan and coordinate community events',
-          Icons.event,
-          Colors.red,
-          () => _showFeatureComingSoon('Organize Events'),
-        ),
-        _buildFeatureCard(
-          'Engagement Tools',
-          'Tools for community engagement',
-          Icons.build,
-          Colors.green,
-          () => _showFeatureComingSoon('Engagement Tools'),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildResearcherContent() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Research Tools',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-            color: Colors.black87,
-          ),
-        ),
-        const SizedBox(height: 16),
-        _buildFeatureCard(
-          'Tender Management',
-          'View and monitor government tenders',
-          Icons.shopping_cart,
-          Colors.orange,
-          () => Navigator.pushNamed(context, '/tender-management'),
-        ),
-        _buildFeatureCard(
-          'Research Data',
-          'Access anonymized datasets for research',
-          Icons.school,
-          Colors.purple,
-          () => _showFeatureComingSoon('Research Data'),
-        ),
-        _buildFeatureCard(
-          'Generate Reports',
-          'Create research reports and analytics',
-          Icons.analytics,
-          Colors.blue,
-          () => _showFeatureComingSoon('Generate Reports'),
-        ),
-        _buildFeatureCard(
-          'Academic Tools',
-          'Research and analysis tools',
-          Icons.science,
-          Colors.green,
-          () => _showFeatureComingSoon('Academic Tools'),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildNGOContent() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'NGO Tools',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-            color: Colors.black87,
-          ),
-        ),
-        const SizedBox(height: 16),
-        _buildFeatureCard(
-          'Tender Management',
-          'View and monitor government tenders',
-          Icons.shopping_cart,
-          Colors.orange,
-          () => Navigator.pushNamed(context, '/tender-management'),
-        ),
-        _buildFeatureCard(
-          'Project Management',
-          'Manage NGO projects and contracts',
-          Icons.business,
-          Colors.red,
-          () => _showFeatureComingSoon('Project Management'),
-        ),
-        _buildFeatureCard(
-          'Contractor Tools',
-          'Access contractor-specific tools',
-          Icons.build,
-          Colors.orange,
-          () => _showFeatureComingSoon('Contractor Tools'),
-        ),
-        _buildFeatureCard(
-          'Performance Tracking',
-          'Track project performance and metrics',
-          Icons.trending_up,
-          Colors.green,
-          () => _showFeatureComingSoon('Performance Tracking'),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildDefaultContent() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Public User Tools',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-            color: Colors.black87,
-          ),
-        ),
-        const SizedBox(height: 16),
-        _buildFeatureCard(
-          'Tender Management',
-          'View and monitor government tenders',
-          Icons.shopping_cart,
-          Colors.orange,
-          () => Navigator.pushNamed(context, '/tender-management'),
-        ),
-        _buildFeatureCard(
-          'Track Public Spending',
-          'Monitor government budgets and expenditures',
-          Icons.account_balance,
-          Colors.blue,
-          () => _showFeatureComingSoon('Track Public Spending'),
-        ),
-        _buildFeatureCard(
-          'Raise Concerns',
-          'Report issues and track their resolution',
-          Icons.report_problem,
-          Colors.orange,
-          () => Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const RaiseConcernScreen(),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildCommonFeatures() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Common Features',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-            color: Colors.black87,
-          ),
-        ),
-        const SizedBox(height: 16),
-        _buildFeatureCard(
-          'Public Spending Tracker',
-          'Monitor government budgets and expenditures',
-          Icons.account_balance,
-          Colors.blue,
-          () => _showFeatureComingSoon('Public Spending Tracker'),
-        ),
-        _buildFeatureCard(
-          'Transparency Reports',
-          'Access government transparency reports',
-          Icons.visibility,
-          Colors.green,
-          () => _showFeatureComingSoon('Transparency Reports'),
-        ),
-        _buildFeatureCard(
-          'Raise Concerns',
-          'Report issues and track their resolution',
-          Icons.report_problem,
-          Colors.orange,
-          () => Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const RaiseConcernScreen(),
-            ),
-          ),
-        ),
-        _buildFeatureCard(
-          'Government Directory',
-          'Find government officials and departments',
-          Icons.people,
-          Colors.purple,
-          () => _showFeatureComingSoon('Government Directory'),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildFeatureCard(String title, String description, IconData icon, Color color, VoidCallback onTap) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: ListTile(
-        contentPadding: const EdgeInsets.all(16),
-        leading: Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Icon(icon, color: color, size: 24),
-        ),
-        title: Text(
-          title,
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 16,
-          ),
-        ),
-        subtitle: Text(
-          description,
-          style: const TextStyle(
-            color: Colors.grey,
-            fontSize: 14,
-          ),
-        ),
-        trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-        onTap: onTap,
-      ),
-    );
-  }
-
-  Widget _buildRecentActivities() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Recent Activities',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-            color: Colors.black87,
-          ),
-        ),
-        const SizedBox(height: 16),
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.grey.withOpacity(0.1),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: Column(
-            children: [
-              _buildActivityItem(
-                'Concern submitted about road construction',
-                '2 hours ago',
-                Icons.report_problem,
-                Colors.orange,
-              ),
-              _buildActivityItem(
-                'Viewed Q4 budget report',
-                '1 day ago',
-                Icons.visibility,
-                Colors.blue,
-              ),
-              _buildActivityItem(
-                'Tracked government spending',
-                '2 days ago',
-                Icons.track_changes,
-                Colors.green,
-              ),
-              _buildActivityItem(
-                'Updated profile information',
-                '1 week ago',
-                Icons.person,
-                Colors.purple,
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildActivityItem(String title, String time, IconData icon, Color color) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        children: [
-          Icon(icon, color: color, size: 20),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w500,
-                    fontSize: 14,
-                  ),
-                ),
-                Text(
-                  time,
-                  style: const TextStyle(
-                    color: Colors.grey,
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showFeatureComingSoon(String featureName) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('$featureName feature coming soon!'),
-        backgroundColor: userRole?.color ?? Colors.blue,
-        duration: const Duration(seconds: 2),
-      ),
-    );
-  }
-
-  Widget _buildJournalistStats() {
+  Widget _buildStatCard(String title, String value, IconData icon, Color color) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -747,375 +301,540 @@ class _PublicUserDashboardScreenState extends State<PublicUserDashboardScreen> {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+            color: Colors.grey.withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Your Activity',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: Colors.black87,
-            ),
-          ),
-          const SizedBox(height: 16),
           Row(
             children: [
-              Expanded(
-                child: StreamBuilder<int>(
-                  stream: _newsService.streamUserArticleCount(),
-                  builder: (context, snapshot) {
-                    final count = snapshot.data ?? 0;
-                    return _buildStatItem('Articles Published', count.toString(), Icons.article, Colors.green);
-                  },
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  icon,
+                  color: color,
+                  size: 20,
                 ),
               ),
-              Expanded(
-                child: StreamBuilder<int>(
-                  stream: _mediaHubService.streamSavedArticlesCount(),
-                  builder: (context, snapshot) {
-                    final count = snapshot.data ?? 0;
-                    return _buildStatItem('Articles Saved', count.toString(), Icons.bookmark, Colors.purple);
-                  },
+              const Spacer(),
+              Text(
+                value,
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: color,
                 ),
               ),
             ],
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatItem(String label, String value, IconData icon, Color color) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withOpacity(0.3)),
-      ),
-      child: Column(
-        children: [
-          Icon(icon, color: color, size: 24),
           const SizedBox(height: 8),
           Text(
-            value,
+            title,
             style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: color,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 12,
+              fontSize: 14,
               color: Colors.grey.shade600,
+              fontWeight: FontWeight.w500,
             ),
-            textAlign: TextAlign.center,
           ),
         ],
       ),
     );
   }
 
-  Widget _buildJournalistToolCard(String title, String description, IconData icon, Color color, VoidCallback onTap, {bool isPrimary = false}) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(12),
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: color.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(icon, color: color, size: 24),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  description,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey.shade600,
-                  ),
-                ),
-              ],
-            ),
+  Widget _buildQuickActions() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Quick Actions',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: Colors.grey.shade800,
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildRecentArticlesSection() {
-    return StreamBuilder<List<ReportArticle>>(
-      stream: _newsService.streamRecentUserArticles(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        
-        if (!snapshot.hasData || snapshot.data!.isEmpty) {
-          return Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: Colors.grey.shade50,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.grey.shade200),
-            ),
-            child: const Center(
-              child: Text(
-                'No articles published yet',
-                style: TextStyle(color: Colors.grey),
+        const SizedBox(height: 12),
+        GridView.count(
+          crossAxisCount: 2,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          crossAxisSpacing: 12,
+          mainAxisSpacing: 12,
+          childAspectRatio: 1.2,
+          children: [
+            _buildActionCard(
+              'Raise Concern',
+              Icons.warning,
+              Colors.red,
+              () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const RaiseConcernScreen()),
               ),
             ),
-          );
-        }
-
-        return Column(
-          children: snapshot.data!.map((article) => _buildArticleCard(article)).toList(),
-        );
-      },
-    );
-  }
-
-  Widget _buildRecentSavedArticlesSection() {
-    return StreamBuilder<List<Map<String, dynamic>>>(
-      stream: _mediaHubService.streamRecentSavedArticles(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        
-        if (!snapshot.hasData || snapshot.data!.isEmpty) {
-          return Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: Colors.grey.shade50,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.grey.shade200),
-            ),
-            child: const Center(
-              child: Text(
-                'No saved articles yet',
-                style: TextStyle(color: Colors.grey),
+            _buildActionCard(
+              'View Budget',
+              Icons.account_balance_wallet,
+              Colors.blue,
+              () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const BudgetViewerScreen()),
               ),
             ),
-          );
+            _buildActionCard(
+              'Browse Tenders',
+              Icons.assignment,
+              Colors.orange,
+              () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const PublicTenderViewerScreen()),
+              ),
+            ),
+            _buildActionCard(
+              'Join Community',
+              Icons.group,
+              Colors.green,
+              () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const CommunityListScreen()),
+              ),
+            ),
+            _buildActionCard(
+              'My Concerns',
+              Icons.track_changes,
+              Colors.purple,
+              () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const UserConcernTrackingScreen()),
+              ),
+            ),
+            _buildActionCard(
+              'Public Concerns',
+              Icons.public,
+              Colors.teal,
+              () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const PublicConcernsScreen()),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildActionCard(String title, IconData icon, Color color, VoidCallback onTap) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.withOpacity(0.1),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(
+                icon,
+                color: color,
+                size: 28,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: Colors.grey.shade800,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+
+  Widget _buildDrawer() {
+    return Drawer(
+      backgroundColor: Colors.white,
+      child: Column(
+        children: [
+          // Drawer Header
+          Container(
+            width: double.infinity,
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Colors.blue, Color(0xFF1976D2)],
+              ),
+            ),
+            child: SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    CircleAvatar(
+                      radius: 30,
+                      backgroundColor: Colors.white.withOpacity(0.2),
+                      child: Icon(
+                        userRole?.icon ?? Icons.person,
+                        color: Colors.white,
+                        size: 30,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      '${userData?['firstName'] ?? 'User'} ${userData?['lastName'] ?? ''}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      userRole?.name ?? 'User',
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          
+          // Navigation Items
+          Expanded(
+            child: ListView(
+              padding: EdgeInsets.zero,
+              children: [
+                _buildDrawerItem(
+                  icon: Icons.home,
+                  title: 'Main Home',
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(builder: (context) => const CommonHomeScreen()),
+                    );
+                  },
+                ),
+                _buildDrawerItem(
+                  icon: Icons.dashboard,
+                  title: 'Dashboard Home',
+                  onTap: () {
+                    Navigator.pop(context);
+                    setState(() {
+                      _currentIndex = 0;
+                    });
+                  },
+                ),
+                _buildDrawerItem(
+                  icon: Icons.account_balance,
+                  title: AppLocalizations.of(context)!.budgetOverview,
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const BudgetViewerScreen()),
+                    );
+                  },
+                ),
+                _buildDrawerItem(
+                  icon: Icons.shopping_cart,
+                  title: AppLocalizations.of(context)!.tenders,
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const CitizenTenderScreen()),
+                    );
+                  },
+                ),
+                _buildDrawerItem(
+                  icon: Icons.report_problem,
+                  title: 'Raise Concern',
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const RaiseConcernScreen()),
+                    );
+                  },
+                ),
+                _buildDrawerItem(
+                  icon: Icons.people,
+                  title: 'Communities',
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const CommunityListScreen()),
+                    );
+                  },
+                ),
+                _buildDrawerItem(
+                  icon: Icons.settings,
+                  title: 'Settings',
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const SettingsScreen()),
+                    );
+                  },
+                ),
+                const Divider(),
+                _buildDrawerItem(
+                  icon: Icons.info,
+                  title: 'About',
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const AboutScreen()),
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDrawerItem({
+    required IconData icon,
+    required String title,
+    required VoidCallback onTap,
+  }) {
+    return ListTile(
+      leading: Icon(
+        icon,
+        color: Colors.blue,
+        size: 24,
+      ),
+      title: Text(
+        title,
+        style: const TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+      onTap: onTap,
+    );
+  }
+
+  Widget _buildBottomNavigationBar() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(20),
+          topRight: Radius.circular(20),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.2),
+            blurRadius: 20,
+            offset: const Offset(0, -5),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(20),
+          topRight: Radius.circular(20),
+        ),
+        child: BottomNavigationBar(
+          currentIndex: _currentIndex,
+          onTap: (index) {
+            setState(() {
+              _currentIndex = index;
+            });
+          },
+          type: BottomNavigationBarType.fixed,
+          backgroundColor: Colors.white,
+          selectedItemColor: Colors.blue,
+          unselectedItemColor: Colors.grey.shade600,
+          selectedFontSize: 12,
+          unselectedFontSize: 12,
+          elevation: 0,
+          items: [
+            BottomNavigationBarItem(
+              icon: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: _currentIndex == 0 ? Colors.blue.withOpacity(0.1) : Colors.transparent,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  _currentIndex == 0 ? Icons.home : Icons.home_outlined,
+                  size: _currentIndex == 0 ? 24 : 22,
+                ),
+              ),
+              label: AppLocalizations.of(context)!.home,
+            ),
+            BottomNavigationBarItem(
+              icon: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: _currentIndex == 1 ? Colors.blue.withOpacity(0.1) : Colors.transparent,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  _currentIndex == 1 ? Icons.account_balance : Icons.account_balance_outlined,
+                  size: _currentIndex == 1 ? 24 : 22,
+                ),
+              ),
+              label: AppLocalizations.of(context)!.budget,
+            ),
+            BottomNavigationBarItem(
+              icon: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: _currentIndex == 2 ? Colors.blue.withOpacity(0.1) : Colors.transparent,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  _currentIndex == 2 ? Icons.shopping_cart : Icons.shopping_cart_outlined,
+                  size: _currentIndex == 2 ? 24 : 22,
+                ),
+              ),
+              label: AppLocalizations.of(context)!.tenders,
+            ),
+            BottomNavigationBarItem(
+              icon: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: _currentIndex == 3 ? Colors.blue.withOpacity(0.1) : Colors.transparent,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  _currentIndex == 3 ? Icons.dashboard : Icons.dashboard_outlined,
+                  size: _currentIndex == 3 ? 24 : 22,
+                ),
+              ),
+              label: AppLocalizations.of(context)!.dashboard,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCurrentPage() {
+    switch (_currentIndex) {
+      case 0:
+        // Navigate to CommonHomeScreen (Home)
+        if (!_isNavigating) {
+          _isNavigating = true;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (context) => const CommonHomeScreen()),
+              );
+            }
+          });
         }
-
-        return Column(
-          children: snapshot.data!.map((article) => _buildSavedArticleCard(article)).toList(),
-        );
-      },
-    );
-  }
-
-  Widget _buildArticleCard(ReportArticle article) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(12),
-          onTap: () => Navigator.pushNamed(
+        return _buildDashboardContent();
+      case 1:
+        // Navigate to Budget Viewer Screen
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          Navigator.push(
             context,
-            '/article',
-            arguments: article.id,
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                Container(
-                  width: 60,
-                  height: 60,
-                  decoration: BoxDecoration(
-                    color: Colors.green.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Icon(Icons.article, color: Colors.green),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        article.title,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black87,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Published ${_formatDate(article.createdAt)}',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey.shade600,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSavedArticleCard(Map<String, dynamic> article) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(12),
-          onTap: () => Navigator.pushNamed(
+            MaterialPageRoute(builder: (context) => const BudgetViewerScreen()),
+          );
+          // Reset to home page after navigation
+          setState(() {
+            _currentIndex = 0;
+          });
+        });
+        return _buildDashboardContent();
+      case 2:
+        // Navigate to Public Tender Viewer Screen
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          Navigator.push(
             context,
-            '/article',
-            arguments: article['id'],
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                Container(
-                  width: 60,
-                  height: 60,
-                  decoration: BoxDecoration(
-                    color: Colors.purple.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Icon(Icons.bookmark, color: Colors.purple),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        article['title'] ?? 'Untitled',
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black87,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Saved ${_formatDate(article['savedAt'])}',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey.shade600,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  String _formatDate(dynamic date) {
-    if (date == null) return 'Unknown';
-    
-    try {
-      DateTime dateTime;
-      if (date is DateTime) {
-        dateTime = date;
-      } else if (date.toString().contains('Timestamp')) {
-        // Handle Firestore Timestamp
-        dateTime = DateTime.fromMillisecondsSinceEpoch(date.millisecondsSinceEpoch);
-      } else {
-        dateTime = DateTime.parse(date.toString());
-      }
-      
-      final now = DateTime.now();
-      final difference = now.difference(dateTime);
-      
-      if (difference.inDays > 0) {
-        return '${difference.inDays} day${difference.inDays == 1 ? '' : 's'} ago';
-      } else if (difference.inHours > 0) {
-        return '${difference.inHours} hour${difference.inHours == 1 ? '' : 's'} ago';
-      } else if (difference.inMinutes > 0) {
-        return '${difference.inMinutes} minute${difference.inMinutes == 1 ? '' : 's'} ago';
-      } else {
-        return 'Just now';
-      }
-    } catch (e) {
-      return 'Unknown';
+            MaterialPageRoute(builder: (context) => const PublicTenderViewerScreen()),
+          );
+          // Reset to home page after navigation
+          setState(() {
+            _currentIndex = 0;
+          });
+        });
+        return _buildDashboardContent();
+      case 3:
+        // Stay on Dashboard (current page)
+        return _buildDashboardContent();
+      default:
+        return _buildDashboardContent();
     }
   }
+
+  Widget _buildDashboardContent() {
+    return RefreshIndicator(
+      onRefresh: _loadUserData,
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Welcome Card
+            _buildWelcomeCard(),
+            const SizedBox(height: 20),
+            
+            // Stats Overview
+            _buildStatsOverview(),
+            const SizedBox(height: 20),
+            
+            // Quick Actions
+            _buildQuickActions(),
+          ],
+        ),
+      ),
+    );
+  }
 }
+
+
+
+
+

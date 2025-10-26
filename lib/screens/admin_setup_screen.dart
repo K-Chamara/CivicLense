@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../utils/create_admin.dart';
 import '../widgets/custom_button.dart';
 import '../widgets/custom_text_field.dart';
+import 'common_home_screen.dart';
 
 class AdminSetupScreen extends StatefulWidget {
   const AdminSetupScreen({super.key});
@@ -50,13 +51,23 @@ class _AdminSetupScreenState extends State<AdminSetupScreen> {
              if (mounted) {
          ScaffoldMessenger.of(context).showSnackBar(
            const SnackBar(
-             content: Text('Admin user created successfully! You will be automatically logged in.'),
+             content: Text('Admin user created successfully! Redirecting to home...'),
              backgroundColor: Colors.green,
+             duration: Duration(seconds: 2),
            ),
          );
          
-         // Navigate to onboarding since the user is now logged in
-         Navigator.of(context).pushReplacementNamed('/onboarding');
+         // Navigate to CommonHomeScreen since the admin is now logged in
+         // Use a small delay to allow the user to see the success message
+         await Future.delayed(const Duration(seconds: 1));
+         
+         if (mounted) {
+           Navigator.of(context).pushReplacement(
+             MaterialPageRoute(
+               builder: (context) => const CommonHomeScreen(),
+             ),
+           );
+         }
        }
     } catch (e) {
       if (mounted) {

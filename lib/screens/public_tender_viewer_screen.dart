@@ -5,6 +5,7 @@ import 'tender_detail_screen.dart';
 import 'user_concern_tracking_screen.dart';
 import '../services/auth_service.dart';
 import '../models/user_role.dart';
+import '../l10n/app_localizations.dart';
 import 'enhanced_dashboard_screen.dart';
 import 'admin_dashboard_screen.dart';
 import 'finance_officer_dashboard_screen.dart';
@@ -125,7 +126,7 @@ class _PublicTenderViewerScreenState extends State<PublicTenderViewerScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
       appBar: AppBar(
-        title: const Text('Public Tenders'),
+        title: Text(AppLocalizations.of(context)!.publicTenders),
         backgroundColor: Colors.blue,
         foregroundColor: Colors.white,
         elevation: 0,
@@ -162,7 +163,7 @@ class _PublicTenderViewerScreenState extends State<PublicTenderViewerScreen> {
           // Search Bar
           TextField(
             decoration: InputDecoration(
-              hintText: 'Search tenders...',
+              hintText: AppLocalizations.of(context)!.searchTendersPlaceholder,
               prefixIcon: const Icon(Icons.search),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
@@ -192,7 +193,7 @@ class _PublicTenderViewerScreenState extends State<PublicTenderViewerScreen> {
                   child: DropdownButtonFormField<String>(
                     value: _selectedCategory,
                     decoration: InputDecoration(
-                      labelText: 'Category',
+                      labelText: AppLocalizations.of(context)!.category,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8),
                       ),
@@ -545,19 +546,19 @@ class _PublicTenderViewerScreenState extends State<PublicTenderViewerScreen> {
     switch (status.toLowerCase()) {
       case 'active':
         color = Colors.green;
-        text = 'Active';
+        text = AppLocalizations.of(context)!.active;
         break;
       case 'closed':
         color = Colors.orange;
-        text = 'Closed';
+        text = AppLocalizations.of(context)!.closed;
         break;
       case 'awarded':
         color = Colors.blue;
-        text = 'Awarded';
+        text = AppLocalizations.of(context)!.awarded;
         break;
       case 'cancelled':
         color = Colors.red;
-        text = 'Cancelled';
+        text = AppLocalizations.of(context)!.cancelled;
         break;
       default:
         color = Colors.grey;
@@ -604,14 +605,14 @@ class _PublicTenderViewerScreenState extends State<PublicTenderViewerScreen> {
       if (difference < 0) {
         return 'Expired';
       } else if (difference == 0) {
-        return 'Due today';
+        return AppLocalizations.of(context)!.dueToday;
       } else if (difference == 1) {
-        return 'Due tomorrow';
+        return AppLocalizations.of(context)!.dueTomorrow;
       } else {
-        return '$difference days left';
+        return '$difference ${AppLocalizations.of(context)!.daysLeft}';
       }
     } catch (e) {
-      return 'Invalid date';
+      return AppLocalizations.of(context)!.invalidDate;
     }
   }
 
@@ -638,20 +639,20 @@ class _PublicTenderViewerScreenState extends State<PublicTenderViewerScreen> {
             break;
         }
       },
-      items: const [
+      items: [
         BottomNavigationBarItem(
-          icon: Icon(Icons.home),
-          label: 'Home',
+          icon: const Icon(Icons.home),
+          label: AppLocalizations.of(context)!.home,
         ),
         BottomNavigationBarItem(
-          icon: Icon(Icons.account_balance),
-          label: 'Budget',
+          icon: const Icon(Icons.account_balance),
+          label: AppLocalizations.of(context)!.budget,
         ),
         BottomNavigationBarItem(
-          icon: Icon(Icons.shopping_cart),
-          label: 'Tenders',
+          icon: const Icon(Icons.shopping_cart),
+          label: AppLocalizations.of(context)!.tenders,
         ),
-        BottomNavigationBarItem(
+        const BottomNavigationBarItem(
           icon: Icon(Icons.dashboard),
           label: 'Dashboard',
         ),

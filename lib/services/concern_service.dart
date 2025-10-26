@@ -127,10 +127,33 @@ class ConcernService {
         },
       ).toFirestore());
       
+      // Notify officers about the new concern
+      await _notificationService.notifyNewConcern(
+        concernId: doc.id,
+        concernTitle: concern.title,
+        authorName: concern.authorName,
+        category: concern.category,
+        priority: concern.priority,
+        attachments: concern.attachments,
+      );
+      
       return doc.id;
     } catch (e) {
       print('Error creating concern: $e');
       throw Exception('Failed to create concern: $e');
+    }
+  }
+
+  /// Update concern attachments with correct concernId
+  Future<void> updateConcernAttachments(String concernId, List<ConcernAttachment> attachments) async {
+    try {
+      await _concernsCol.doc(concernId).update({
+        'attachments': attachments.map((a) => a.toFirestore()).toList(),
+      });
+      print('✅ Updated concern attachments with concernId: $concernId');
+    } catch (e) {
+      print('❌ Error updating concern attachments: $e');
+      throw Exception('Failed to update concern attachments: $e');
     }
   }
 
@@ -253,6 +276,23 @@ class ConcernService {
     
     final currentConcern = Concern.fromFirestore(currentConcernDoc);
     final oldStatus = currentConcern.status;
+    
+    // Get user role
+    String? userRole;
+    try {
+      final userDoc = await _db.collection('users').doc(officerId).get();
+      if (userDoc.exists) {
+        final userData = userDoc.data();
+        if (userData != null && userData['role'] is Map) {
+          userRole = (userData['role'] as Map<String, dynamic>)['name'] ?? 'Officer';
+        } else {
+          userRole = 'Officer';
+        }
+      }
+    } catch (e) {
+      userRole = 'Officer'; // Fallback
+    }
+    
     try {
       final updateData = <String, dynamic>{
         'status': status.name,
@@ -275,7 +315,8 @@ class ConcernService {
         concernId: concernId,
         officerId: officerId,
         officerName: officerName,
-        action: 'status_update',
+        userRole: userRole,
+        action: status.name, // Use the actual status name (underReview, inProgress, etc.)
         description: comment ?? 'Status updated to ${status.name}',
         createdAt: DateTime.now(),
         changes: {
@@ -615,6 +656,7 @@ class ConcernService {
       final userName = user.displayName ?? user.email?.split('@').first ?? 'Anonymous';
       
       final supportDocId = '${concernId}_$userId';
+      var supportAdded = false; // track whether support was newly added
       
       // Use transaction to prevent race conditions
       await _db.runTransaction((txn) async {
@@ -646,8 +688,29 @@ class ConcernService {
             'updatedAt': Timestamp.now(),
           });
           print('✅ Support added for concern $concernId');
+          supportAdded = true;
         }
       });
+
+      // Emit notification to the concern author only if support was added (not removed)
+      if (supportAdded) {
+        try {
+          final concernSnap = await _concernsCol.doc(concernId).get();
+          if (concernSnap.exists) {
+            final concern = Concern.fromFirestore(concernSnap);
+            await _notificationService.notifyConcernSupport(
+              concernAuthorId: concern.authorId,
+              concernId: concernId,
+              concernTitle: concern.title,
+              supporterId: userId,
+              supporterName: userName,
+            );
+          }
+        } catch (e) {
+          // Non-fatal: supporting should not fail because notification fails
+          print('Error emitting support notification: $e');
+        }
+      }
     } catch (e) {
       print('Error toggling support: $e');
       throw Exception('Failed to toggle support: $e');

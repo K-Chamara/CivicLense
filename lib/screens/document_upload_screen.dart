@@ -112,7 +112,7 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen>
       FilePickerResult? result = await FilePicker.platform.pickFiles(
         allowMultiple: true,
         type: FileType.custom,
-        allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png'],
+        allowedExtensions: ['jpg', 'jpeg', 'png'],
       );
 
       if (result != null) {
@@ -132,7 +132,7 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen>
   Future<void> _uploadDocuments() async {
     if (_selectedFiles.isEmpty) {
       setState(() {
-        _errorMessage = 'Please select at least one document';
+        _errorMessage = 'Please select at least one image';
       });
       return;
     }
@@ -152,7 +152,7 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen>
       
       if (uploadedUrls.isEmpty) {
         setState(() {
-          _errorMessage = 'Failed to upload any documents. Please try again.';
+          _errorMessage = 'Failed to upload any images. Please try again.';
         });
         return;
       }
@@ -172,7 +172,7 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('✅ ${uploadedUrls.length} documents uploaded successfully! Now please verify your email.'),
+            content: Text('✅ ${uploadedUrls.length} images uploaded successfully! Now please verify your email.'),
             backgroundColor: Colors.green,
             duration: const Duration(seconds: 4),
           ),
@@ -354,7 +354,7 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen>
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text(
-                        'Upload Documents',
+                        'Upload Images',
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
@@ -386,7 +386,7 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen>
                               ),
                               const SizedBox(height: 12),
                               const Text(
-                                'Tap to select files',
+                                'Tap to select images',
                                 style: TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.w600,
@@ -527,7 +527,7 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen>
                             ],
                           )
                         : const Text(
-                            'Upload Documents',
+                            'Upload Images',
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w600,

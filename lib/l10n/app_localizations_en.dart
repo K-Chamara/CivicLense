@@ -37,6 +37,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get dashboard => 'Dashboard';
 
   @override
+  String get communityLeaderDashboard => 'Community Leader Dashboard';
+
+  @override
   String get profile => 'Profile';
 
   @override
@@ -890,4 +893,213 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get tenderBudgetOverview => 'Tender & Budget Overview';
+
+  @override
+  String get stayUpdatedWithLatestNewsAndMedia =>
+      'Stay updated with latest news and media';
+
+  @override
+  String get accessMediaResourcesAndForums =>
+      'Access media resources and forums';
+
+  @override
+  String get joinAndManageCommunityGroups => 'Join and manage community groups';
+
+  @override
+  String get viewDetailedReportsAndAnalytics =>
+      'View detailed reports and analytics';
+
+  @override
+  String get submitAndReportPublicConcerns =>
+      'Submit and report public concerns';
+
+  @override
+  String get trackYourSubmittedConcerns => 'Track your submitted concerns';
+
+  @override
+  String get browseAllPublicConcerns => 'Browse all public concerns';
+
+  @override
+  String get configureAppSettingsAndPreferences =>
+      'Configure app settings and preferences';
+
+  @override
+  String get learnMoreAboutCivicLense => 'Learn more about CivicLense';
+
+  @override
+  String get ongoing => 'Ongoing';
+
+  @override
+  String get weekOne => 'Week 1';
+
+  @override
+  String get weekTwo => 'Week 2';
+
+  @override
+  String get weekThree => 'Week 3';
+
+  @override
+  String get weekFour => 'Week 4';
+
+  @override
+  String get civicLense => 'Civic Lense';
+
+  @override
+  String get budgetAllocations => 'Budget Allocations';
+
+  @override
+  String get recentTenders => 'Recent Tenders';
+
+  @override
+  String get noBudgetAllocationsAvailable => 'No budget allocations available';
+
+  @override
+  String get noRecentTenders => 'No recent tenders';
+
+  @override
+  String get unknown => 'Unknown';
+
+  @override
+  String get noDescription => 'No description';
+
+  @override
+  String get tenderManagement => 'Tender Management';
+
+  @override
+  String get viewAndMonitorGovernmentTenders =>
+      'View and monitor government tenders';
+
+  @override
+  String get reportIssuesAndTrackResolution =>
+      'Report issues and track their resolution';
+
+  @override
+  String get viewReports => 'View Reports';
+
+  @override
+  String get accessTransparencyReportsAndAnalytics =>
+      'Access transparency reports and analytics';
+
+  @override
+  String get professionalToolsForInvestigativeReporting =>
+      'Professional tools for investigative reporting';
+
+  @override
+  String get coreTools => 'Core Tools';
+
+  @override
+  String get publishArticle => 'Publish Article';
+
+  @override
+  String get createAndPublishInvestigativeReports =>
+      'Create and publish investigative reports';
+
+  @override
+  String get saveAndOrganizeArticles => 'Save and organize articles';
+
+  @override
+  String get browseLatestArticles => 'Browse latest articles';
+
+  @override
+  String get tenderWatch => 'Tender Watch';
+
+  @override
+  String get monitorGovernmentTenders => 'Monitor government tenders';
+
+  @override
+  String get recentArticles => 'Recent Articles';
+
+  @override
+  String get recentSavedArticles => 'Recent Saved Articles';
+
+  @override
+  String get communityLeaderTools => 'Community Leader Tools';
+
+  @override
+  String get manageCommunityGroupsAndInitiatives =>
+      'Manage community groups and initiatives';
+
+  @override
+  String get organizeEvents => 'Organize Events';
+
+  @override
+  String get planAndCoordinateCommunityEvents =>
+      'Plan and coordinate community events';
+
+  @override
+  String get engagementTools => 'Engagement Tools';
+
+  @override
+  String get toolsForCommunityEngagement => 'Tools for community engagement';
+
+  @override
+  String get researchTools => 'Research Tools';
+
+  @override
+  String get researchData => 'Research Data';
+
+  @override
+  String get accessAnonymizedDatasetsForResearch =>
+      'Access anonymized datasets for research';
+
+  @override
+  String get generateReports => 'Generate Reports';
+
+  @override
+  String get createResearchReportsAndAnalytics =>
+      'Create research reports and analytics';
+
+  @override
+  String get projectConvertedFromTender => 'Project converted from tender';
+
+  @override
+  String get central => 'Central';
+
+  @override
+  String get active => 'Active';
+
+  @override
+  String get upcomingEvents => 'Upcoming Events';
+
+  @override
+  String get mostSupportedConcerns => 'Most Supported Concerns';
+
+  @override
+  String get noTendersAvailable => 'No tenders available';
+
+  @override
+  String get searchTendersPlaceholder => 'Search tenders...';
+
+  @override
+  String get searchAcrossServicesPlaceholder => 'Search across services';
+
+  @override
+  String get locationNotSpecified => 'Location not specified';
+
+  @override
+  String get closed => 'Closed';
+
+  @override
+  String get bidReceived => 'bid received';
+
+  @override
+  String get bidsReceived => 'bids received';
+
+  @override
+  String get daysLeft => 'days left';
+
+  @override
+  String get dueToday => 'Due today';
+
+  @override
+  String get dueTomorrow => 'Due tomorrow';
+
+  @override
+  String get invalidDate => 'Invalid date';
+
+  @override
+  String get awarded => 'Awarded';
+
+  @override
+  String get cancelled => 'Cancelled';
 }

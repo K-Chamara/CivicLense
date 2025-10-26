@@ -188,6 +188,8 @@ class BudgetItem {
   final double spentAmount;
   final String color;
   final DateTime createdAt;
+  final String categoryId;
+  final String subcategoryId;
 
   BudgetItem({
     required this.id,
@@ -197,6 +199,8 @@ class BudgetItem {
     required this.spentAmount,
     required this.color,
     required this.createdAt,
+    required this.categoryId,
+    required this.subcategoryId,
   });
 
   /// Calculate the remaining amount
@@ -223,6 +227,8 @@ class BudgetItem {
       spentAmount: (data['spentAmount'] ?? 0).toDouble(),
       color: data['color'] ?? '#4A90E2',
       createdAt: _parseDateTime(data['createdAt']),
+      categoryId: data['categoryId'] ?? '',
+      subcategoryId: data['subcategoryId'] ?? '',
     );
   }
 
@@ -235,6 +241,8 @@ class BudgetItem {
       'spentAmount': spentAmount,
       'color': color,
       'createdAt': Timestamp.fromDate(createdAt),
+      'categoryId': categoryId,
+      'subcategoryId': subcategoryId,
     };
   }
 
@@ -247,6 +255,8 @@ class BudgetItem {
     double? spentAmount,
     String? color,
     DateTime? createdAt,
+    String? categoryId,
+    String? subcategoryId,
   }) {
     return BudgetItem(
       id: id ?? this.id,
@@ -256,6 +266,8 @@ class BudgetItem {
       spentAmount: spentAmount ?? this.spentAmount,
       color: color ?? this.color,
       createdAt: createdAt ?? this.createdAt,
+      categoryId: categoryId ?? this.categoryId,
+      subcategoryId: subcategoryId ?? this.subcategoryId,
     );
   }
 }

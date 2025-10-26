@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../models/concern_models.dart';
 import '../services/concern_service.dart';
 import '../l10n/app_localizations.dart';
+import 'citizen_concern_detail_screen.dart';
 
 class UserConcernTrackingScreen extends StatefulWidget {
   const UserConcernTrackingScreen({super.key});
@@ -21,7 +22,7 @@ class _UserConcernTrackingScreenState extends State<UserConcernTrackingScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 6, vsync: this);
     _getCurrentUser();
   }
 
@@ -60,10 +61,14 @@ class _UserConcernTrackingScreenState extends State<UserConcernTrackingScreen>
           indicatorColor: Colors.white,
           labelColor: Colors.white,
           unselectedLabelColor: Colors.white70,
+          isScrollable: true,
           tabs: const [
             Tab(text: 'All', icon: Icon(Icons.list)),
-            Tab(text: 'Active', icon: Icon(Icons.pending)),
+            Tab(text: 'Pending', icon: Icon(Icons.pending)),
+            Tab(text: 'Under Review', icon: Icon(Icons.search)),
+            Tab(text: 'In Progress', icon: Icon(Icons.work)),
             Tab(text: 'Resolved', icon: Icon(Icons.check_circle)),
+            Tab(text: 'Dismissed', icon: Icon(Icons.cancel)),
           ],
         ),
       ),
@@ -71,27 +76,21 @@ class _UserConcernTrackingScreenState extends State<UserConcernTrackingScreen>
         controller: _tabController,
         children: [
           _buildUserConcernsList(),
-          _buildUserConcernsList(status: 'active'),
-          _buildUserConcernsList(status: 'resolved'),
+          _buildUserConcernsList(status: ConcernStatus.pending),
+          _buildUserConcernsList(status: ConcernStatus.underReview),
+          _buildUserConcernsList(status: ConcernStatus.inProgress),
+          _buildUserConcernsList(status: ConcernStatus.resolved),
+          _buildUserConcernsList(status: ConcernStatus.dismissed),
         ],
       ),
     );
   }
 
-  Widget _buildUserConcernsList({String? status}) {
+  Widget _buildUserConcernsList({ConcernStatus? status}) {
     Stream<List<Concern>> concernsStream;
     
-    if (status == 'active') {
-      concernsStream = _getUserConcernsByStatus([
-        ConcernStatus.pending,
-        ConcernStatus.underReview,
-        ConcernStatus.inProgress,
-      ]);
-    } else if (status == 'resolved') {
-      concernsStream = _getUserConcernsByStatus([
-        ConcernStatus.resolved,
-        ConcernStatus.dismissed,
-      ]);
+    if (status != null) {
+      concernsStream = _getUserConcernsByStatus([status]);
     } else {
       concernsStream = _getUserConcerns();
     }
@@ -129,15 +128,13 @@ class _UserConcernTrackingScreenState extends State<UserConcernTrackingScreen>
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(
-                  status == 'resolved' ? Icons.check_circle : Icons.inbox,
+                  _getStatusIcon(status),
                   size: 64,
                   color: Colors.grey,
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  status == 'resolved' 
-                      ? 'No resolved concerns yet'
-                      : 'No concerns found',
+                  _getStatusEmptyMessage(status),
                   style: const TextStyle(fontSize: 18, color: Colors.grey),
                 ),
               ],
@@ -386,39 +383,47 @@ class _UserConcernTrackingScreenState extends State<UserConcernTrackingScreen>
   }
 
   void _navigateToConcernDetail(Concern concern) {
-    // Navigate to concern detail screen for users
-    // This would show the concern details, updates, and comments
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(concern.title),
-        content: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('Status: ${concern.status.name.toUpperCase()}'),
-              const SizedBox(height: 8),
-              Text('Description: ${concern.description}'),
-              const SizedBox(height: 8),
-              Text('Support Count: ${concern.supportCount}'),
-              const SizedBox(height: 8),
-              Text('Comments: ${concern.commentCount}'),
-              if (concern.assignedOfficerName != null) ...[
-                const SizedBox(height: 8),
-                Text('Assigned Officer: ${concern.assignedOfficerName}'),
-              ],
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
-          ),
-        ],
+    // Navigate to citizen concern detail screen for users
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => CitizenConcernDetailScreen(concern: concern),
       ),
     );
+  }
+
+  IconData _getStatusIcon(ConcernStatus? status) {
+    switch (status) {
+      case ConcernStatus.pending:
+        return Icons.pending;
+      case ConcernStatus.underReview:
+        return Icons.search;
+      case ConcernStatus.inProgress:
+        return Icons.work;
+      case ConcernStatus.resolved:
+        return Icons.check_circle;
+      case ConcernStatus.dismissed:
+        return Icons.cancel;
+      default:
+        return Icons.inbox;
+    }
+  }
+
+  String _getStatusEmptyMessage(ConcernStatus? status) {
+    switch (status) {
+      case ConcernStatus.pending:
+        return 'No pending concerns';
+      case ConcernStatus.underReview:
+        return 'No concerns under review';
+      case ConcernStatus.inProgress:
+        return 'No concerns in progress';
+      case ConcernStatus.resolved:
+        return 'No resolved concerns yet';
+      case ConcernStatus.dismissed:
+        return 'No dismissed concerns';
+      default:
+        return 'No concerns found';
+    }
   }
 
   /// Check if a concern can be deleted by the current user

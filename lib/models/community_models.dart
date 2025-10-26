@@ -10,6 +10,7 @@ class Community {
   final String createdByName;
   final DateTime createdAt;
   final int memberCount;
+  final int postCount;
   final bool isActive;
   final List<String> rules;
   final List<String> tags;
@@ -26,6 +27,7 @@ class Community {
     required this.createdByName,
     required this.createdAt,
     required this.memberCount,
+    required this.postCount,
     required this.isActive,
     required this.rules,
     required this.tags,
@@ -45,6 +47,7 @@ class Community {
       createdByName: data['createdByName'] ?? '',
       createdAt: _parseDateTime(data['createdAt']),
       memberCount: data['memberCount'] ?? 0,
+      postCount: data['postCount'] ?? 0,
       isActive: data['isActive'] ?? true,
       rules: List<String>.from(data['rules'] ?? []),
       tags: List<String>.from(data['tags'] ?? []),
@@ -63,6 +66,7 @@ class Community {
       'createdByName': createdByName,
       'createdAt': Timestamp.fromDate(createdAt),
       'memberCount': memberCount,
+      'postCount': postCount,
       'isActive': isActive,
       'rules': rules,
       'tags': tags,
@@ -81,6 +85,7 @@ class Community {
     String? createdByName,
     DateTime? createdAt,
     int? memberCount,
+    int? postCount,
     bool? isActive,
     List<String>? rules,
     List<String>? tags,
@@ -97,6 +102,7 @@ class Community {
       createdByName: createdByName ?? this.createdByName,
       createdAt: createdAt ?? this.createdAt,
       memberCount: memberCount ?? this.memberCount,
+      postCount: postCount ?? this.postCount,
       isActive: isActive ?? this.isActive,
       rules: rules ?? this.rules,
       tags: tags ?? this.tags,
